@@ -9,7 +9,7 @@ class IGCN(nn.Module):
     def __init__(self):
         super(IGCN, self).__init__()
         self.features = nn.Sequential(
-            IGConv(3, 32, 9, stride=2, no_g=4),
+            IGConv(3, 32, 9, stride=3, no_g=4),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
             IGConv(32, 96, 7, stride=2, no_g=4),

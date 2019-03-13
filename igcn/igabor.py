@@ -42,7 +42,7 @@ class IGConv(_ConvNd):
             kernel_size = (kernel_size, kernel_size)
         super(IGConv, self).__init__(
             input_features, output_features, kernel_size,
-            stride, padding, dilation, False, (0, 0), 1, bias
+            (stride, stride), padding, dilation, False, (0, 0), 1, bias
         )
         self.input_features = input_features
         self.output_features = output_features
