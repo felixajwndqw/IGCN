@@ -51,4 +51,6 @@ test_loader = torch.utils.data.DataLoader(
 example = iter(train_loader).next()
 model = IGCN().cuda()
 test_out = model(example[0].cuda())
+
+
 # optimizer = optim.SGD(model.parameters(), lr=0.01)
