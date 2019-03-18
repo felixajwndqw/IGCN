@@ -6,6 +6,9 @@ from igcn import GaborFunction
 # evaluated with these tensors are close enough to numerical
 # approximations and returns True if they all verify this condition.
 gabor = GaborFunction.apply
-input = (torch.randn(10,10,dtype=torch.double,requires_grad=True), torch.ones(4,dtype=torch.double,requires_grad=True))
+input = (
+            torch.randn(4, 3, 10, 10, dtype=torch.double, requires_grad=True),
+            torch.ones(4, dtype=torch.double, requires_grad=True)
+        )
 test = gradcheck(gabor, input, eps=1e-6, atol=1e-4)
 print(test)
