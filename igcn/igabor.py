@@ -95,11 +95,12 @@ def f_h(x, y, sigma=math.pi):
     return torch.exp(-(x ** 2 + y ** 2) / (2*sigma**2))[np.newaxis, :]
 
 
-def s_h(x, y, theta):
+def s_h(x, y, theta, l):
     # print(x.is_cuda)
     # print(y.is_cuda)
     # print(theta.is_cuda)
-    return torch.cos(torch.cos(theta)[:, np.newaxis, np.newaxis] * x +
+    return torch.cos(2 * math.pi / l *
+                     torch.cos(theta)[:, np.newaxis, np.newaxis] * x +
                      torch.sin(theta)[:, np.newaxis, np.newaxis] * y)
 
 
