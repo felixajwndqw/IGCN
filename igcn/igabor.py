@@ -32,7 +32,8 @@ class GaborFunction(Function):
         """
         input, weight, result = ctx.saved_tensors
         grad_weight = gabor_gradient(input, weight).unsqueeze_(1).unsqueeze_(1)
-        grad_output = match_shape(grad_output, weight, False)
+        grad_output = match_shape(grad_output, input, False)
+        print(input.size(), grad_weight.size(), grad_output.size())
         return result*grad_output, (input*grad_weight*grad_output).permute(4, 3, 2, 1, 0)
 
 
@@ -58,7 +59,7 @@ class IGConv(_ConvNd):
             input_features, output_features, kernel_size,
             stride, padding, dilation, False, (0, 0), 1, bias
         )
-        self.thetas = nn.Parameter(torch.Tensor(no_g)).cuda()
+        self.thetas = nn.Parameter(torch.DoubleTensor(no_g)).cuda()
         self.need_bias = (bias is not None)
         self.GaborFunction = GaborFunction.apply
 
@@ -74,7 +75,7 @@ class IGConv(_ConvNd):
 def gabor(weight, params):
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
+    [x, y] = torch.DoubleTensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
@@ -84,7 +85,7 @@ def gabor(weight, params):
 def gabor_gradient(weight, params):
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
+    [x, y] = torch.DoubleTensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
@@ -96,15 +97,19 @@ def f_h(x, y, sigma=math.pi):
 
 
 def s_h(x, y, theta, l):
-    print(theta)
+    l.unsqueeze_(1).unsqueeze_(1)
     return torch.cos(2 * math.pi / l * x_prime(x, y, theta))
 
 
 def d_s_h(x, y, theta, l):
-    return [-2 * math.pi / l * y_prime(x, y, theta) *
-            torch.sin(2 * math.pi / l * x_prime(x, y, theta)),
-            2 * math.pi / l ** 2 * x_prime(x, y, theta) *
-            torch.sin(2 * math.pi / l * x_prime(x, y, theta))]
+    l.unsqueeze_(1).unsqueeze_(1)
+    a = -2 * math.pi / l * y_prime(x, y, theta) *\
+            torch.sin(2 * math.pi / l * x_prime(x, y, theta))
+    b = 2 * math.pi / l ** 2 * x_prime(x, y, theta) *\
+            torch.sin(2 * math.pi / l * x_prime(x, y, theta))
+    c = torch.stack([a, b])
+    # print(a.size(), b.size(), c.size())
+    return c
 
 
 def x_prime(x, y, theta):
