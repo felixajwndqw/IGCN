@@ -33,7 +33,7 @@ class GaborFunction(Function):
         input, weight, result = ctx.saved_tensors
         grad_weight = gabor_gradient(input, weight).unsqueeze_(1).unsqueeze_(1)
         grad_output = match_shape(grad_output, input, False)
-        # print(grad_output.size())
+        print(input.size(), grad_weight.size(), grad_output.size())
         return result*grad_output, (input*grad_weight*grad_output).permute(4, 3, 2, 1, 0)
 
 
