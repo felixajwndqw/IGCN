@@ -7,8 +7,8 @@ from igcn import GaborFunction
 # approximations and returns True if they all verify this condition.
 gabor = GaborFunction.apply
 input = (
-            torch.randn(4, 3, 10, 10, dtype=torch.double, requires_grad=True),
-            torch.ones(4, dtype=torch.double, requires_grad=True)
+            torch.randn(4, 3, 10, 10, dtype=torch.float, requires_grad=True),
+            torch.ones(4, 2, dtype=torch.float, requires_grad=True)
         )
 test = gradcheck(gabor, input, eps=1e-6, atol=1e-4)
 print(test)

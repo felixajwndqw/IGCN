@@ -17,7 +17,7 @@ class GaborFunction(Function):
 
         Args:
             input (Tensor): data to apply filter to.
-            weight (Tensor): theta parameters. Must have weight.size() = [N]
+            weight (Tensor): theta parameters. Must have weight.size() = [N, 2]
         """
         output = gabor(input, weight).unsqueeze(1).unsqueeze(1)
         ctx.save_for_backward(input, weight, output)
@@ -71,24 +71,24 @@ class IGConv(_ConvNd):
                         self.padding, self.dilation)
 
 
-def gabor(weight, thetas):
+def gabor(weight, params):
     h = weight.size(2)
     w = weight.size(3)
     [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
-    return f_h(x, y) * s_h(x, y, thetas)
+    return f_h(x, y) * s_h(x, y, params[0], params[1])
 
 
-def gabor_gradient(weight, thetas):
+def gabor_gradient(weight, params):
     h = weight.size(2)
     w = weight.size(3)
     [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
-    return f_h(x, y) * d_s_h(x, y, thetas)
+    return f_h(x, y) * d_s_h(x, y, params[0], params[1])
 
 
 def f_h(x, y, sigma=math.pi):
@@ -96,14 +96,22 @@ def f_h(x, y, sigma=math.pi):
 
 
 def s_h(x, y, theta, l):
-    # print(x.is_cuda)
-    # print(y.is_cuda)
-    # print(theta.is_cuda)
-    return torch.cos(2 * math.pi / l *
-                     torch.cos(theta)[:, np.newaxis, np.newaxis] * x +
-                     torch.sin(theta)[:, np.newaxis, np.newaxis] * y)
+    print(theta)
+    return torch.cos(2 * math.pi / l * x_prime(x, y, theta))
 
 
-def d_s_h(x, y, theta):
-    return (x * torch.sin(theta)[:, np.newaxis, np.newaxis] - y * torch.cos(theta)[:, np.newaxis, np.newaxis]) *\
-            torch.sin(x * torch.cos(theta)[:, np.newaxis, np.newaxis] + y * torch.sin(theta)[:, np.newaxis, np.newaxis])
+def d_s_h(x, y, theta, l):
+    return [-2 * math.pi / l * y_prime(x, y, theta) *
+            torch.sin(2 * math.pi / l * x_prime(x, y, theta)),
+            2 * math.pi / l ** 2 * x_prime(x, y, theta) *
+            torch.sin(2 * math.pi / l * x_prime(x, y, theta))]
+
+
+def x_prime(x, y, theta):
+    return torch.cos(theta)[:, np.newaxis, np.newaxis] * x +\
+           torch.sin(theta)[:, np.newaxis, np.newaxis] * y
+
+
+def y_prime(x, y, theta):
+    return torch.cos(theta)[:, np.newaxis, np.newaxis] * y -\
+           torch.sin(theta)[:, np.newaxis, np.newaxis] * x

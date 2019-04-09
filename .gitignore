@@ -1,2 +1,3 @@
 *.pyc
-./igcn/__pycache__/
+igcn/__pycache__/
+models/
