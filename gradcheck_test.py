@@ -8,7 +8,7 @@ from igcn import GaborFunction
 gabor = GaborFunction.apply
 input = (
             torch.randn(4, 3, 10, 10, dtype=torch.double, requires_grad=True),
-            torch.ones(1, 4, dtype=torch.double, requires_grad=True)
+            torch.ones(4, dtype=torch.double, requires_grad=True)
         )
 test = gradcheck(gabor, input, eps=1e-6, atol=1e-4)
 print(test)

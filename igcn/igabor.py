@@ -32,7 +32,7 @@ class GaborFunction(Function):
         """
         input, weight, result = ctx.saved_tensors
         grad_weight = gabor_gradient(input, weight).unsqueeze_(1).unsqueeze_(1)
-        grad_output = match_shape(grad_output, input, False)
+        grad_output = match_shape(grad_output, grad_weight, False)
         print(input.size(), grad_weight.size(), grad_output.size())
         return result*grad_output, (input*grad_weight*grad_output).permute(4, 3, 2, 1, 0)
 
@@ -59,7 +59,7 @@ class IGConv(_ConvNd):
             input_features, output_features, kernel_size,
             stride, padding, dilation, False, (0, 0), 1, bias
         )
-        self.thetas = nn.Parameter(torch.DoubleTensor(no_g)).cuda()
+        self.thetas = nn.Parameter(torch.Tensor(no_g)).cuda()
         self.need_bias = (bias is not None)
         self.GaborFunction = GaborFunction.apply
 
@@ -75,21 +75,21 @@ class IGConv(_ConvNd):
 def gabor(weight, thetas):
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.DoubleTensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
+    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
-    return f_h(x, y) * s_h(x, y, thetas[0])
+    return f_h(x, y) * s_h(x, y, thetas)
 
 
 def gabor_gradient(weight, thetas):
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.DoubleTensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
+    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
     if weight.is_cuda:
         x = x.cuda()
         y = y.cuda()
-    return f_h(x, y) * d_s_h(x, y, thetas[0])
+    return f_h(x, y) * d_s_h(x, y, thetas)
 
 
 def f_h(x, y, sigma=math.pi):

@@ -59,7 +59,7 @@ classes = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 model = IGCN().cuda()
 test_out = model(example[0].cuda())
 # imshow(example[0], test_out, classes)
-train(model, [train_loader, test_loader], save_best=True, epochs=50)
+train(model, [train_loader, test_loader], save=False, epochs=50)
 
 example = iter(test_loader).next()
 test_out = model(example[0].cuda())
