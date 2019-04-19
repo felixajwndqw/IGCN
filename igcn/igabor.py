@@ -5,7 +5,7 @@ from torch.nn.modules.conv import _ConvNd
 from torch import nn
 import numpy as np
 import math
-from .vis import FilterPlot
+from .vis import FilterPlot, FilterPlotNew
 
 
 class GaborFunction(Function):
@@ -33,8 +33,8 @@ class GaborFunction(Function):
         """
         input, weight, result = ctx.saved_tensors
         grad_weight = gabor_gradient(input, weight).unsqueeze_(2).unsqueeze_(2)
-        grad_output = match_shape(grad_output, input, False)
-        print(input.size(), grad_weight.size(), grad_output.size())
+        grad_output = match_shape(grad_output, grad_weight, False)
+        # print(input.size(), grad_weight.size(), grad_output.size())
         return result*grad_output, (input*grad_weight*grad_output).permute(5, 4, 3, 2, 0, 1)
 
 
@@ -42,13 +42,13 @@ def match_shape(x, y, compress=True):
     if compress:
         x = x.view(-1, *y.size()[1:])
     else:
-        x = x.view(y.size(0), -1, *x.size()[1:])
+        x = x.view(y.size(1), -1, *x.size()[1:])
     return x
 
 
 class IGConv(_ConvNd):
     def __init__(self, input_features, output_features, kernel_size,
-                 stride=1, padding=0, dilation=1, bias=None, no_g=2):
+                 stride=1, padding=0, dilation=1, bias=None, no_g=2, plot=False):
         if output_features % no_g:
             raise ValueError("Number of filters (" + str(no_g) +
                              ") does not divide output features ("
@@ -60,22 +60,29 @@ class IGConv(_ConvNd):
             input_features, output_features, kernel_size,
             stride, padding, dilation, False, (0, 0), 1, bias
         )
-        self.gabor_params = nn.Parameter(torch.Tensor(2, no_g)).cuda()
+        self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
+        self.gabor_params.data[0] = torch.arange(no_g, dtype=torch.float) / (no_g - 1) * math.pi
+        self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g), 1 / math.sqrt(no_g))
         self.need_bias = (bias is not None)
+        self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
-        self.plot = FilterPlot(no_g)
+        self.no_g = no_g
+        if plot:
+            self.plot = FilterPlotNew(no_g, kernel_size[0])
+        else:
+            self.plot = None
 
     def forward(self, x):
         enhanced_weight = self.GaborFunction(self.weight, self.gabor_params)
-        
         out = F.conv2d(x, enhanced_weight, None, self.stride,
-                        self.padding, self.dilation)
-        # print(self.weight.size())
-        # print(enhanced_weight.size())
-        # self.plot.update(self.weight, self. )
+                       self.padding, self.dilation)
+
+        if self.plot is not None:
+            # print(["{:.2f}, {:.2f}".format(t.item(), l.item()) for t, l in self.gabor_params.data.transpose(1, 0)])
+            self.plot.update(self.weight[0, 0].data.cpu().numpy(),
+                             enhanced_weight[::(enhanced_weight.size(0) // self.no_g), 0].detach().cpu().numpy(),
+                             self.gabor_params.data.cpu().numpy())
         return out
-    
-    
 
 
 def gabor(weight, params):
@@ -109,11 +116,11 @@ def s_h(x, y, theta, l):
 
 def d_s_h(x, y, theta, l):
     l.unsqueeze_(1).unsqueeze_(1)
-    a = -2 * math.pi / l * y_prime(x, y, theta) *\
+    dt = -2 * math.pi / l * y_prime(x, y, theta) *\
             torch.sin(2 * math.pi / l * x_prime(x, y, theta))
-    b = 2 * math.pi / l ** 2 * x_prime(x, y, theta) *\
+    dl = 2 * math.pi / l ** 2 * x_prime(x, y, theta) *\
             torch.sin(2 * math.pi / l * x_prime(x, y, theta))
-    return torch.stack([a, b])
+    return torch.stack([dt, dl])
 
 
 def x_prime(x, y, theta):
