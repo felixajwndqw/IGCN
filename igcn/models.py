@@ -30,7 +30,7 @@ class IGCN(Model):
         if dset == "mnist":
             if model_name == "default" or model_name == "3":
                 modules = [
-                    IGConv(1, 16, 3, rot_pool=rot_pool, no_g=no_g, plot=True),
+                    IGConv(1, 16, 3, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 3, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -39,7 +39,7 @@ class IGCN(Model):
                 ]
             if model_name == "5":
                 modules = [
-                    IGConv(1, 16, 5, rot_pool=rot_pool, padding=1, no_g=no_g, plot=True),
+                    IGConv(1, 16, 5, rot_pool=rot_pool, padding=1, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 5, rot_pool=rot_pool, padding=1, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -48,7 +48,7 @@ class IGCN(Model):
                 ]
             if model_name == "7":
                 modules = [
-                    IGConv(1, 16, 7, rot_pool=rot_pool, padding=2, no_g=no_g, plot=True),
+                    IGConv(1, 16, 7, rot_pool=rot_pool, padding=2, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 7, rot_pool=rot_pool, padding=2, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -57,7 +57,7 @@ class IGCN(Model):
                 ]
             if model_name == "9":
                 modules = [
-                    IGConv(1, 32, 9, rot_pool=rot_pool, no_g=no_g, plot=True),
+                    IGConv(1, 32, 9, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(32, 96, 9, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True)
@@ -65,7 +65,7 @@ class IGCN(Model):
         if dset == "cifar":
             if model_name == "default" or model_name == "3":
                 modules = [
-                    IGConv(3, 16, 3, rot_pool=rot_pool, no_g=no_g, plot=True),
+                    IGConv(3, 16, 3, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 3, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -74,7 +74,7 @@ class IGCN(Model):
                 ]
             if model_name == "5":
                 modules = [
-                    IGConv(3, 16, 5, rot_pool=rot_pool, padding=1, no_g=no_g, plot=True),
+                    IGConv(3, 16, 5, rot_pool=rot_pool, padding=1, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 5, rot_pool=rot_pool, padding=1, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -83,7 +83,7 @@ class IGCN(Model):
                 ]
             if model_name == "7":
                 modules = [
-                    IGConv(3, 16, 7, rot_pool=rot_pool, padding=2, no_g=no_g, plot=True),
+                    IGConv(3, 16, 7, rot_pool=rot_pool, padding=2, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(16, 32, 7, rot_pool=rot_pool, padding=2, no_g=no_g),
                     nn.ReLU(inplace=True),
@@ -92,7 +92,7 @@ class IGCN(Model):
                 ]
             if model_name == "9":
                 modules = [
-                    IGConv(3, 32, 9, rot_pool=rot_pool, no_g=no_g, plot=True),
+                    IGConv(3, 32, 9, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True),
                     IGConv(32, 96, 9, rot_pool=rot_pool, no_g=no_g),
                     nn.ReLU(inplace=True)
