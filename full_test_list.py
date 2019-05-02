@@ -29,7 +29,7 @@ for dset in dsets:
             print("Total parameter size: " + str(total_params*32/1000000) + "M")
 
             optimizer = optim.SGD(model.parameters(), lr=0.1)
-            a, e = train(model, [train_loader, test_loader], save=False, epochs=50, opt=optimizer)
+            a, e = train(model, [train_loader, test_loader], save=False, epochs=300, opt=optimizer)
             accs.append(a)
             epochs.append(e)
             models.append(dset+"_"+model_name)
