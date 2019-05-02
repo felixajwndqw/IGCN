@@ -6,6 +6,7 @@ from torch import nn
 import numpy as np
 import math
 from .vis import FilterPlot, FilterPlotNew
+from .rot_pool import RotMaxPool2d
 
 
 class GaborFunction(Function):
@@ -48,7 +49,8 @@ def match_shape(x, y, compress=True):
 
 class IGConv(_ConvNd):
     def __init__(self, input_features, output_features, kernel_size,
-                 stride=1, padding=0, dilation=1, bias=None, no_g=2, plot=False):
+                 stride=1, padding=0, dilation=1, bias=None,
+                 rot_pool=False, no_g=2, plot=False):
         if output_features % no_g:
             raise ValueError("Number of filters (" + str(no_g) +
                              ") does not divide output features ("
@@ -58,7 +60,7 @@ class IGConv(_ConvNd):
             kernel_size = (kernel_size, kernel_size)
         super(IGConv, self).__init__(
             input_features, output_features, kernel_size,
-            stride, padding, dilation, False, (0, 0), 1, bias
+            stride, padding, dilation, False, (0, 0), 1, bias, 'zeros'
         )
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g, dtype=torch.float) / (no_g - 1) * math.pi
@@ -67,6 +69,12 @@ class IGConv(_ConvNd):
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
         self.no_g = no_g
+        self.rot_pool = rot_pool
+        if rot_pool:
+            self.pooling = RotMaxPool2d(kernel_size=3, stride=2)
+        else:
+            self.pooling = nn.MaxPool2d(kernel_size=3, stride=2)
+
         if plot:
             self.plot = FilterPlotNew(no_g, kernel_size[0])
         else:
@@ -76,13 +84,17 @@ class IGConv(_ConvNd):
         enhanced_weight = self.GaborFunction(self.weight, self.gabor_params)
         out = F.conv2d(x, enhanced_weight, None, self.stride,
                        self.padding, self.dilation)
+        if self.rot_pool:
+            pool_out = self.pooling(out, self.gabor_params[0, :])
+        else:
+            pool_out = self.pooling(out)
 
         if self.plot is not None:
             # print(["{:.2f}, {:.2f}".format(t.item(), l.item()) for t, l in self.gabor_params.data.transpose(1, 0)])
             self.plot.update(self.weight[0, 0].data.cpu().numpy(),
                              enhanced_weight[::(enhanced_weight.size(0) // self.no_g), 0].detach().cpu().numpy(),
                              self.gabor_params.data.cpu().numpy())
-        return out
+        return pool_out
 
 
 def gabor(weight, params):

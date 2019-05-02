@@ -23,7 +23,7 @@ total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print("Total parameter size: " + str(total_params*32/1000000) + "M")
 
 optimizer = optim.SGD(model.parameters(), lr=0.1)
-train(model, [train_loader, test_loader], save=False, epochs=5, opt=optimizer)
+train(model, [train_loader, test_loader], save=False, epochs=50, opt=optimizer)
 
 example = iter(test_loader).next()
 test_out = model(example[0].cuda())
