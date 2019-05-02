@@ -10,6 +10,7 @@ names = ['3', '5', '7', '9']
 rot_pools = [False]
 accs = []
 epochs = []
+models = []
 
 for dset in dsets:
     for model_name in names:
@@ -31,5 +32,6 @@ for dset in dsets:
             a, e = train(model, [train_loader, test_loader], save=False, epochs=50, opt=optimizer)
             accs.append(a)
             epochs.append(e)
+            models.append(dset+"_"+model_name)
 
-print(accs, epochs)
+print(accs, epochs, models)
