@@ -1,3 +1,4 @@
 *.pyc
 igcn/__pycache__/
 models/
+data/
