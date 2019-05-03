@@ -74,6 +74,7 @@ class IGConv(_ConvNd):
             self.pooling = RotMaxPool2d(kernel_size=3, stride=2)
         else:
             self.pooling = nn.MaxPool2d(kernel_size=3, stride=2)
+        self.bn = nn.BatchNorm2d(output_features)
 
         if plot:
             self.plot = FilterPlotNew(no_g, kernel_size[0])
@@ -84,6 +85,7 @@ class IGConv(_ConvNd):
         enhanced_weight = self.GaborFunction(self.weight, self.gabor_params)
         out = F.conv2d(x, enhanced_weight, None, self.stride,
                        self.padding, self.dilation)
+        
         if self.rot_pool:
             pool_out = self.pooling(out, self.gabor_params[0, :])
         else:
@@ -94,7 +96,7 @@ class IGConv(_ConvNd):
             self.plot.update(self.weight[0, 0].data.cpu().numpy(),
                              enhanced_weight[::(enhanced_weight.size(0) // self.no_g), 0].detach().cpu().numpy(),
                              self.gabor_params.data.cpu().numpy())
-        return pool_out
+        return self.bn(pool_out)
 
 
 def gabor(weight, params):
