@@ -50,12 +50,13 @@ def match_shape(x, y, compress=True):
 class IGConv(_ConvNd):
     def __init__(self, input_features, output_features, kernel_size,
                  stride=1, padding=0, dilation=1, bias=None,
-                 rot_pool=False, no_g=2, plot=False):
-        if output_features % no_g:
-            raise ValueError("Number of filters (" + str(no_g) +
-                             ") does not divide output features ("
-                             + str(output_features) + ")")
-        output_features //= no_g
+                 rot_pool=False, no_g=2, pool_stride=1, plot=False,
+                 max_gabor=True):
+        if not max_gabor:
+            if output_features % no_g:
+                raise ValueError("Number of filters ({}) does not divide output features ({})"
+                                 .format(str(no_g), str(output_features)))
+            output_features //= no_g
         if type(kernel_size) is int:
             kernel_size = (kernel_size, kernel_size)
         super(IGConv, self).__init__(
@@ -65,15 +66,17 @@ class IGConv(_ConvNd):
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g, dtype=torch.float) / (no_g - 1) * math.pi
         self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g), 1 / math.sqrt(no_g))
-        self.need_bias = (bias is not None)
+        self.need_bias = bias is not None
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
         self.no_g = no_g
         self.rot_pool = rot_pool
+        self.max_gabor = max_gabor
+        self.pooling = []
         if rot_pool:
-            self.pooling = RotMaxPool2d(kernel_size=3, stride=2)
+            self.pooling = RotMaxPool2d(kernel_size=3, stride=pool_stride)
         else:
-            self.pooling = nn.MaxPool2d(kernel_size=3, stride=2)
+            self.pooling = nn.MaxPool2d(kernel_size=3, stride=pool_stride)
         self.bn = nn.BatchNorm2d(output_features * no_g)
 
         if plot:
@@ -91,11 +94,16 @@ class IGConv(_ConvNd):
         else:
             pool_out = self.pooling(out)
 
+        if self.max_gabor:
+            pool_out = pool_out.view(pool_out.size(0), enhanced_weight.size(0) // self.no_g, self.no_g, pool_out.size(2), pool_out.size(3))
+            pool_out, _ = torch.max(pool_out, dim=2)
+
         if self.plot is not None:
             # print(["{:.2f}, {:.2f}".format(t.item(), l.item()) for t, l in self.gabor_params.data.transpose(1, 0)])
             self.plot.update(self.weight[0, 0].data.cpu().numpy(),
                              enhanced_weight[::(enhanced_weight.size(0) // self.no_g), 0].detach().cpu().numpy(),
                              self.gabor_params.data.cpu().numpy())
+
         return pool_out
 
 
