@@ -1,0 +1,10 @@
+dset    ksize   no_g    r_pool  max_g   accur   b_ep   n_ep
+mnist	3	    2	    False	False	0.8052	50	    50
+mnist	3	    2	    False	False	0.9188	49	    50
+mnist	3	    2	    False	True	0.913	50	    50
+mnist	3	    4	    False	False	0.9158	50	    50
+mnist	3		4		False	False	0.9183	47		50
+mnist	3		4		False	False	0.9015	50		50
+mnist	3		4		False	False	0.6395	25		50
+mnist	3		4		False	False	0.9219	50		50
+mnist	3		4		False	False	0.7738	50		50
