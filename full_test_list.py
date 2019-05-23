@@ -79,6 +79,7 @@ def main():
                         f.close()
                         del(model)
                         torch.cuda.empty_cache()
+                        dump_tensors()
 
     print(accs, epochs, models)
 
