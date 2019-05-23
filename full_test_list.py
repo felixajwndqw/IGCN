@@ -11,7 +11,7 @@ def main():
     no_gabors = [4, 8, 16, 32]  # [2, 4, 8, 16, 32]
     max_gabor = [True, False]
     no_epochs = 1
-    rot_pools = [False]
+    rot_pools = [True]
     accs = []
     epochs = []
     models = []
