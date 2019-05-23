@@ -11,8 +11,13 @@ def main():
     names = ['3', '5', '7', '9']
     no_gabors = [2, 4, 8, 16, 32]
     max_gabor = [True, False]
+<<<<<<< HEAD
     no_epochs = 300
     rot_pools = [False]
+=======
+    no_epochs = 1
+    rot_pools = [True]
+>>>>>>> 26a515487dc0a5983b2ce26894f65ad12feb7a7a
     accs = []
     epochs = []
     models = []
