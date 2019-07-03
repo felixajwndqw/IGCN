@@ -8,6 +8,7 @@ mnist	3		4		False	False	0.9015	50		50
 mnist	3		4		False	False	0.6395	25		50
 mnist	3		4		False	False	0.9219	50		50
 mnist	3		4		False	False	0.7738	50		50
+<<<<<<< HEAD
 mnist	3		2		False	True	0.9815	300		300
 mnist	3		2		False	False	0.9822	268		300
 mnist	3		4		False	True	0.9137	36		300
@@ -41,3 +42,8 @@ mnist	9		4		False	True	0.9918	260		300
 mnist	9		8		False	True	0.9918	267		300
 mnist	9		16		False	True	0.9915	278		300
 mnist	9		32		False	True	0.9895	240		300
+=======
+mnist	3		2		False	True	0.9673	72		300
+mnist	3		2		False	False	0.9899	296		300
+mnist	3		4		False	True	0.9501	26		300
+>>>>>>> d1f7f541b237a53f4ddd729a436cd8157e7ba1ad

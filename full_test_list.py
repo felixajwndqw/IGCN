@@ -12,7 +12,7 @@ def main():
     no_gabors = [2, 4, 8, 16, 32]
     max_gabor = [True]  # , False]
     no_epochs = 300
-    rot_pools = [False]
+    rot_pools = [True]
     accs = []
     epochs = []
     models = []
@@ -26,7 +26,7 @@ def main():
                     for max_g in max_gabor:
                         print("Training igcn{} on {} with rot_pool={}, no_g={}, max_g={}".format(model_name, dset, rot_pool, no_g, max_g))
                         if dset == 'mnist':
-                            train_loader, test_loader, _ = mnist(batch_size=int(4096 // no_g), rotate=True, num_workers=8)
+                            train_loader, test_loader, _ = mnist(batch_size=int(2048 // no_g), rotate=True, num_workers=8)
                         if dset == 'cifar':
                             train_loader, test_loader, _ = cifar(batch_size=2048)
 

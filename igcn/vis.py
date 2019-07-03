@@ -26,7 +26,6 @@ class FilterPlot():
     def setup_ax(self, ax):
         if type(ax) is not list:
             ax = [ax]
-        
         for axi in ax:
             axi.set_yticks([])
             axi.set_xticks([])
