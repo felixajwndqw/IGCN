@@ -8,9 +8,9 @@ import math
 
 def main():
     dsets = ['mnist']  # , 'cifar']
-    names = ['3', '5', '7', '9']
+    names = ['5', '7', '9']  # '3', 
     no_gabors = [2, 4, 8, 16, 32]
-    max_gabor = [True, False]
+    max_gabor = [True]  # , False]
     no_epochs = 300
     rot_pools = [False]
     accs = []
@@ -35,7 +35,7 @@ def main():
                         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                         print("Total parameter size: " + str(total_params*32/1000000) + "M")
 
-                        optimizer = optim.Adam(model.parameters())
+                        optimizer = optim.Adam(model.parameters(), lr=1e-4)
                         a, e = train(model, [train_loader, test_loader], save=False,
                                     epochs=no_epochs, opt=optimizer, device=device)
                         accs.append(a)
