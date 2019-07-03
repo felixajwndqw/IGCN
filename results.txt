@@ -8,3 +8,6 @@ mnist	3		4		False	False	0.9015	50		50
 mnist	3		4		False	False	0.6395	25		50
 mnist	3		4		False	False	0.9219	50		50
 mnist	3		4		False	False	0.7738	50		50
+mnist	3		2		False	True	0.9673	72		300
+mnist	3		2		False	False	0.9899	296		300
+mnist	3		4		False	True	0.9501	26		300
