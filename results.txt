@@ -8,7 +8,6 @@ mnist	3		4		False	False	0.9015	50		50
 mnist	3		4		False	False	0.6395	25		50
 mnist	3		4		False	False	0.9219	50		50
 mnist	3		4		False	False	0.7738	50		50
-<<<<<<< HEAD
 mnist	3		2		False	True	0.9815	300		300
 mnist	3		2		False	False	0.9822	268		300
 mnist	3		4		False	True	0.9137	36		300
@@ -31,7 +30,7 @@ mnist	5		2		False	True	0.9916	295		300
 mnist	5		4		False	True	0.9908	299		300
 mnist	5		8		False	True	0.9911	281		300
 mnist	5		16		False	True	0.9896	204		300
-mnist	5		32		False	True	0.9893	244		300
+mnist	5		32		False	Truew	0.9893	244		300
 mnist	7		2		False	True	0.9898	270		300
 mnist	7		4		False	True	0.9911	281		300
 mnist	7		8		False	True	0.9917	300		300
@@ -42,8 +41,10 @@ mnist	9		4		False	True	0.9918	260		300
 mnist	9		8		False	True	0.9918	267		300
 mnist	9		16		False	True	0.9915	278		300
 mnist	9		32		False	True	0.9895	240		300
-=======
 mnist	3		2		False	True	0.9673	72		300
 mnist	3		2		False	False	0.9899	296		300
 mnist	3		4		False	True	0.9501	26		300
->>>>>>> d1f7f541b237a53f4ddd729a436cd8157e7ba1ad
+mnist	5		2		True	True	0.9909	244		300
+mnist	5		4		True	True	0.9903	281		300
+mnist	5		8		True	True	0.9909	188		300
+mnist	5		16		True	True	0.9911	298		300
