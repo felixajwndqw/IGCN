@@ -1,4 +1,7 @@
-dset    ksize   no_g    r_pool  max_g   accur   b_ep   n_ep
+First batch:    1>32>64>128>256>1024>1024>10
+                igconv>pool>relu
+
+dset    ksize   no_g    r_pool  max_g   accur   b_ep    n_ep 
 mnist	3	    2	    False	False	0.8052	50	    50
 mnist	3	    2	    False	False	0.9188	49	    50
 mnist	3	    2	    False	True	0.913	50	    50
@@ -48,3 +51,8 @@ mnist	5		2		True	True	0.9909	244		300
 mnist	5		4		True	True	0.9903	281		300
 mnist	5		8		True	True	0.9909	188		300
 mnist	5		16		True	True	0.9911	298		300
+
+Second batch: 1>24>32>>48>64>96>96>10
+
+
+dset    ksize   no_g    r_pool  i_mg    f_mg    accur   b_ep    n_ep    t_mem  

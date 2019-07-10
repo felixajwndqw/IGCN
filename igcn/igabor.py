@@ -89,6 +89,9 @@ class IGConv(_ConvNd):
         out = F.conv2d(x, enhanced_weight, None, self.stride,
                        self.padding, self.dilation)
         out = self.bn(out)
+        if self.rot_pool is None:
+            return out
+
         if self.rot_pool:
             pool_out = self.pooling(out, self.gabor_params[0, :])
         else:
