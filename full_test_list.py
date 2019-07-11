@@ -4,6 +4,7 @@ from quicktorch.utils import train, imshow
 from quicktorch.data import mnist, cifar
 from igcn import IGCN
 import math
+import time
 
 
 def main():
@@ -51,15 +52,21 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     print("Total parameter size: " + str(total_mem) + "M")
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    start = time.time()
     a, e = train(model, [train_loader, test_loader], save=False,
                  epochs=no_epochs, opt=optimizer, device=device)
+
+    time_taken = time.time() - start
+    mins = int(time_taken // 60)
+    secs = int(time_taken % 60)
 
     f = open("results.txt", "a+")
     f.write("\n" + dset + "\t" + model_name + "\t\t" + str(no_g)
             + "\t\t" + str(rot_pool) + "\t" + str(inter_mg) + "\t"
             + str(final_mg) + '\t' + str(a) + "\t" + str(e)
             + "\t\t" + str(no_epochs) + '\t\t'
-            + str(total_mem))
+            + "{:4.2f}".format(total_mem) + '\t'
+            + "{:3d}m{:2d}s".format(mins, secs))
     f.close()
     del(model)
     torch.cuda.empty_cache()
