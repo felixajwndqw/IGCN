@@ -56,3 +56,14 @@ Second batch: 1>24>32>>48>64>96>96>10
 
 
 dset    ksize   no_g    r_pool  i_mg    f_mg    accur   b_ep    n_ep    t_mem  
+mnist	3		2		True	False	True	0.9572	100		100		10.903232
+mnist	3		2		True	False	False	0.9616	93		100		10.456768
+mnist	3		2		True	True	True	0.9645	99		100		11.24512
+mnist	3		2		True	True	False	0.9692	97		100		10.798656
+mnist	3		2		False	False	True	0.958	94		100		10.903232
+mnist	3		2		False	False	False	0.9575	98		100		10.456768
+mnist	3		2		False	True	True	0.9686	90		100		11.24512
+mnist	3		2		False	True	False	0.9691	99		100		10.798656
+mnist	3		4		True	False	True	0.9218	96		100		10.74432
+mnist	3		4		True	False	False	0.9581	100		100		10.06848
+mnist	3		4		True	True	True	0.9743	96		100		11.267136
