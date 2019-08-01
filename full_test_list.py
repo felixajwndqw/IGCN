@@ -14,6 +14,8 @@ def main():
     no_epochs = 300
     rot_pools = [True]
     accs = []
+    precs = []
+    recs = []
     epochs = []
     models = []
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -36,10 +38,12 @@ def main():
                         print("Total parameter size: " + str(total_params*32/1000000) + "M")
 
                         optimizer = optim.Adam(model.parameters())
-                        a, e = train(model, [train_loader, test_loader], save=False,
+                        a, e, p, r = train(model, [train_loader, test_loader], save=False,
                                     epochs=no_epochs, opt=optimizer, device=device)
                         accs.append(a)
                         epochs.append(e)
+                        precs.append(p)
+                        recs.append(r)
                         models.append(dset+"_"+model_name)
                         f = open("results.txt", "a+")
                         f.write("\n" + dset + "\t" + model_name + "\t\t" + str(no_g) + "\t\t" + str(rot_pool) + "\t" + str(max_g) + "\t" + str(a) + "\t" + str(e) + "\t\t" + str(no_epochs))
