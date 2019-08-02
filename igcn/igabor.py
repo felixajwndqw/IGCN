@@ -19,7 +19,8 @@ class GaborFunction(Function):
 
         Args:
             input (Tensor): data to apply filter to.
-            weight (Tensor): theta parameters. Must have weight.size() = [N, 2]
+            weight (Tensor): theta and sigma parameters.
+                Must have weight.size() = [N, 2]
         """
         output = gabor(input, weight).unsqueeze(1).unsqueeze(1)
         ctx.save_for_backward(input, weight, output)
@@ -40,6 +41,17 @@ class GaborFunction(Function):
 
 
 def match_shape(x, y, compress=True):
+    r"""Reshapes a tensor to be broadcastable with another
+
+    The input tensor, x, by default will be reshaped so that all but the first
+    dimensions match all but the first dimensions of y.
+    Args:
+        compress (boolean): If false x will be reshaped so that it's first
+            dimension is split into two, with the first matching that of y.
+
+    Returns:
+        A reshaped tensor
+    """
     if compress:
         x = x.view(-1, *y.size()[1:])
     else:
@@ -111,6 +123,16 @@ class IGConv(_ConvNd):
 
 
 def gabor(weight, params):
+    r"""Computes a gabor filter and passes a given weight through it.
+
+    Args:
+        weight: The weight to be passed through the filter
+        params: theta and sigma parameters.
+            Must have weight.size() = [N, 2].
+            Here N = no of gabor filters.
+            params[:, 0] = theta parameters.
+            params[:, 1] = sigma parameters.
+    """
     h = weight.size(2)
     w = weight.size(3)
     [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
