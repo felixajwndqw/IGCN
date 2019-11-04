@@ -5,17 +5,17 @@ from torch.nn.modules.conv import _ConvNd
 from torch import nn
 import numpy as np
 import math
-from .vis import FilterPlot, FilterPlotNew
+from .vis import FilterPlot
 from .rot_pool import RotMaxPool2d
 
 
 class GaborFunction(Function):
-    r"""Extends autograd Function to create a Gabor filter with learnable theta.
+    """Extends autograd Function to create a Gabor filter with learnable theta.
     """
 
     @staticmethod
     def forward(ctx, input, weight):
-        r"""Applies a Gabor filter to given input. Weight contains thetas.
+        """Applies a Gabor filter to given input. Weight contains thetas.
 
         Args:
             input (Tensor): data to apply filter to.
@@ -28,7 +28,7 @@ class GaborFunction(Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        r"""Computes gradients for Gabor filter backprop.
+        """Computes gradients for Gabor filter backprop.
 
         Args:
             grad_output (Tensor): gradient from graph.
@@ -36,12 +36,11 @@ class GaborFunction(Function):
         input, weight, result = ctx.saved_tensors
         grad_weight = gabor_gradient(input, weight).unsqueeze_(2).unsqueeze_(2)
         grad_output = match_shape(grad_output, grad_weight, False)
-        # print(input.size(), grad_weight.size(), grad_output.size())
         return result*grad_output, (input*grad_weight*grad_output).permute(5, 4, 3, 2, 0, 1)
 
 
 def match_shape(x, y, compress=True):
-    r"""Reshapes a tensor to be broadcastable with another
+    """Reshapes a tensor to be broadcastable with another
 
     The input tensor, x, by default will be reshaped so that all but the first
     dimensions match all but the first dimensions of y.
@@ -76,7 +75,7 @@ class IGConv(_ConvNd):
             stride, padding, dilation, False, (0, 0), 1, bias, 'zeros'
         )
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
-        self.gabor_params.data[0] = torch.arange(no_g, dtype=torch.float) / (no_g - 1) * math.pi
+        self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
         self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g), 1 / math.sqrt(no_g))
         self.need_bias = bias is not None
         self.register_parameter(name="gabor", param=self.gabor_params)
@@ -92,7 +91,7 @@ class IGConv(_ConvNd):
         self.bn = nn.BatchNorm2d(output_features * no_g)
 
         if plot:
-            self.plot = FilterPlotNew(no_g, kernel_size[0])
+            self.plot = FilterPlot(no_g, kernel_size[0], output_features)
         else:
             self.plot = None
 
@@ -101,6 +100,12 @@ class IGConv(_ConvNd):
         out = F.conv2d(x, enhanced_weight, None, self.stride,
                        self.padding, self.dilation)
         out = self.bn(out)
+
+        if self.plot is not None:
+            self.plot.update(self.weight[:, 0].clone().detach().cpu().numpy(),
+                             enhanced_weight[:, 0].clone().detach().cpu().numpy(),
+                             self.gabor_params.clone().detach().cpu().numpy())
+
         if self.rot_pool is None:
             return out
 
@@ -113,17 +118,11 @@ class IGConv(_ConvNd):
             pool_out = pool_out.view(pool_out.size(0), enhanced_weight.size(0) // self.no_g, self.no_g, pool_out.size(2), pool_out.size(3))
             pool_out, _ = torch.max(pool_out, dim=2)
 
-        if self.plot is not None:
-            # print(["{:.2f}, {:.2f}".format(t.item(), l.item()) for t, l in self.gabor_params.data.transpose(1, 0)])
-            self.plot.update(self.weight[0, 0].data.cpu().numpy(),
-                             enhanced_weight[::(enhanced_weight.size(0) // self.no_g), 0].detach().cpu().numpy(),
-                             self.gabor_params.data.cpu().numpy())
-
         return pool_out
 
 
 def gabor(weight, params):
-    r"""Computes a gabor filter and passes a given weight through it.
+    """Computes a gabor filter and passes a given weight through it.
 
     Args:
         weight: The weight to be passed through the filter
@@ -135,20 +134,18 @@ def gabor(weight, params):
     """
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
-    if weight.is_cuda:
-        x = x.cuda()
-        y = y.cuda()
+    y, x = torch.meshgrid([torch.arange(-h/2, h/2), torch.arange(-w/2, w/2)])
+    x = weight.new_tensor(x.clone().detach())
+    y = weight.new_tensor(y.clone().detach())
     return f_h(x, y) * s_h(x, y, params[0], params[1])
 
 
 def gabor_gradient(weight, params):
     h = weight.size(2)
     w = weight.size(3)
-    [x, y] = torch.Tensor(np.meshgrid(np.arange(-h/2, h/2), np.arange(-w/2, w/2)))
-    if weight.is_cuda:
-        x = x.cuda()
-        y = y.cuda()
+    y, x = torch.meshgrid([torch.arange(-h/2, h/2), torch.arange(-w/2, w/2)])
+    x = weight.new_tensor(x.clone().detach())
+    y = weight.new_tensor(y.clone().detach())
     return f_h(x, y) * d_s_h(x, y, params[0], params[1])
 
 
