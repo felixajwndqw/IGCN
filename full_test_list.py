@@ -59,7 +59,7 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     start = time.time()
-    m = train(model, [train_loader, test_loader], save=False,
+    m = train(model, [train_loader, test_loader], save_best=True,
               epochs=no_epochs, opt=optimizer, device=device)
 
     time_taken = time.time() - start
