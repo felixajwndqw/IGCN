@@ -59,6 +59,24 @@ def match_shape(x, y, compress=True):
 
 
 class IGConv(_ConvNd):
+    """Implements a convolutional layer where weights are first Gabor modulated.
+
+    In addition, rotated pooling, gabor pooling and batch norm are implemented
+    below.
+    Args:
+        input_features (torch.Tensor):
+        output_features (torch.Tensor):
+        kernel_size (int, tuple):
+        stride (int, optional):
+        padding (int, optional):
+        dilation (int, optional):
+        bias (bool, optional):
+        rot_pool (bool, optional):
+        no_g (int, optional): The number of desired Gabor filters.
+        pool_stride (int, optional):
+        plot (bool, optional):
+        max_gabor (bool, optional):
+    """
     def __init__(self, input_features, output_features, kernel_size,
                  stride=1, padding=0, dilation=1, bias=None,
                  rot_pool=False, no_g=2, pool_stride=1, plot=False,
@@ -119,6 +137,73 @@ class IGConv(_ConvNd):
             pool_out, _ = torch.max(pool_out, dim=2)
 
         return pool_out
+
+
+class IGabor(nn.Module):
+    """Wraps the Gabor implementation into a NN layer w/o convolution.
+
+    Args:
+        no_g (int, optional): The number of desired Gabor filters.
+    """
+    def __init__(self, no_g=4, **kwargs):
+        super().__init__(**kwargs)
+        self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
+        self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
+        self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g), 1 / math.sqrt(no_g))
+        self.register_parameter(name="gabor", param=self.gabor_params)
+        self.GaborFunction = GaborFunction.apply
+        self.no_g = no_g
+
+    def forward(self, x):
+        out = self.GaborFunction(x, self.gabor_params)
+        out = out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
+        return out
+
+
+class IGBranched(_ConvNd):
+    """Concatenates Gabor filtered input onto activation maps from convolution.
+    """
+    def __init__(self, input_features, output_features, kernel_size,
+                 stride=1, padding=0, dilation=1, bias=None,
+                 rot_pool=False, no_g=2, pool_stride=1, plot=False,
+                 max_gabor=True):
+        if not max_gabor:
+            if output_features % no_g:
+                raise ValueError("Number of filters ({}) does not divide output features ({})"
+                                 .format(str(no_g), str(output_features)))
+            output_features //= no_g
+        if type(kernel_size) is int:
+            kernel_size = (kernel_size, kernel_size)
+        super().__init__(
+            input_features, output_features, kernel_size,
+            stride, padding, dilation, False, (0, 0), 1, bias, 'zeros'
+        )
+        self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
+        self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
+        self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g), 1 / math.sqrt(no_g))
+        self.register_parameter(name="gabor", param=self.gabor_params)
+        self.GaborFunction = GaborFunction.apply
+        self.no_g = no_g
+
+    def forward(self, x):
+        gabor_out = self.GaborFunction(x, self.gabor_params)
+        gabor_out = gabor_out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
+        conv_out = F.conv2d(x, self.weight, None, self.stride,
+                            self.padding, self.dilation)
+        return torch.cat((gabor_out, conv_out), dim=1)
+
+
+class MaxGabor(nn.Module):
+    """
+    """
+    def __init__(self, no_g, **kwargs):
+        super().__init__(**kwargs)
+        self.no_g = no_g
+
+    def forward(self, x):
+        reshaped = x.view(x.size(0), x.size(1) // self.no_g, self.no_g, x.size(2), x.size(3))
+        _, max_idxs = torch.max(reshaped, dim=2)
+        return torch.cat((x, max_idxs.float()), dim=1)
 
 
 def gabor(weight, params):
