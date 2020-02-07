@@ -1,6 +1,6 @@
 import torch.nn as nn
 from quicktorch.models import Model
-from .igcn import IGConv
+from igcn import IGConv
 
 
 class IGCNSmall(Model):
