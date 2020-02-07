@@ -1,11 +1,18 @@
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn import IGConv
-
+from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx
+from igcn.cmplx import new_cmplx
+kernel_size=3
 
 class IGCN(Model):
-    def __init__(self, no_g=4, model_name="default", rot_pool=False, dset="mnist", inter_mg=False, final_mg=False):
-        self.name = "igcn_" + model_name + "_" + dset
+    def __init__(self, no_g=4, model_name="default", rot_pool=None, dset="mnist",
+                 inter_mg=False, final_mg=False, cmplx=False):
+        self.name = (f'igcn_{model_name}_{dset}_'
+                     f'no_g={no_g}_'
+                     f'rot_pool={rot_pool}_'
+                     f'inter_mg={inter_mg}_'
+                     f'final_mg={final_mg}_')
         super(IGCN, self).__init__()
         self.create_feature_block(no_g, model_name, rot_pool, dset, inter_mg, final_mg)
         self.classifier = nn.Sequential(
@@ -13,15 +20,16 @@ class IGCN(Model):
             nn.ReLU(inplace=True),
             nn.Linear(96, 10)
         )
+        self.cmplx = cmplx
 
     def forward(self, x):
-        # print("INPUT Start of forward", x.size())
+        if self.cmplx:
+            x = new_cmplx(x)
         x = self.features(x)
-        # print("INPUT After features", x.size())
+        if self.cmplx:
+            x = x[0]
         x = x.flatten(1)
-        # print("INPUT Reshaped", x.size())
         x = self.classifier(x)
-        # print("INPUT Classified", x.size())
         return x
 
     def create_feature_block(self, no_g, model_name, rot_pool, dset, inter_mg, final_mg):
@@ -81,6 +89,99 @@ class IGCN(Model):
                     nn.ReLU(inplace=True),
                     IGConv(48, 64, 9, rot_pool=True, padding=4, no_g=no_g, max_gabor=True),
                     nn.ReLU(inplace=True)
+                ]
+            if model_name == "3c":
+                modules = [
+                    IGConvCmplx(1, 24, 3, rot_pool=rot_pool, padding=1, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=2),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(24, 32, 3, rot_pool=rot_pool, padding=1, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(32, 48, 3, rot_pool=rot_pool, padding=1, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(48, 64, 3, rot_pool=rot_pool, padding=1, no_g=no_g, max_gabor=final_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True)
+                ]
+            if model_name == "5c":
+                modules = [
+                    IGConvCmplx(1, 24, 5, rot_pool=rot_pool, padding=2, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=2),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(24, 32, 5, rot_pool=rot_pool, padding=2, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(32, 48, 5, rot_pool=rot_pool, padding=2, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(48, 64, 5, rot_pool=rot_pool, padding=2, no_g=no_g, max_gabor=final_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True)
+                ]
+            if model_name == "7c":
+                modules = [
+                    IGConvCmplx(1, 24, 7, rot_pool=rot_pool, padding=3, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=2),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(24, 32, 7, rot_pool=rot_pool, padding=3, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(32, 48, 7, rot_pool=rot_pool, padding=3, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(48, 64, 7, rot_pool=rot_pool, padding=3, no_g=no_g, max_gabor=final_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True)
+                ]
+            if model_name == "9c":
+                modules = [
+                    IGConvCmplx(1, 24, 9, rot_pool=rot_pool, padding=4, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=2),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(24, 32, 9, rot_pool=rot_pool, padding=4, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(32, 48, 9, rot_pool=rot_pool, padding=4, no_g=no_g, max_gabor=inter_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(48, 64, 9, rot_pool=rot_pool, padding=4, no_g=no_g, max_gabor=final_mg),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True)
+                ]
+            if model_name == "lpc":
+                modules = [
+                    IGConvCmplx(1, 24, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
+                    IGConvCmplx(24, 32, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=False),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(32, 48, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
+                    IGConvCmplx(32, 48, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=False),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True),
+                    IGConvCmplx(48, 64, 9, rot_pool=True, padding=4, no_g=no_g, max_gabor=True),
+                    MaxPoolCmplx(kernel_size=3, stride=1),
+                    BatchNormCmplx(),
+                    ReLUCmplx(inplace=True)
                 ]
         if dset == "cifar":
             if model_name == "default" or model_name == "3":
