@@ -104,13 +104,12 @@ class IGConv(Conv2d):
                                out.size(2),
                                out.size(3))
             max_out, max_idxs = torch.max(max_out, dim=2)
-            max_gparams = self.gabor.gabor_params[max_idxs]
-            max_gparams = max_gparams.permute(0, 1, 4, 2, 3)
 
         if self.max_gabor:
             out = max_out
 
         if self.include_gparams:
+            max_gparams = self.gabor.gabor_params[0, max_idxs]
             out = torch.stack(out, max_gparams, dim=3)
 
         return out
