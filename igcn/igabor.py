@@ -96,8 +96,10 @@ def gabor(weight, params):
         torch.tensor: gabor filter with (F_out*G, F_in, H, W) dimensions
     """
     x, y = cartesian_coords(weight)
-    log.info(f'gabor_filter.size()={(f_h(x, y) * s_h(x, y, params[0], params[1])).size()}')
-    return f_h(x, y) * s_h(x, y, params[0], params[1])
+    theta = params[0]
+    l = params[1].unsqueeze(1).unsqueeze(1)
+    x_p = x_prime(x, y, theta)
+    return f_h(x, y) * s_h(x_p, l)
 
 
 def gabor_cmplx(weight, params):
@@ -116,9 +118,13 @@ def gabor_cmplx(weight, params):
         torch.tensor: gabor filter with (2, G, 1, H, W) dimensions
     """
     x, y = cartesian_coords(weight)
-    real = f_h(x, y) * s_h(x, y, params[0], params[1])
-    imag = f_h(x, y) * s_h_imag(x, y, params[0], params[1])
-    log.info(f'real.size()={real.size()}, imag.size()={imag.size()}')
+    f = f_h(x, y)
+    theta = params[0]
+    l = params[1].unsqueeze(1).unsqueeze(1)
+    x_p = x_prime(x, y, theta)
+
+    real = f_h(x, y) * s_h(x_p, l)
+    imag = f_h(x, y) * s_h_imag(x_p, l)
 
     return cmplx(real, imag).unsqueeze(2)
 
@@ -138,7 +144,9 @@ def gabor_gradient(weight, params):
         torch.tensor: gabor gradient with (F_out*G, F_in, H, W) dimensions
     """
     x, y = cartesian_coords(weight)
-    return f_h(x, y) * d_s_h(x, y, params[0], params[1])
+    theta = params[0]
+    l = params[1].unsqueeze(1).unsqueeze(1)
+    return f_h(x, y) * d_s_h(x, y, theta, l)
 
 
 def f_h(x, y, sigma=math.pi):
@@ -147,27 +155,25 @@ def f_h(x, y, sigma=math.pi):
     return torch.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2)).unsqueeze(0)
 
 
-def s_h(x, y, theta, l):
+def s_h(x_p, l):
     """Second half of filter
     """
-    l = l.unsqueeze(1).unsqueeze(1)
-    return torch.cos(2 * math.pi / l * x_prime(x, y, theta))
+    return torch.cos(2 * math.pi / l * x_p)
 
 
-def s_h_imag(x, y, theta, l):
+def s_h_imag(x_p, l):
     """Second half of filter's imaginary component
     """
-    l = l.unsqueeze(1).unsqueeze(1)
-    return torch.sin(2 * math.pi / l * x_prime(x, y, theta))
+    return torch.sin(2 * math.pi / l * x_p)
 
 
 def d_s_h(x, y, theta, l):
     """First half of filter derivative
     """
-    l = l.unsqueeze(1).unsqueeze(1)
-    dx = torch.sin(2 * math.pi / l * x_prime(x, y, theta))
+    x_p = x_prime(x, y, theta)
+    dx = torch.sin(2 * math.pi / l * x_p)
     dt = -2 * math.pi / l * y_prime(x, y, theta) * dx
-    dl = 2 * math.pi / l ** 2 * x_prime(x, y, theta) * dx
+    dl = 2 * math.pi / l ** 2 * x_p * dx
     return torch.stack([dt, dl])
 
 
