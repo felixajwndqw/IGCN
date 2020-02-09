@@ -82,7 +82,7 @@ class IGCN(Model):
             if model_name == "lp":
                 modules = [
                     IGConv(1, 16, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
-                    IGConv(16, 32, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=False, pool_stride=2),
+                    IGConv(16, 32, 9, rot_pool=False, padding=3, no_g=no_g, max_gabor=False, pool_stride=2),
                     nn.ReLU(inplace=True),
                     IGConv(32, 48, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
                     IGConv(48, 48, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=False),
