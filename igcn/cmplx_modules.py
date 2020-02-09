@@ -107,6 +107,7 @@ class IGConvCmplx(nn.Module):
                              enhanced_weight[:, 0].clone().detach().cpu().numpy(),
                              self.gabor_params.clone().detach().cpu().numpy())
 
+        max_out = None
         if self.max_gabor or self.include_gparams:
             max_out = out.view(2,
                                out.size(1),
@@ -115,13 +116,14 @@ class IGConvCmplx(nn.Module):
                                out.size(3),
                                out.size(4))
             max_out, max_idxs = torch.max(max_out, dim=3)
-            max_gparams = self.gabor.gabor_params[max_idxs]
-            max_gparams = max_gparams.permute(0, 1, 2, 5, 3, 4)
+            # max_gparams = max_gparams.permute(1, 2, 3, 0, 4, 5)
+            # print(f'max_gparams.size()={max_gparams.size()}')
 
         if self.max_gabor:
             out = max_out
 
         if self.include_gparams:
+            max_gparams = self.gabor.gabor_params[0, max_idxs]
             out = torch.stack(out, max_gparams, dim=3)
 
         return out

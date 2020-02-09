@@ -27,7 +27,7 @@ class IGCN(Model):
             x = new_cmplx(x)
         x = self.features(x)
         if self.cmplx:
-            x = x[0]
+            x = x[0, ...]
         x = x.flatten(1)
         x = self.classifier(x)
         return x

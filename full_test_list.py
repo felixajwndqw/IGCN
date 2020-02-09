@@ -13,7 +13,7 @@ def main():
              '3c', '5c', '7c', '9c', 'lpc',
              '3', '5', '7', '9', 'lp',
              ]  # '3', 
-    no_gabors = [2, 4, 8, 16, 32]
+    no_gabors = [4, 8, 16, 32]
     mgs = [(False, True),
            (True, False),
            (True, True)]

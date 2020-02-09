@@ -4,3 +4,8 @@ models/
 data/
 figs/
 *.log
+
+# build
+build/
+dist/
+igcn.egg-info/
