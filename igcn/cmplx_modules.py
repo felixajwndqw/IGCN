@@ -32,8 +32,6 @@ class IGaborCmplx(nn.Module):
         self.no_g = no_g
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
-        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
-                                                           *self.kernel_size))
         self.register_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
@@ -50,6 +48,10 @@ class IGaborCmplx(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
+        if not hasattr(self, 'gabor_filters'):
+            self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
+                                                               x.size(-2),
+                                                               x.size(-1)))
         self.gabor_filters = gabor_cmplx(x, self.gabor_params).unsqueeze(2)
         self.calc_filters = False
 

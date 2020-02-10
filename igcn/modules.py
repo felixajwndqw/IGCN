@@ -17,7 +17,7 @@ class IGabor(nn.Module):
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
     """
-    def __init__(self, kernel_size, no_g=4, layer=False, **kwargs):
+    def __init__(self, no_g=4, layer=False, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
@@ -26,19 +26,26 @@ class IGabor(nn.Module):
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
 
-        self.kernel_size = _pair(kernel_size)
         self.no_g = no_g
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
-        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
-                                                           *self.kernel_size))
         self.register_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
-        print(f'x.size()={x.unsqueeze(0).size()}, gabor={gabor_cmplx(x, self.gabor_params).unsqueeze(2).size()}')
+        # print(f'x.size()={x.unsqueeze(1).size()}, gabor={gabor(x, self.gabor_params).unsqueeze(1).size()}')
         if self.calc_filters:
             self.generate_gabor_filters(x)
-        out = self.gabor_filters * x.unsqueeze(0)
+
+        # print(f'self.gabor_filters.size()={self.gabor_filters.size()}')
+
+        out = self.gabor_filters * x.unsqueeze(1)
+
+        # print(f'out.size()={out.size()}')
+
+        out = out.view(-1 , *out.size()[2:])
+
+        # print(f'out.size()={out.size()}')
+
         if self.layer:
             out = out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
         return out
@@ -46,6 +53,10 @@ class IGabor(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
+        if not hasattr(self, 'gabor_filters'):
+            self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
+                                                               x.size(-2),
+                                                               x.size(-1)))
         self.gabor_filters = gabor(x, self.gabor_params).unsqueeze(1)
         self.calc_filters = False
 
