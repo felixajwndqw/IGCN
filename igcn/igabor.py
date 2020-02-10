@@ -123,8 +123,8 @@ def gabor_cmplx(weight, params):
     l = params[1].unsqueeze(1).unsqueeze(1)
     x_p = x_prime(x, y, theta)
 
-    real = f_h(x, y) * s_h(x_p, l)
-    imag = f_h(x, y) * s_h_imag(x_p, l)
+    real = f * s_h(x_p, l)
+    imag = f * s_h_imag(x_p, l)
 
     return cmplx(real, imag).unsqueeze(2)
 

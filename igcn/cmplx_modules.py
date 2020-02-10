@@ -31,15 +31,32 @@ class IGaborCmplx(nn.Module):
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.no_g = no_g
         self.layer = layer
+        self.calc_filters = True  # Flag whether filter bank needs recalculating
+        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
+                                                           *self.kernel_size))
+        self.register_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
         log.debug(f'x.size()={x.unsqueeze(1).size()}, gabor={gabor_cmplx(x, self.gabor_params).unsqueeze(2).size()}')
-        out = gabor_cmplx(x, self.gabor_params).unsqueeze(2) * x.unsqueeze(1)
+        if self.calc_filters:
+            self.generate_gabor_filters(x)
+        out = self.gabor_filters * x.unsqueeze(1)
         out = out.view(2, -1 , *out.size()[3:])
         log.debug(f'out.size()={out.size()}')
         if self.layer:
             out = out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
         return out
+
+    def generate_gabor_filters(self, x):
+        """Generates the gabor filter bank
+        """
+        self.gabor_filters = gabor_cmplx(x, self.gabor_params).unsqueeze(2)
+        self.calc_filters = False
+
+    def set_filter_calc(self, *args):
+        """Called in backward hook so that filter bank will be regenerated.
+        """
+        self.calc_filters = True
 
 
 class IGConvCmplx(nn.Module):

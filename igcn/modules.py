@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn.modules.conv import _ConvNd, Conv2d
-from .igabor import GaborFunction
+from .igabor import GaborFunction, gabor
 from .vis import FilterPlot
 from .rot_pool import RotMaxPool2d
 from .utils import _pair
@@ -17,7 +17,7 @@ class IGabor(nn.Module):
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
     """
-    def __init__(self, no_g=4, layer=False, **kwargs):
+    def __init__(self, kernel_size, no_g=4, layer=False, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
@@ -25,14 +25,34 @@ class IGabor(nn.Module):
                                            1 / math.sqrt(no_g))
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
+
+        self.kernel_size = _pair(kernel_size)
         self.no_g = no_g
         self.layer = layer
+        self.calc_filters = True  # Flag whether filter bank needs recalculating
+        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
+                                                           *self.kernel_size))
+        self.register_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
-        out = self.GaborFunction(x, self.gabor_params)
+        print(f'x.size()={x.unsqueeze(0).size()}, gabor={gabor_cmplx(x, self.gabor_params).unsqueeze(2).size()}')
+        if self.calc_filters:
+            self.generate_gabor_filters(x)
+        out = self.gabor_filters * x.unsqueeze(0)
         if self.layer:
             out = out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
         return out
+
+    def generate_gabor_filters(self, x):
+        """Generates the gabor filter bank
+        """
+        self.gabor_filters = gabor(x, self.gabor_params).unsqueeze(1)
+        self.calc_filters = False
+
+    def set_filter_calc(self, *args):
+        """Called in backward hook so that filter bank will be regenerated.
+        """
+        self.calc_filters = True
 
 
 class IGConv(Conv2d):
