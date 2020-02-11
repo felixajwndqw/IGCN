@@ -207,9 +207,9 @@ def write_results(model_name, no_g, m, no_epochs,
     f.write("\n" + model_name +
             "," + str(no_g) +
             "," + str(cmplx) +
-            ',' + "{:4.2f}".format(m['accuracy']) +
-            "," + "{:4.2f}".format(m['precision']) +
-            "," + "{:4.2f}".format(m['recall']) +
+            ',' + "{:1.4f}".format(m['accuracy']) +
+            "," + "{:1.4f}".format(m['precision']) +
+            "," + "{:1.4f}".format(m['recall']) +
             "," + str(m['epoch']) +
             "," + str(no_epochs) +
             ',' + "{:3d}m{:2d}s".format(mins, secs))
