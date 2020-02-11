@@ -84,7 +84,7 @@ class IGConv(Conv2d):
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
-                 rot_pool=None, no_g=2, pool_stride=1, plot=False,
+                 rot_pool=None, no_g=2, pool_stride=1, pool_kernel=3, plot=False,
                  max_gabor=False, include_gparams=False, **conv_kwargs):
         if not max_gabor:
             if output_features % no_g:
@@ -102,9 +102,9 @@ class IGConv(Conv2d):
         self.conv_kwargs = conv_kwargs
         self.pooling = []
         if rot_pool:
-            self.pooling = RotMaxPool2d(kernel_size=3, stride=pool_stride)
+            self.pooling = RotMaxPool2d(kernel_size=pool_kernel, stride=pool_stride)
         else:
-            self.pooling = nn.MaxPool2d(kernel_size=3, stride=pool_stride)
+            self.pooling = nn.MaxPool2d(kernel_size=pool_kernel, stride=pool_stride)
         self.bn = nn.BatchNorm2d(output_features * no_g)
         self.include_gparams = include_gparams
 

@@ -1,8 +1,7 @@
-import math
 import time
 import torch
 import torch.optim as optim
-from quicktorch.utils import train, imshow
+from quicktorch.utils import train
 from quicktorch.data import mnist, cifar
 from igcn import IGCN
 
@@ -10,8 +9,8 @@ from igcn import IGCN
 def main():
     dsets = ['mnist']  # , 'cifar']
     names = [
-             '7', '9', 'lp',
-             '3c', '5c', '7c', '9c', 'lpc',
+             '3o', '5o', '7o', '9o',
+             '3oc', '5oc', '7oc', '9oc',
              ]
     no_gabors = [4, 8, 16]
     mgs = [(False, True),
@@ -19,7 +18,7 @@ def main():
            (True, True)]
     # inter_mgs = [False, True]
     # final_mgs = [True, False]
-    no_epochs = 250
+    no_epochs = 1
     rot_pools = [False]
     metrics = []
     models = []
@@ -64,7 +63,8 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     print("Training igcn{} on {} with rot_pool={}, no_g={}, "
           "inter_mg={}, final_mg={}".format(model_name, dset, rot_pool,
                                             no_g, inter_mg, final_mg))
-    cmplx = model_name[-1] == 'c'  # just don't name any models with last letter c lol
+    cmplx = 'c' in model_name
+    one = 'o' in model_name
 
     if dset == 'mnist':
         if inter_mg or final_mg:
@@ -72,7 +72,7 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
         else:
             b_size = 4096
         if cmplx:
-            b_size //= 2
+            b_size //= 4
         train_loader, test_loader, _ = mnist(batch_size=b_size, rotate=True,
                                              num_workers=8)
     if dset == 'cifar':
@@ -80,7 +80,7 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
 
     model = IGCN(no_g=no_g, model_name=model_name, dset=dset,
                  rot_pool=rot_pool, inter_mg=inter_mg,
-                 final_mg=final_mg, cmplx=cmplx).to(device)
+                 final_mg=final_mg, cmplx=cmplx, one=one).to(device)
 
     total_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
