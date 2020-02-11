@@ -12,7 +12,7 @@ def main():
     names = [
              '7', '9', 'lp',
              '3c', '5c', '7c', '9c', 'lpc',
-             ]  # '3', 
+             ]
     no_gabors = [4, 8, 16]
     mgs = [(False, True),
            (True, False),
@@ -109,5 +109,28 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     return m
 
 
+def test_num_workers(device):
+    b_sizes = [512, 1024, 2048]
+    n_workers = [8, 16, 32]
+    model = IGCN(no_g=16, model_name='9c', dset='mnist',
+                 rot_pool=False, inter_mg=True,
+                 final_mg=True, cmplx=True).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+
+    for b_s in b_sizes:
+        for n in n_workers:
+            print(f'Starting training with b={b_s}, n={n}')
+            train_loader, test_loader, _ = mnist(batch_size=b_s, rotate=True,
+                                                 num_workers=n)
+
+            m = train(model, [train_loader, test_loader], save_best=True,
+                      epochs=1, opt=optimizer, device=device,
+                      sch=scheduler)
+            print(f'Finished training with b={b_s}, n={n}')
+            print()
+
+
 if __name__ == "__main__":
     main()
+    # test_num_workers(0)
