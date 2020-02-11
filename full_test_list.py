@@ -10,16 +10,16 @@ from igcn import IGCN
 def main():
     dsets = ['mnist']  # , 'cifar']
     names = [
+             '7', '9', 'lp',
              '3c', '5c', '7c', '9c', 'lpc',
-             '3', '5', '7', '9', 'lp',
              ]  # '3', 
-    no_gabors = [4, 8, 16, 32]
+    no_gabors = [4, 8, 16]
     mgs = [(False, True),
            (True, False),
            (True, True)]
     # inter_mgs = [False, True]
     # final_mgs = [True, False]
-    no_epochs = 1
+    no_epochs = 250
     rot_pools = [False]
     metrics = []
     models = []
@@ -50,9 +50,9 @@ def write_results(dset, model_name, no_g, m, no_epochs,
             "\t" + str(inter_mg) +
             "\t" + str(final_mg) +
             "\t" + str(cmplx) +
-            '\t' + "{:4.2f}".format(m['accuracy']) +
-            "\t" + "{:4.2f}".format(m['precision']) +
-            "\t" + "{:4.2f}".format(m['recall']) +
+            '\t' + "{:1.4f}".format(m['accuracy']) +
+            "\t" + "{:1.4f}".format(m['precision']) +
+            "\t" + "{:1.4f}".format(m['recall']) +
             "\t" + str(m['epoch']) +
             "\t\t" + str(no_epochs) +
             '\t\t' + "{:4.2f}".format(total_params) +
@@ -67,7 +67,7 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     cmplx = model_name[-1] == 'c'  # just don't name any models with last letter c lol
 
     if dset == 'mnist':
-        if inter_mg:
+        if inter_mg or final_mg:
             b_size = int(4096 // no_g)
         else:
             b_size = 4096
@@ -88,7 +88,8 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     print("Total # parameter: " + str(total_params) + "M")
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    scheduler = None
     start = time.time()
     m = train(model, [train_loader, test_loader], save_best=True,
               epochs=no_epochs, opt=optimizer, device=device,
