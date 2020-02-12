@@ -10,15 +10,17 @@ def main():
     dsets = ['mnist']  # , 'cifar']
     names = [
              '3o', '5o', '7o', '9o',
-             '3oc', '5oc', '7oc', '9oc',
+            #  '3oc', '5oc', '7oc', '9oc',
              ]
-    no_gabors = [4, 8, 16]
-    mgs = [(False, True),
+    no_gabors = [2, 4, 8, 16]
+    mgs = [
+           (False, True),
            (True, False),
-           (True, True)]
+           (True, True)
+    ]
     # inter_mgs = [False, True]
     # final_mgs = [True, False]
-    no_epochs = 1
+    no_epochs = 250
     rot_pools = [False]
     metrics = []
     models = []
