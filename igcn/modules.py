@@ -123,10 +123,11 @@ class IGConv(Conv2d):
                              enhanced_weight[:, 0].clone().detach().cpu().numpy(),
                              self.gabor_params.clone().detach().cpu().numpy())
 
-        if self.rot_pool:
-            out = self.pooling(out, self.gabor_params[0, :])
-        elif not self.rot_pool:
-            out = self.pooling(out)
+        if self.rot_pool is not None:
+            if self.rot_pool:
+                out = self.pooling(out, self.gabor_params[0, :])
+            elif not self.rot_pool:
+                out = self.pooling(out)
 
         if self.max_gabor or self.include_gparams:
             max_out = out.view(out.size(0),
