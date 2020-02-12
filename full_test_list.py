@@ -89,9 +89,10 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     total_params = total_params/1000000
     print("Total # parameter: " + str(total_params) + "M")
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-2)
     # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    scheduler = None
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
+    # scheduler = None
     start = time.time()
     m = train(model, [train_loader, test_loader], save_best=True,
               epochs=no_epochs, opt=optimizer, device=device,
