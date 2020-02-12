@@ -189,49 +189,49 @@ class IGCN(Model):
                 ]
             if model_name == "3o":
                 modules = [
-                    IGConv(1, 16, 3, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
-                    IGConv(16, 32, 3, rot_pool=False, padding=1, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(1, 16, 3, rot_pool=None, padding=0, no_g=no_g, max_gabor=False),
+                    IGConv(16, 32, 3, rot_pool=False, padding=0, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(32, 32, 3, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
-                    IGConv(32, 48, 3, rot_pool=False, padding=1, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(32, 32, 3, rot_pool=None, padding=0, no_g=no_g, max_gabor=False),
+                    IGConv(32, 48, 3, rot_pool=False, padding=0, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(48, 48, 3, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
+                    IGConv(48, 48, 3, rot_pool=None, padding=0, no_g=no_g, max_gabor=False),
                     IGConv(48, 64, 3, rot_pool=False, padding=1, no_g=no_g, max_gabor=final_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True)
                 ]
             if model_name == "5o":
                 modules = [
-                    IGConv(1, 16, 5, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
-                    IGConv(16, 32, 5, rot_pool=False, padding=2, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(1, 16, 5, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
+                    IGConv(16, 32, 5, rot_pool=False, padding=1, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(32, 32, 5, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
-                    IGConv(32, 48, 5, rot_pool=False, padding=2, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(32, 32, 5, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
+                    IGConv(32, 48, 5, rot_pool=False, padding=1, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(48, 48, 5, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
+                    IGConv(48, 48, 5, rot_pool=None, padding=1, no_g=no_g, max_gabor=False),
                     IGConv(48, 64, 5, rot_pool=False, padding=2, no_g=no_g, max_gabor=final_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True)
                 ]
             if model_name == "7o":
                 modules = [
-                    IGConv(1, 16, 7, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
-                    IGConv(16, 32, 7, rot_pool=False, padding=3, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(1, 16, 7, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
+                    IGConv(16, 32, 7, rot_pool=False, padding=2, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(32, 32, 7, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
-                    IGConv(32, 48, 7, rot_pool=False, padding=3, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(32, 32, 7, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
+                    IGConv(32, 48, 7, rot_pool=False, padding=2, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(48, 48, 7, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
+                    IGConv(48, 48, 7, rot_pool=None, padding=2, no_g=no_g, max_gabor=False),
                     IGConv(48, 64, 7, rot_pool=False, padding=3, no_g=no_g, max_gabor=final_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True)
                 ]
             if model_name == "9o":
                 modules = [
-                    IGConv(1, 16, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
-                    IGConv(16, 32, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(1, 16, 9, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
+                    IGConv(16, 32, 9, rot_pool=False, padding=3, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(32, 32, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
-                    IGConv(32, 48, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
+                    IGConv(32, 32, 9, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
+                    IGConv(32, 48, 9, rot_pool=False, padding=3, no_g=no_g, max_gabor=inter_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True),
-                    IGConv(48, 48, 9, rot_pool=None, padding=4, no_g=no_g, max_gabor=False),
+                    IGConv(48, 48, 9, rot_pool=None, padding=3, no_g=no_g, max_gabor=False),
                     IGConv(48, 64, 9, rot_pool=False, padding=4, no_g=no_g, max_gabor=final_mg, pool_kernel=2, pool_stride=2),
                     ReLUCmplx(inplace=True)
                 ]

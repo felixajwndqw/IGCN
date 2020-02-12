@@ -56,7 +56,7 @@ def write_results(dset, model_name, no_g, m, no_epochs,
             "\t" + "{:1.4f}".format(m['recall']) +
             "\t" + str(m['epoch']) +
             "\t\t" + str(no_epochs) +
-            '\t\t' + "{:4.2f}".format(total_params) +
+            '\t\t' + "{:1.4f}".format(total_params) +
             '\t' + "{:3d}m{:2d}s".format(mins, secs))
     f.close()
 
