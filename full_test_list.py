@@ -1,7 +1,7 @@
 import time
 import torch
 import torch.optim as optim
-from quicktorch.utils import train
+from quicktorch.utils import train, evaluate
 from quicktorch.data import mnist, cifar, mnistrot
 from igcn import IGCN
 
@@ -107,6 +107,16 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     time_taken = time.time() - start
     mins = int(time_taken // 60)
     secs = int(time_taken % 60)
+
+    if dset == 'mnistrot':
+        eval_loader, _ = mnistrot(batch_size=b_size,
+                                  num_workers=8,
+                                  test=True)
+        print('Evaluating')
+        temp_metrics = evaluate(model, eval_loader)
+        m['accuracy'] = temp_metrics['accuracy']
+        m['precision'] = temp_metrics['precision']
+        m['recall'] = temp_metrics['recall']
     write_results(dset, model_name, no_g,
                   m, no_epochs,
                   total_params, mins, secs, rot_pool=rot_pool,
