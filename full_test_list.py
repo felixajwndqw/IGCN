@@ -10,7 +10,7 @@ def main():
     dsets = ['mnistrot']  # , 'cifar']
     names = [
             #  '3o', '5o', '7o', '9o',
-             '3oc', '5oc', '7oc', '9oc',
+             '3oc', '5oc',
              ]
     no_gabors = [2, 4, 8, 16]
     mgs = [
@@ -20,7 +20,7 @@ def main():
     ]
     # inter_mgs = [False, True]
     # final_mgs = [True, False]
-    no_epochs = 250
+    no_epochs = 300
     rot_pools = [False]
     metrics = []
     models = []
