@@ -1,0 +1,1 @@
+dset,kernel_size,no_g,cmplx,accuracy,best_epoch,epochs,total_params,trainingtime
