@@ -13,7 +13,7 @@ class UNetIGCN(Model):
         self.mode = mode
         self.kernel_size = kernel_size
 
-        self.inc = TripleIGConv(n_channels, 16, no_g=no_g)
+        self.inc = TripleIGConv(n_channels, 16, kernel_size, no_g=no_g)
         self.down1 = Down(16, 32, kernel_size, no_g=no_g)
         self.down2 = Down(32, 48, kernel_size, no_g=no_g)
         self.down3 = Down(48, 64, kernel_size, no_g=no_g)
