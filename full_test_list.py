@@ -9,8 +9,8 @@ from igcn import IGCN
 def main():
     dsets = ['mnistrot']  # , 'cifar']
     names = [
-             '3o', '5o', '7o', '9o',
-            #  '3oc', '5oc', '7oc', '9oc',
+            #  '3o', '5o', '7o', '9o',
+             '3oc', '5oc', '7oc', '9oc',
              ]
     no_gabors = [2, 4, 8, 16]
     mgs = [
