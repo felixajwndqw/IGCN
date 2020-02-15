@@ -109,6 +109,9 @@ def main():
     parser.add_argument('--kernel_size',
                         default=3, type=int,
                         help='Kernel size of filters.')
+    parser.add_argument('--base_channels',
+                        default=16, type=int,
+                        help='Number of filter channels to start network with. e.g. 16 becomes 16>32>48>64>64>64>48>32>16.')
     parser.add_argument('--cmplx',
                         default=False, action='store_true',
                         help='Whether to use a complex architecture.')
@@ -143,8 +146,14 @@ def main():
             save_dir='models/seg/isbi',
             name='isbi',
             no_g=args.no_g,
-            kernel_size=args.kernel_size
+            kernel_size=args.kernel_size,
+            base_channels=args.base_channels
         ).to(device)
+
+        total_params = sum(p.numel()
+                           for p in model.parameters()
+                           if p.requires_grad) / 1000000
+        print("Total # parameter: " + str(total_params) + "M")
 
         optimizer = optim.Adam(model.parameters(), lr=1e-2)
 
@@ -162,9 +171,6 @@ def main():
         mins = int(time_taken // 60)
         secs = int(time_taken % 60)
 
-        total_params = sum(p.numel()
-                           for p in model.parameters()
-                           if p.requires_grad) / 1000000
         write_results(
             'isbi',
             args.kernel_size,

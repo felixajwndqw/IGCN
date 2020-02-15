@@ -6,7 +6,7 @@ from igcn.cmplx import new_cmplx
 
 
 class UNetIGCNCmplx(Model):
-    def __init__(self, n_classes, n_channels=1, no_g=4,
+    def __init__(self, n_classes, n_channels=1, no_g=4, base_channels=16,
                  kernel_size=3, mode='nearest', **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
@@ -14,17 +14,17 @@ class UNetIGCNCmplx(Model):
         self.mode = mode
         self.kernel_size = kernel_size
 
-        self.inc = TripleIGConvCmplx(n_channels, 16, kernel_size, no_g=no_g)
-        self.down1 = DownCmplx(16, 32, kernel_size, no_g=no_g)
-        self.down2 = DownCmplx(32, 48, kernel_size, no_g=no_g)
-        self.down3 = DownCmplx(48, 64, kernel_size, no_g=no_g)
-        self.down4 = DownCmplx(64, 64, kernel_size, no_g=no_g)
-        self.up1 = UpCmplx(64, 48, kernel_size, no_g=no_g, mode=mode)
-        self.up2 = UpCmplx(48, 32, kernel_size, no_g=no_g, mode=mode)
-        self.up3 = UpCmplx(32, 16, kernel_size, no_g=no_g, mode=mode)
-        self.up4 = UpCmplx(16, 16, kernel_size, no_g=no_g, mode=mode, last=True)
-        self.outc = nn.Conv2d(32, 32, kernel_size=1)
-        self.outc = nn.Conv2d(32, n_classes, kernel_size=1)
+        self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g)
+        self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g)
+        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g)
+        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g)
+        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g)
+        self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, no_g=no_g, mode=mode)
+        self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, no_g=no_g, mode=mode)
+        self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, no_g=no_g, mode=mode)
+        self.up4 = UpCmplx(base_channels, base_channels, kernel_size, no_g=no_g, mode=mode, last=True)
+        self.outc = nn.Conv2d(base_channels * 2, base_channels * 2, kernel_size=1)
+        self.outc = nn.Conv2d(base_channels * 2, n_classes, kernel_size=1)
 
     def forward(self, x):
         x = new_cmplx(x)
