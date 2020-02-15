@@ -2,12 +2,12 @@ import time
 import torch
 import torch.optim as optim
 from quicktorch.utils import train
-from quicktorch.data import mnist, cifar
+from quicktorch.data import mnist, cifar, mnistrot
 from igcn import IGCN
 
 
 def main():
-    dsets = ['mnist']  # , 'cifar']
+    dsets = ['mnistrot']  # , 'cifar']
     names = [
              '3o', '5o', '7o', '9o',
             #  '3oc', '5oc', '7oc', '9oc',
@@ -68,15 +68,21 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
     cmplx = 'c' in model_name
     one = 'o' in model_name
 
-    if dset == 'mnist':
+    if dset == 'mnist' or dset == 'mnistrot':
         if inter_mg or final_mg:
             b_size = int(4096 // no_g)
         else:
             b_size = 4096
         if cmplx:
             b_size //= 4
-        train_loader, test_loader, _ = mnist(batch_size=b_size, rotate=True,
-                                             num_workers=8)
+        if dset == 'mnist':
+            train_loader, test_loader, _ = mnist(batch_size=b_size,
+                                                 rotate=True,
+                                                 num_workers=8)
+        if dset == 'mnistrot':
+            train_loader, test_loader, _ = mnistrot(batch_size=b_size,
+                                                    num_workers=8)
+
     if dset == 'cifar':
         train_loader, test_loader, _ = cifar(batch_size=2048)
 
