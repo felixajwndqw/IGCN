@@ -1,30 +1,28 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from igcn import IGConv
+from igcn.modules import IGConv
 
 
 class TripleIGConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, include_gparams=False, last=False):
         super().__init__()
-
+        padding = kernel_size // 2
         self.conv1 = nn.Sequential(
             IGConv(in_channels, out_channels, no_g=no_g,
                    rot_pool=None, kernel_size=kernel_size,
-                   padding=1, max_gabor=False),
+                   padding=padding, max_gabor=False),
             nn.ReLU(inplace=True)
         )
         self.conv2 = nn.Sequential(
             IGConv(out_channels, out_channels, no_g=no_g,
                    rot_pool=None, kernel_size=kernel_size,
-                   padding=1, max_gabor=False),
+                   padding=padding, max_gabor=False),
             nn.ReLU(inplace=True)
         )
         self.conv3 = nn.Sequential(
             IGConv(out_channels, out_channels, no_g=no_g,
                    rot_pool=None, kernel_size=kernel_size,
-                   padding=1, max_gabor=last,
+                   padding=padding, max_gabor=last,
                    include_gparams=include_gparams),
             nn.ReLU(inplace=True)
         )
@@ -43,7 +41,7 @@ class Down(nn.Module):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            TripleIGConv(in_channels, out_channels, kernel_size=kernel_size, no_g)
+            TripleIGConv(in_channels, out_channels, kernel_size, no_g=no_g)
         )
 
     def forward(self, x):
