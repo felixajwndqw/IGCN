@@ -37,7 +37,7 @@ class IGCN(Model):
 
     def create_feature_block(self, no_g, model_name, rot_pool, dset, inter_mg, final_mg):
         modules = []
-        if dset == "mnist":
+        if dset == "mnist" or dset == "mnistrot":
             if model_name == "default" or model_name == "3":
                 modules = [
                     IGConv(1, 16, 3, rot_pool=rot_pool, padding=1, no_g=no_g, max_gabor=inter_mg, pool_stride=2),
