@@ -1,34 +1,35 @@
-import os
 import argparse
+import os
+import time
 import torch
 import torch.optim as optim
 import albumentations
 import PIL.Image as Image
 from torch.utils.data import DataLoader
 from igcn.seg.models import UNetIGCN
+from igcn.seg.cmplxmodels import UNetIGCNCmplx
 from quicktorch.utils import train, imshow
-from data import EMDataset, post_em_data
+from data import EMDataset
 
 
-
-def get_train_data():
+def get_train_data(batch_size=8):
     return DataLoader(
         EMDataset(
             'data/isbi/train',
             albumentations.Compose([
                 albumentations.RandomCrop(256, 256),
                 albumentations.Flip(),
-                albumentations.RandomRotate90(),  # , fill=(0,)
+                albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(),
                 albumentations.PadIfNeeded(288, 288)
             ])
         ),
-        batch_size=32,
+        batch_size=batch_size,
         shuffle=True
     )
 
 
-def get_test_data():
+def get_test_data(batch_size=8):
     return DataLoader(
         EMDataset(
             'data/isbi/test',
@@ -37,12 +38,11 @@ def get_test_data():
             ]),
             aug_mult=1,
         ),
-        batch_size=8,
-        # shuffle=True
+        batch_size=batch_size
     )
 
 
-def produce_output(model=None, path=None, no_g=4, padding=16):
+def produce_output(model=None, path=None, no_g=4, padding=16, batch_size=8):
     if model is None and path is None:
         return TypeError('No model or path provided.')
     if model is not None and path is not None:
@@ -53,7 +53,7 @@ def produce_output(model=None, path=None, no_g=4, padding=16):
         model = UNetIGCN(1, 1, no_g=no_g)
         model.load(save_path=path)
         name = os.path.split(path)[-1]
-    imgs = get_test_data()
+    imgs = get_test_data(batch_size)
 
     save_dir = 'data/isbi/test/labels'
     if not os.path.isdir(save_dir):
@@ -74,6 +74,23 @@ def produce_output(model=None, path=None, no_g=4, padding=16):
             img.save(os.path.join(save_dir, name, f'{i*8 + j:05d}.png'))
 
 
+def write_results(dset, kernel_size, no_g, m, no_epochs,
+                  total_params, mins, secs, cmplx=False):
+    f = open("seg_results.txt", "a+")
+    f.write(
+        "\n" + dset +
+        "," + str(kernel_size) +
+        "," + str(no_g) +
+        "," + str(cmplx) +
+        ',' + "{:1.4f}".format(m['accuracy']) +
+        "," + str(m['epoch']) +
+        "," + str(no_epochs) +
+        ',' + "{:1.4f}".format(total_params) +
+        ',' + "{:3d}m{:2d}s".format(mins, secs)
+    )
+    f.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Handles ISBI 2012 EM segmentation tasks.')
     parser.add_argument('--produce',
@@ -85,27 +102,86 @@ def main():
     parser.add_argument('--full',
                         default=False, action='store_true',
                         help='Whether to run full test list. (default: %(default)s)')
+
     parser.add_argument('--no_g',
                         default=4, type=int,
                         help='Number of Gabor filters.')
+    parser.add_argument('--kernel_size',
+                        default=3, type=int,
+                        help='Kernel size of filters.')
+    parser.add_argument('--base_channels',
+                        default=16, type=int,
+                        help='Number of filter channels to start network with. e.g. 16 becomes 16>32>48>64>64>64>48>32>16.')
+    parser.add_argument('--cmplx',
+                        default=False, action='store_true',
+                        help='Whether to use a complex architecture.')
+
+    parser.add_argument('--epochs',
+                        default=250, type=int,
+                        help='Number of epochs to train over.')
+    parser.add_argument('--batch_size',
+                        default=8, type=int,
+                        help='Number of samples in each batch.')
     args = parser.parse_args()
 
+    # print(args.h)
+    # if args.h:
+    #     return
     if args.produce:
         if args.path is None:
             raise TypeError('Empty --path argument.')
-        produce_output(path=args.path)
+        produce_output(path=args.path, batch_size=args.batch_size)
     else:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        train_data = get_train_data()
+        train_data = get_train_data(batch_size=args.batch_size)
 
-        model = UNetIGCN(n_channels=1, n_classes=1, save_dir='models/seg/isbi', name='isbi',
-            
+        if args.cmplx:
+            Net = UNetIGCNCmplx
+        else:
+            Net = UNetIGCN
+        model = Net(
+            n_channels=1,
+            n_classes=1,
+            save_dir='models/seg/isbi',
+            name='isbi',
+            no_g=args.no_g,
+            kernel_size=args.kernel_size,
+            base_channels=args.base_channels
         ).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=0.01)
-        train(model, train_data, epochs=300, opt=optimizer, device=device, save_best=True)
 
+        total_params = sum(p.numel()
+                           for p in model.parameters()
+                           if p.requires_grad) / 1000000
+        print("Total # parameter: " + str(total_params) + "M")
 
+        optimizer = optim.Adam(model.parameters(), lr=1e-2)
+
+        start = time.time()
+        m = train(
+            model,
+            train_data,
+            epochs=args.epochs,
+            opt=optimizer,
+            device=device,
+            save_best=True
+        )
+        print(m)
+        time_taken = time.time() - start
+        mins = int(time_taken // 60)
+        secs = int(time_taken % 60)
+
+        write_results(
+            'isbi',
+            args.kernel_size,
+            args.no_g,
+            m,
+            args.epochs,
+            total_params,
+            mins,
+            secs,
+            cmplx=args.cmplx,
+        )
 
 
 if __name__ == '__main__':

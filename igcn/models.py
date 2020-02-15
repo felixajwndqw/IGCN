@@ -21,6 +21,7 @@ class IGCN(Model):
         self.classifier = nn.Sequential(
             nn.Linear(cmplx_mult * out_size * out_size * 64, 64),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
             nn.Linear(64, 10)
         )
         self.cmplx = cmplx
