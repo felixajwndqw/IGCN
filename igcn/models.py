@@ -8,7 +8,7 @@ from igcn.cmplx import new_cmplx
 
 class IGCN(Model):
     def __init__(self, no_g=4, model_name="default", rot_pool=None, dset="mnist",
-                 inter_mg=False, final_mg=False, cmplx=False, one=False):
+                 inter_mg=False, final_mg=False, cmplx=False, one=True):
         self.name = (f'igcn_{model_name}_{dset}_'
                      f'no_g={no_g}_'
                      f'rot_pool={rot_pool}_'
