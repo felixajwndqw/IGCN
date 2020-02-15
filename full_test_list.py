@@ -113,7 +113,7 @@ def run_exp(dset, model_name, no_g, rot_pool, inter_mg, final_mg, no_epochs, dev
                                   num_workers=8,
                                   test=True)
         print('Evaluating')
-        temp_metrics = evaluate(model, eval_loader)
+        temp_metrics = evaluate(model, eval_loader, device=device)
         m['accuracy'] = temp_metrics['accuracy']
         m['precision'] = temp_metrics['precision']
         m['recall'] = temp_metrics['recall']
