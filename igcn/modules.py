@@ -17,7 +17,7 @@ class IGabor(nn.Module):
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
     """
-    def __init__(self, no_g=4, layer=False, **kwargs):
+    def __init__(self, no_g=4, layer=False, kernel_size=None, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
@@ -25,6 +25,8 @@ class IGabor(nn.Module):
                                            1 / math.sqrt(no_g))
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
+        self.register_buffer("gabor_filters", torch.Tensor(no_g, 1,
+                                                           *kernel_size))
 
         self.no_g = no_g
         self.layer = layer
@@ -53,10 +55,6 @@ class IGabor(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
-        if not hasattr(self, 'gabor_filters'):
-            self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
-                                                               x.size(-2),
-                                                               x.size(-1)))
         self.gabor_filters = gabor(x, self.gabor_params).unsqueeze(1)
         self.calc_filters = False
 
@@ -95,7 +93,7 @@ class IGConv(Conv2d):
         super().__init__(input_features, output_features, kernel_size, **conv_kwargs)
         self.conv = F.conv2d
 
-        self.gabor = IGabor(no_g)
+        self.gabor = IGabor(no_g, kernel_size=kernel_size)
         self.no_g = no_g
         self.rot_pool = rot_pool
         self.max_gabor = max_gabor
@@ -162,7 +160,7 @@ class IGBranched(Conv2d):
         super().__init__(input_features, output_features, kernel_size, **conv_kwargs)
         self.conv = F.conv2d
 
-        self.gabor = IGabor(no_g)
+        self.gabor = IGabor(no_g, kernel_size=kernel_size)
         self.no_g = no_g
         self.rot_pool = rot_pool
         self.max_gabor = max_gabor
@@ -198,7 +196,7 @@ class IGParallel(_ConvNd):
             input_features, output_features, kernel_size,
             stride, padding, dilation, False, (0, 0), 1, bias, 'zeros'
         )
-        self.gabor = IGabor(no_g)
+        self.gabor = IGabor(no_g, kernel_size=kernel_size)
         self.no_g = no_g
         self.max_gabor = max_gabor
 

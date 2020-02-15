@@ -22,13 +22,15 @@ class IGaborCmplx(nn.Module):
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
     """
-    def __init__(self, no_g=4, layer=False, **kwargs):
+    def __init__(self, no_g=4, layer=False, kernel_size=None, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
         self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g),
                                            1 / math.sqrt(no_g))
         self.register_parameter(name="gabor", param=self.gabor_params)
+        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
+                                                           *kernel_size))
         self.no_g = no_g
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
@@ -48,10 +50,6 @@ class IGaborCmplx(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
-        if not hasattr(self, 'gabor_filters'):
-            self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
-                                                               x.size(-2),
-                                                               x.size(-1)))
         self.gabor_filters = gabor_cmplx(x, self.gabor_params).unsqueeze(2)
         self.calc_filters = False
 
@@ -94,7 +92,7 @@ class IGConvCmplx(nn.Module):
         self.ImConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
         self.conv = conv_cmplx
 
-        self.gabor = IGaborCmplx(no_g)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
         self.no_g = no_g
         self.rot_pool = rot_pool
         self.max_gabor = max_gabor
