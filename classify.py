@@ -36,7 +36,10 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
 
 def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', splits=1):
-    splits = get_splits(SIZES[dset], splits)
+    if splits == 1:
+        splits = [None]
+    else:
+        splits = get_splits(SIZES[dset], splits)
     for split in splits:
         print("Training igcn{} on {}, base_channels={}, no_g={}, "
             "inter_mg={}, final_mg={}".format(kernel_size, dset, base_channels,
