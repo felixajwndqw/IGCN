@@ -2,9 +2,16 @@ import argparse
 import time
 import torch
 import torch.optim as optim
-from quicktorch.utils import train, evaluate
+from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
 from igcn.models import IGCNNew
+
+
+SIZES = {
+    'mnist': 60000,
+    'mnistrotated': 60000,
+    'mnistrot': 12000,
+}
 
 
 def write_results(dset, kernel_size, no_g, m, no_epochs,
@@ -28,70 +35,72 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
 
 
 def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
-            no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0'):
-    print("Training igcn{} on {}, base_channels={}, no_g={}, "
-          "inter_mg={}, final_mg={}".format(kernel_size, dset, base_channels,
-                                            no_g, inter_mg, final_mg))
+            no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', splits=1):
+    splits = get_splits(SIZES[dset], splits)
+    for split in splits:
+        print("Training igcn{} on {}, base_channels={}, no_g={}, "
+            "inter_mg={}, final_mg={}".format(kernel_size, dset, base_channels,
+                                                no_g, inter_mg, final_mg))
 
-    if dset == 'mnist' or dset == 'mnistrot':
-        if inter_mg or final_mg:
-            b_size = int(4096 // no_g)
-        else:
-            b_size = 4096
-        if cmplx:
-            b_size //= 4
-        if dset == 'mnist':
-            train_loader, test_loader, _ = mnist(batch_size=b_size,
-                                                 rotate=False,
-                                                 num_workers=2)
-        if dset == 'mnistrotated':
-            train_loader, test_loader, _ = mnist(batch_size=b_size,
-                                                 rotate=True,
-                                                 num_workers=2)
+        if dset == 'mnist' or dset == 'mnistrot':
+            if inter_mg or final_mg:
+                b_size = int(4096 // no_g)
+            else:
+                b_size = 4096
+            if cmplx:
+                b_size //= 4
+            if dset == 'mnist':
+                train_loader, test_loader, _ = mnist(batch_size=b_size,
+                                                     rotate=False,
+                                                     num_workers=2)
+            if dset == 'mnistrotated':
+                train_loader, test_loader, _ = mnist(batch_size=b_size,
+                                                     rotate=True,
+                                                     num_workers=2)
+            if dset == 'mnistrot':
+                train_loader, test_loader, _ = mnistrot(batch_size=b_size,
+                                                        num_workers=2, split=split)
+        if dset == 'cifar':
+            train_loader, test_loader, _ = cifar(batch_size=2048)
+
+        model = IGCNNew(no_g=no_g, kernel_size=kernel_size,
+                        inter_mg=inter_mg, final_mg=final_mg, 
+                        cmplx=cmplx, dset=dset).to(device)
+
+        total_params = sum(p.numel()
+                        for p in model.parameters() if p.requires_grad)
+        total_params = total_params/1000000
+        print("Total # parameter: " + str(total_params) + "M")
+
+        optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-7)
+        # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
+        scheduler = None
+        start = time.time()
+        m = train(model, [train_loader, test_loader], save_best=True,
+                epochs=no_epochs, opt=optimizer, device=device,
+                sch=scheduler)
+
+        time_taken = time.time() - start
+        mins = int(time_taken // 60)
+        secs = int(time_taken % 60)
+
         if dset == 'mnistrot':
-            train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                    num_workers=2)
-    if dset == 'cifar':
-        train_loader, test_loader, _ = cifar(batch_size=2048)
+            eval_loader, _ = mnistrot(batch_size=b_size,
+                                      num_workers=8,
+                                      test=True)
+            print('Evaluating')
+            temp_metrics = evaluate(model, eval_loader, device=device)
+            m['accuracy'] = temp_metrics['accuracy']
+            m['precision'] = temp_metrics['precision']
+            m['recall'] = temp_metrics['recall']
+        write_results(dset, kernel_size, no_g,
+                    m, no_epochs,
+                    total_params, mins, secs,
+                    inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx)
 
-    model = IGCNNew(no_g=no_g, kernel_size=kernel_size,
-                    inter_mg=inter_mg, final_mg=final_mg, 
-                    cmplx=cmplx, dset=dset).to(device)
-
-    total_params = sum(p.numel()
-                       for p in model.parameters() if p.requires_grad)
-    total_params = total_params/1000000
-    print("Total # parameter: " + str(total_params) + "M")
-
-    optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-7)
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
-    scheduler = None
-    start = time.time()
-    m = train(model, [train_loader, test_loader], save_best=True,
-              epochs=no_epochs, opt=optimizer, device=device,
-              sch=scheduler)
-
-    time_taken = time.time() - start
-    mins = int(time_taken // 60)
-    secs = int(time_taken % 60)
-
-    # if dset == 'mnistrot':
-    #     eval_loader, _ = mnistrot(batch_size=b_size,
-    #                               num_workers=8,
-    #                               test=True)
-    #     print('Evaluating')
-    #     temp_metrics = evaluate(model, eval_loader, device=device)
-    #     m['accuracy'] = temp_metrics['accuracy']
-    #     m['precision'] = temp_metrics['precision']
-    #     m['recall'] = temp_metrics['recall']
-    write_results(dset, kernel_size, no_g,
-                  m, no_epochs,
-                  total_params, mins, secs,
-                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx)
-
-    del(model)
-    torch.cuda.empty_cache()
+        del(model)
+        torch.cuda.empty_cache()
 
     return m
 
@@ -131,6 +140,9 @@ def main():
     parser.add_argument('--weight_decay',
                         default=1e-7, type=float,
                         help='Weight decay/l2 reg.')
+    parser.add_argument('--splits',
+                        default=1, type=int,
+                        help='Number of validation splits to train over')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
