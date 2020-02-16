@@ -157,7 +157,8 @@ def main():
         args.epochs,
         args.lr,
         args.weight_decay,
-        device
+        device,
+        splits=args.splits
     )
 
 
