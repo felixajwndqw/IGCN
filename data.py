@@ -63,7 +63,7 @@ class EMDataset(Dataset):
             be applied to the targets.
     """
     def __init__(self, img_dir,
-                 transform=None, target_transform=None, aug_mult=4):
+                 transform=None, target_transform=None, aug_mult=4, indices=None):
         self.em_paths = [
             img for img in glob.glob(os.path.join(img_dir, 'volume/*.png'))
         ]
@@ -77,6 +77,10 @@ class EMDataset(Dataset):
 
         self.transform = transform
         self.aug_mult = aug_mult
+        if indices is not None:
+            self.em_paths = [self.em_paths[i] for i in indices]
+            if not self.test:
+                self.mask_paths = [self.mask_paths[i] for i in indices]
 
     def __getitem__(self, i):
         i = i // self.aug_mult

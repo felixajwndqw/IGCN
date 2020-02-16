@@ -13,7 +13,9 @@ from data import EMDataset
 
 
 def get_train_data(batch_size=8):
-    return DataLoader(
+    train_idxs = range(29)
+    valid_idxs = [29]
+    trainloader = DataLoader(
         EMDataset(
             'data/isbi/train',
             albumentations.Compose([
@@ -22,11 +24,28 @@ def get_train_data(batch_size=8):
                 albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(),
                 albumentations.PadIfNeeded(288, 288)
-            ])
+            ]),
+            indices=train_idxs
         ),
         batch_size=batch_size,
         shuffle=True
     )
+    validloader = DataLoader(
+        EMDataset(
+            'data/isbi/train',
+            albumentations.Compose([
+                albumentations.RandomCrop(256, 256),
+                albumentations.Flip(),
+                albumentations.RandomRotate90(),
+                albumentations.ElasticTransform(),
+                albumentations.PadIfNeeded(288, 288)
+            ]),
+            indices=valid_idxs
+        ),
+        batch_size=batch_size,
+        shuffle=True
+    )
+    return trainloader, validloader
 
 
 def get_test_data(batch_size=8):
@@ -74,13 +93,14 @@ def produce_output(model=None, path=None, no_g=4, padding=16, batch_size=8):
             img.save(os.path.join(save_dir, name, f'{i*8 + j:05d}.png'))
 
 
-def write_results(dset, kernel_size, no_g, m, no_epochs,
+def write_results(dset, kernel_size, no_g, base_channels, m, no_epochs,
                   total_params, mins, secs, cmplx=False):
     f = open("seg_results.txt", "a+")
     f.write(
         "\n" + dset +
         "," + str(kernel_size) +
         "," + str(no_g) +
+        "," + str(base_channels) +
         "," + str(cmplx) +
         ',' + "{:1.4f}".format(m['accuracy']) +
         "," + str(m['epoch']) +
@@ -124,9 +144,6 @@ def main():
                         help='Number of samples in each batch.')
     args = parser.parse_args()
 
-    # print(args.h)
-    # if args.h:
-    #     return
     if args.produce:
         if args.path is None:
             raise TypeError('Empty --path argument.')
@@ -134,7 +151,7 @@ def main():
     else:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        train_data = get_train_data(batch_size=args.batch_size)
+        train_data, valid_data = get_train_data(batch_size=args.batch_size)
 
         if args.cmplx:
             Net = UNetIGCNCmplx
@@ -160,13 +177,13 @@ def main():
         start = time.time()
         m = train(
             model,
-            train_data,
+            [train_data, valid_data],
             epochs=args.epochs,
             opt=optimizer,
             device=device,
             save_best=True
         )
-        print(m)
+
         time_taken = time.time() - start
         mins = int(time_taken // 60)
         secs = int(time_taken % 60)
@@ -175,6 +192,7 @@ def main():
             'isbi',
             args.kernel_size,
             args.no_g,
+            args.base_channels,
             m,
             args.epochs,
             total_params,
