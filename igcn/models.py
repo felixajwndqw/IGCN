@@ -6,6 +6,143 @@ from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCm
 from igcn.cmplx import new_cmplx
 
 
+class DoubleIGConv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 no_g=4, prev_max_gabor=False, max_gabor=False, first=False):
+        super().__init__()
+        padding = kernel_size // 2
+        first_div = 2 if first else 1
+        max_g_div = no_g if max_gabor else 1
+        prev_max_g_div = no_g if max_gabor else 1
+        self.double_conv = nn.Sequential(
+            IGConv(
+                in_channels // prev_max_g_div,
+                out_channels // first_div,
+                kernel_size,
+                rot_pool=None,
+                padding=padding,
+                no_g=no_g,
+                max_gabor=False
+            ),
+            IGConv(
+                out_channels // first_div,
+                out_channels // max_g_div,
+                kernel_size,
+                rot_pool=False,
+                padding=padding,
+                no_g=no_g,
+                max_gabor=max_gabor,
+                pool_kernel=2,
+                pool_stride=2
+            ),
+            ReLUCmplx(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)
+
+
+class DoubleIGConvCmplx(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 no_g=4, prev_max_gabor=False, max_gabor=False,
+                 first=False, last=True):
+        super().__init__()
+        padding = kernel_size // 2 - 1
+        first_div = 2 if first else 1
+        max_g_div = no_g if max_gabor else 1
+        prev_max_g_div = no_g if prev_max_gabor else 1
+        self.double_conv = nn.Sequential(
+            IGConvCmplx(
+                in_channels // prev_max_g_div,
+                out_channels // first_div,
+                kernel_size,
+                rot_pool=None,
+                padding=padding,
+                no_g=no_g,
+                max_gabor=False
+            ),
+            IGConvCmplx(
+                out_channels // first_div,
+                out_channels // max_g_div,
+                kernel_size,
+                rot_pool=False,
+                padding=padding + int(last),
+                no_g=no_g,
+                max_gabor=max_gabor
+            ),
+            MaxPoolCmplx(kernel_size=2, stride=2),
+            BatchNormCmplx(),
+            ReLUCmplx(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)
+
+
+class IGCNNew(Model):
+    def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
+                 kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
+                 dset='mnist'):
+        self.name = (f'igcn_{kernel_size}_{dset}_'
+                     f'base_channels={base_channels}_'
+                     f'no_g={no_g}_'
+                     f'cmplx={cmplx}_'
+                     f'inter_mg={inter_mg}_'
+                     f'final_mg={final_mg}_')
+        super(IGCNNew, self).__init__()
+        if cmplx:
+            ConvBlock = DoubleIGConvCmplx
+        else:
+            ConvBlock = DoubleIGConv
+        self.conv1 = ConvBlock(
+            n_channels,
+            base_channels * 2,
+            kernel_size,
+            no_g=no_g,
+            max_gabor=inter_mg,
+            first=True
+        )
+        self.conv2 = ConvBlock(
+            base_channels * 2,
+            base_channels * 3,
+            kernel_size,
+            no_g=no_g,
+            prev_max_gabor=inter_mg,
+            max_gabor=inter_mg
+        )
+        self.conv3 = ConvBlock(
+            base_channels * 3,
+            base_channels * 4,
+            kernel_size,
+            no_g=no_g,
+            prev_max_gabor=inter_mg,
+            max_gabor=final_mg,
+            last=True
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear((2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1), 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.3),
+            nn.Linear(64, 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.3),
+            nn.Linear(64, 10)
+        )
+        self.cmplx = cmplx
+
+    def forward(self, x):
+        if self.cmplx:
+            x = new_cmplx(x)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        if self.cmplx:
+            x = torch.cat([x[0], x[1]], dim=1)
+        x = x.flatten(1)
+        x = self.classifier(x)
+        return x
+
+
 class IGCN(Model):
     def __init__(self, no_g=4, model_name="default", rot_pool=None, dset="mnist",
                  inter_mg=False, final_mg=False, cmplx=False, one=True):
