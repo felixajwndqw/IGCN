@@ -1,3 +1,4 @@
+import argparse
 import time
 import torch
 import torch.optim as optim
@@ -151,5 +152,42 @@ def test_num_workers(device):
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Handles MNIST/CIFAR tasks.')
+    parser.add_argument('--full',
+                        default=False, action='store_true',
+                        help='Whether to run full test list. (default: %(default)s)')
+
+    parser.add_argument('--dataset',
+                        default='mnistrot', type=str,
+                        choices=['mnist', 'mnistrotated', 'mnistrot', 'cifar'],
+                        help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
+    parser.add_argument('--model_name',
+                        default='3oc', type=str,
+                        choices=['3o', '5o', '7o', '9o', '3oc', '5oc', '7oc', '9oc'],
+                        help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
+    parser.add_argument('--no_g',
+                        default=4, type=int,
+                        help='Number of Gabor filters.')
+    parser.add_argument('--inter_mg',
+                        default=False, action='store_true',
+                        help='Whether to pool over orientations in intermediate layers. (default: %(default)s)')
+    parser.add_argument('--final_mg',
+                        default=False, action='store_true',
+                        help='Whether to pool over orientations in final layers. (default: %(default)s)')
+
+    parser.add_argument('--epochs',
+                        default=250, type=int,
+                        help='Number of epochs to train over.')
+    parser.add_argument('--batch_size',
+                        default=8, type=int,
+                        help='Number of samples in each batch.')
+    args = parser.parse_args()
+
+    if args.full:
+        main()
+    else:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        m = run_exp(args.dataset, args.model_name, args.no_g,
+                    False, args.inter_mg, args.final_mg,
+                    args.epochs, device)
     # test_num_workers(0)
