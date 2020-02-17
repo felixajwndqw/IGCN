@@ -60,14 +60,14 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             if dset == 'mnist':
                 train_loader, test_loader, _ = mnist(batch_size=b_size,
                                                      rotate=False,
-                                                     num_workers=2)
+                                                     num_workers=8)
             if dset == 'mnistrotated':
                 train_loader, test_loader, _ = mnist(batch_size=b_size,
                                                      rotate=True,
-                                                     num_workers=2)
+                                                     num_workers=8)
             if dset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=2, split=split)
+                                                        num_workers=8, split=split)
         if dset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
             n_channels = 3
@@ -100,7 +100,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
 
         if dset == 'mnistrot':
             eval_loader, _ = mnistrot(batch_size=b_size,
-                                      num_workers=2,
+                                      num_workers=8,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
