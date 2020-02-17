@@ -25,8 +25,7 @@ class IGabor(nn.Module):
                                            1 / math.sqrt(no_g))
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.GaborFunction = GaborFunction.apply
-        self.register_buffer("gabor_filters", torch.Tensor(no_g, 1,
-                                                           *kernel_size))
+        self.gabor_filters = None
 
         self.no_g = no_g
         self.layer = layer

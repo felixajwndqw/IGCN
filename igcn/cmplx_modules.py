@@ -30,8 +30,7 @@ class IGaborCmplx(nn.Module):
                                            1 / math.sqrt(no_g))
         self.register_parameter(name="gabor", param=self.gabor_params)
         self.no_g = no_g
-        self.register_buffer("gabor_filters", torch.Tensor(self.no_g,
-                                                           *kernel_size))
+        self.gabor_filters = None
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
         self.register_backward_hook(self.set_filter_calc)
