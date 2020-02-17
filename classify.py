@@ -12,7 +12,8 @@ SIZES = {
     'mnist': 60000,
     'mnistrotated': 60000,
     'mnistrot': 12000,
-    'cifar': 12000,
+    'mnistrp': 12000,
+    'cifar': 50000,
 }
 
 
@@ -62,7 +63,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
 
         n_channels = 1
         n_classes = 10
-        if dset == 'mnist' or dset == 'mnistrot':
+        if 'mnist' in dset:
             if inter_mg or final_mg:
                 b_size = int(4096 // no_g)
             else:
@@ -80,6 +81,10 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             if dset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=8, split=split)
+            if dset == 'mnistrp':
+                train_loader, test_loader, _ = mnistrot(batch_size=b_size,
+                                                        num_workers=8, split=split,
+                                                        rotate=True)
         if dset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
             n_channels = 3
@@ -146,7 +151,7 @@ def main():
 
     parser.add_argument('--dataset',
                         default='mnistrot', type=str,
-                        choices=['mnist', 'mnistrotated', 'mnistrot', 'cifar'],
+                        choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar'],
                         help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
     parser.add_argument('--kernel_size',
                         default=3, type=int,
