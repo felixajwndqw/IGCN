@@ -20,6 +20,8 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
                   best_split=1, splits=5, error_m=None):
+    if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
+        dset = 'mnistr'
     f = open("results.txt", "a+")
     out = ("\n" + dset +
            "\t" + str(kernel_size) +
