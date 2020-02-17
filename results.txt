@@ -190,3 +190,44 @@ Fourth batch: 1>24>32>>48>64>64>64>10 prec+rec /w dropout
 
 
 dset    ksize   no_g    r_pool  i_mg    f_mg    cmplx   accur   prec    recall  b_ep    n_ep    t_p     time
+
+mnistrot	3oc		2		False	False	True	True	0.9094	0.9082	0.9080	255		300		0.1137	 56m51s
+mnistrot	3oc		2		False	True	False	True	0.9252	0.9243	0.9242	250		300		0.1045	 57m56s
+mnistrot	3oc		2		False	True	True	True	0.9430	0.9423	0.9422	276		300		0.1323	 57m32s
+mnistrot	3oc		4		False	False	True	True	0.9112	0.9101	0.9097	263		300		0.0896	 68m40s
+mnistrot	3oc		4		False	True	False	True	0.9316	0.9308	0.9306	271		300		0.0759	 70m 8s
+mnistrot	3oc		4		False	True	True	True	0.9370	0.9364	0.9362	283		300		0.1178	 70m 5s
+mnistrot	3oc		8		False	False	True	True	0.9125	0.9116	0.9111	270		300		0.0780	 94m46s
+mnistrot	3oc		8		False	True	False	True	0.9360	0.9355	0.9352	270		300		0.0621	 97m40s
+mnistrot	3oc		8		False	True	True	True	0.9342	0.9338	0.9333	247		300		0.1115	 97m18s
+mnistrot	3oc		16		False	False	True	True	0.9012	0.9000	0.8997	220		300		0.0730	146m40s
+mnistrot	3oc		16		False	True	False	True	0.9307	0.9300	0.9300	177		300		0.0562	150m32s
+mnistrot	3oc		16		False	True	True	True	0.9441	0.9435	0.9434	273		300		0.1101	149m59s
+mnistrot	5oc		2		False	False	True	True	0.9194	0.9183	0.9183	262		300		0.2982	 57m44s
+mnistrot	5oc		2		False	True	False	True	0.9349	0.9343	0.9340	281		300		0.2727	 59m27s
+mnistrot	5oc		2		False	True	True	True	0.9365	0.9359	0.9356	289		300		0.3497	 60m 9s
+mnistrot	5oc		4		False	False	True	True	0.9217	0.9208	0.9205	277		300		0.2310	 69m53s
+mnistrot	5oc		4		False	True	False	True	0.9339	0.9331	0.9331	281		300		0.1928	 75m13s
+mnistrot	5oc		4		False	True	True	True	0.9356	0.9348	0.9348	294		300		0.3084	 75m39s
+mnistrot	5oc		8		False	False	True	True	0.9340	0.9335	0.9330	286		300		0.1978	 94m46s
+mnistrot	5oc		8		False	True	False	True	0.9477	0.9473	0.9470	266		300		0.1533	104m 9s
+mnistrot	3		2	False	False	True	0.8672	0.8650	0.8653	99		100		0.1177	 13m52s
+mnistrot	3		2	False	False	True	0.8736	0.8728	0.8717	100		100		0.1177	 13m53s
+mnistrot	3		2	False	False	True	0.8752	0.8742	0.8733	94		100		0.1177	 13m47s
+mnistrot	3		4	False	False	True	0.8355	0.8342	0.8332	99		100		0.0657	 13m49s
+mnistrot	3		4	False	False	True	0.8548	0.8536	0.8527	100		100		0.0657	 13m48s
+mnistrot	3		4	False	False	True	0.8537	0.8515	0.8515	99		100		0.0657	 13m48s
+mnistrot	3		8	False	False	True	0.8097	0.8071	0.8059	97		100		0.0397	 13m47s
+mnistrot	3		8	False	False	True	0.7659	0.7669	0.7597	99		100		0.0397	 13m47s
+mnistrot	3		8	False	False	True	0.7848	0.7830	0.7815	97		100		0.0397	 13m50s
+mnistrot	3		16	False	False	True	0.6564	0.6605	0.6468	99		100		0.0268	 13m55s
+mnistrot	3		16	False	False	True	0.6936	0.6925	0.6849	99		100		0.0268	 14m 6s
+mnistrot	3		16	False	False	True	0.6944	0.6959	0.6863	99		100		0.0268	 14m28s
+mnistrot	3		2	False	False	True	0.8811	0.8797	0.8796	98.6		100		2		0.1177	 17m48s
+mnistrot	3		4	False	False	True	0.8592	0.8573	0.8572	97.0		100		2		0.0657	 17m46s
+mnistrot	3		8	False	False	True	0.8274	0.8259	0.8246	98.8		100		3		0.0397	 17m45s
+mnistrot	3		16	False	False	True	0.7793	0.7781	0.7750	99.0		100		1		0.0268	 17m45s
+mnistrot	3		2	True	True	True	0.9141	0.9131	0.9130	95.2		100		1		0.0929	 18m58s
+mnistrot	3		4	True	True	True	0.9079	0.9067	0.9068	95.4		100		2		0.0440	 23m 0s
+mnistrot	3		8	True	True	True	0.8799	0.8783	0.8782	98.8		100		4		0.0235	 31m20s
+mnistrot	3		16	True	True	True	0.8090	0.8063	0.8062	98.4		100		3		0.0143	 48m51s
