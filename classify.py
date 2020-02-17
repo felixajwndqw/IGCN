@@ -1,4 +1,5 @@
 import argparse
+import math
 import time
 import torch
 import torch.optim as optim
@@ -17,22 +18,31 @@ SIZES = {
 
 def write_results(dset, kernel_size, no_g, m, no_epochs,
                   total_params, mins, secs,
-                  inter_mg=False, final_mg=False, cmplx=False, best_split=1):
+                  inter_mg=False, final_mg=False, cmplx=False,
+                  best_split=1, splits=5, error_m=None):
     f = open("results.txt", "a+")
-    f.write("\n" + dset +
-            "\t" + str(kernel_size) +
-            "\t\t" + str(no_g) +
-            "\t" + str(inter_mg) +
-            "\t" + str(final_mg) +
-            "\t" + str(cmplx) +
-            '\t' + "{:1.4f}".format(m['accuracy']) +
-            "\t" + "{:1.4f}".format(m['precision']) +
-            "\t" + "{:1.4f}".format(m['recall']) +
-            "\t" + str(m['epoch']) +
-            "\t\t" + str(no_epochs) +
-            "\t\t" + str(best_split) +
-            '\t\t' + "{:1.4f}".format(total_params) +
-            '\t' + "{:3d}m{:2d}s".format(mins, secs))
+    out = ("\n" + dset +
+           "\t" + str(kernel_size) +
+           "\t\t" + str(no_g) +
+           "\t" + str(inter_mg) +
+           "\t" + str(final_mg) +
+           "\t" + str(cmplx) +
+           '\t' + "{:1.4f}".format(m['accuracy']) +
+           "\t" + "{:1.4f}".format(m['precision']) +
+           "\t" + "{:1.4f}".format(m['recall']) +
+           "\t" + str(m['epoch']) +
+           "\t\t" + str(no_epochs) +
+           "\t\t" + str(best_split) +
+           "\t\t" + str(splits) +
+           '\t\t' + "{:1.4f}".format(total_params) +
+           '\t' + "{:3d}m{:2d}s".format(mins, secs))
+    if error_m is not None:
+        out += (
+           '\t' + "{:1.4f}".format(error_m['accuracy']) +
+           "\t" + "{:1.4f}".format(error_m['precision']) +
+           "\t" + "{:1.4f}".format(error_m['recall'])
+        )
+    f.write(out)
     f.close()
 
 
@@ -115,11 +125,16 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
     best_acc = max([mi['accuracy'] for mi in metrics])
     best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
     mean_m['epoch'] = metrics[best_split-1]['epoch']
+    error_m = None
+    if nsplits > 1:
+        error_m = {key: math.sqrt(sum((mi[key] - mean_m[key]) ** 2 for mi in metrics) / (nsplits * (nsplits - 1)))
+                   for key in m.keys()}
+
     write_results(dset, kernel_size, no_g,
                   mean_m, no_epochs,
                   total_params, mins, secs,
-                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx, best_split=best_split)
-
+                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
+                  best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
 
