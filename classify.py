@@ -11,6 +11,7 @@ SIZES = {
     'mnist': 60000,
     'mnistrotated': 60000,
     'mnistrot': 12000,
+    'cifar': 12000,
 }
 
 
@@ -35,16 +36,19 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
 
 
 def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
-            no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', splits=1):
-    if splits == 1:
+            no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
+    metrics = []
+    if nsplits == 1:
         splits = [None]
     else:
-        splits = get_splits(SIZES[dset], splits)
+        splits = get_splits(SIZES[dset], nsplits)
     for split in splits:
         print("Training igcn{} on {}, base_channels={}, no_g={}, "
             "inter_mg={}, final_mg={}".format(kernel_size, dset, base_channels,
                                                 no_g, inter_mg, final_mg))
 
+        n_channels = 1
+        n_classes = 10
         if dset == 'mnist' or dset == 'mnistrot':
             if inter_mg or final_mg:
                 b_size = int(4096 // no_g)
@@ -65,8 +69,13 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
                                                         num_workers=2, split=split)
         if dset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
+            n_channels = 3
+        if dset == 'cifar100':
+            train_loader, test_loader, _ = cifar(batch_size=2048, hundred=True)
+            n_channels = 3
+            n_classes = 100
 
-        model = IGCNNew(no_g=no_g, kernel_size=kernel_size,
+        model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg, 
                         cmplx=cmplx, dset=dset).to(device)
 
@@ -97,15 +106,18 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             m['accuracy'] = temp_metrics['accuracy']
             m['precision'] = temp_metrics['precision']
             m['recall'] = temp_metrics['recall']
-        write_results(dset, kernel_size, no_g,
-                    m, no_epochs,
-                    total_params, mins, secs,
-                    inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx)
-
         del(model)
         torch.cuda.empty_cache()
+        metrics.append(m)
 
-    return m
+    mean_m = {key: sum(mi[key] for mi in metrics) / nsplits for key in m.keys()}
+    write_results(dset, kernel_size, no_g,
+                  mean_m, no_epochs,
+                  total_params, mins, secs,
+                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx)
+
+
+    return metrics
 
 
 def main():
@@ -161,7 +173,7 @@ def main():
         args.lr,
         args.weight_decay,
         device,
-        splits=args.splits
+        nsplits=args.splits
     )
 
 

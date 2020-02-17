@@ -120,7 +120,7 @@ class IGCNNew(Model):
             last=True
         )
         self.classifier = nn.Sequential(
-            nn.Linear((2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1), 64),
+            nn.Linear((2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1), 64),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.3),
             nn.Linear(64, 64),
