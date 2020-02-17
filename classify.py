@@ -100,7 +100,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
 
         if dset == 'mnistrot':
             eval_loader, _ = mnistrot(batch_size=b_size,
-                                      num_workers=8,
+                                      num_workers=2,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
