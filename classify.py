@@ -114,6 +114,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
     mean_m = {key: sum(mi[key] for mi in metrics) / nsplits for key in m.keys()}
     best_acc = max([mi['accuracy'] for mi in metrics])
     best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
+    mean_m['epoch'] = metrics[best_split-1]['epoch']
     write_results(dset, kernel_size, no_g,
                   mean_m, no_epochs,
                   total_params, mins, secs,
