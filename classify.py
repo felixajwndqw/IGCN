@@ -17,7 +17,7 @@ SIZES = {
 
 def write_results(dset, kernel_size, no_g, m, no_epochs,
                   total_params, mins, secs,
-                  inter_mg=False, final_mg=False, cmplx=False):
+                  inter_mg=False, final_mg=False, cmplx=False, best_split=1):
     f = open("results.txt", "a+")
     f.write("\n" + dset +
             "\t" + str(kernel_size) +
@@ -30,6 +30,7 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
             "\t" + "{:1.4f}".format(m['recall']) +
             "\t" + str(m['epoch']) +
             "\t\t" + str(no_epochs) +
+            "\t\t" + str(best_split) +
             '\t\t' + "{:1.4f}".format(total_params) +
             '\t' + "{:3d}m{:2d}s".format(mins, secs))
     f.close()
@@ -111,10 +112,12 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
         metrics.append(m)
 
     mean_m = {key: sum(mi[key] for mi in metrics) / nsplits for key in m.keys()}
+    best_acc = max([mi['accuracy'] for mi in metrics])
+    best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
     write_results(dset, kernel_size, no_g,
                   mean_m, no_epochs,
                   total_params, mins, secs,
-                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx)
+                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx, best_split=best_split)
 
 
     return metrics
