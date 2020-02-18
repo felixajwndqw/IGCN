@@ -86,8 +86,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
                                                      rotate=True,
                                                      num_workers=8)
             if dset == 'mnistrot':
-                train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=8, split=split)
+                train_loader, test_loader, _ = mnistrot(batch_size=b_size//4,
+                                                        num_workers=1, split=split)
             if dset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=8, split=split,
@@ -100,7 +100,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
             n_channels = 3
             n_classes = 100
 
-        model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes, kernel_size=kernel_size,
+        model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes,
+                        base_channels=base_channels, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg,
                         cmplx=cmplx, pooling=pooling, dset=dset).to(device)
 
@@ -123,8 +124,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         secs = int(time_taken % 60)
 
         if dset == 'mnistrot':
-            eval_loader, _ = mnistrot(batch_size=b_size,
-                                      num_workers=8,
+            eval_loader, _ = mnistrot(batch_size=b_size//4,
+                                      num_workers=1,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
