@@ -63,8 +63,20 @@ def pool_cmplx(x, kernel_size, operator='max', **kwargs):
     pool = F.max_pool2d
     if operator == 'avg' or operator == 'average':
         pool = F.avg_pool2d
+    if operator == 'maxmag':
+        return max_mag_pool(x, kernel_size, **kwargs)
 
     return cmplx(
         pool(x[0], kernel_size, **kwargs),
         pool(x[1], kernel_size, **kwargs)
     )
+
+
+def max_mag_pool(x, kernel_size, **kwargs):
+    """Computes max magnitude pooling on complex tensors.
+    """
+    r = magnitude(x)
+    _, idxs = F.max_pool2d(r, kernel_size, return_indices=True, **kwargs)
+    cmplx_idxs = cmplx(idxs, idxs)
+    max_by_mags = x.flatten(start_dim=3).gather(dim=3, index=cmplx_idxs.flatten(start_dim=3))
+    return max_by_mags.view_as(cmplx_idxs)

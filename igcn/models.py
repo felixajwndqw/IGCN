@@ -2,24 +2,28 @@ import torch
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn import IGConv
-from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx
+from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
 from igcn.cmplx import new_cmplx
 
 
 class DoubleIGConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size,
+    def __init__(self, in_channels, out_channels, kernel_size, pooling='max',
                  no_g=4, prev_max_gabor=False, max_gabor=False, first=False):
         super().__init__()
         padding = kernel_size // 2
         first_div = 2 if first else 1
         max_g_div = no_g if max_gabor else 1
         prev_max_g_div = no_g if max_gabor else 1
+        if 'max' in pooling:
+            Pool = MaxPoolCmplx
+        elif pooling == 'avg':
+            Pool = AvgPoolCmplx
         self.double_conv = nn.Sequential(
             IGConv(
                 in_channels // prev_max_g_div,
                 out_channels // first_div,
                 kernel_size,
-                rot_pool=None,
+                pooling=Pool,
                 padding=padding,
                 no_g=no_g,
                 max_gabor=False
@@ -28,7 +32,7 @@ class DoubleIGConv(nn.Module):
                 out_channels // first_div,
                 out_channels // max_g_div,
                 kernel_size,
-                rot_pool=False,
+                pooling=Pool,
                 padding=padding,
                 no_g=no_g,
                 max_gabor=max_gabor,
@@ -45,18 +49,22 @@ class DoubleIGConv(nn.Module):
 class DoubleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_max_gabor=False, max_gabor=False,
+                 pooling='maxmag',
                  first=False, last=True):
         super().__init__()
         padding = kernel_size // 2 - 1
         first_div = 2 if first else 1
         max_g_div = no_g if max_gabor else 1
         prev_max_g_div = no_g if prev_max_gabor else 1
+        if 'max' in pooling:
+            Pool = MaxPoolCmplx
+        elif pooling == 'avg':
+            Pool = AvgPoolCmplx
         self.double_conv = nn.Sequential(
             IGConvCmplx(
                 in_channels // prev_max_g_div,
                 out_channels // first_div,
                 kernel_size,
-                rot_pool=None,
                 padding=padding,
                 no_g=no_g,
                 max_gabor=False
@@ -65,12 +73,11 @@ class DoubleIGConvCmplx(nn.Module):
                 out_channels // first_div,
                 out_channels // max_g_div,
                 kernel_size,
-                rot_pool=False,
                 padding=padding + int(last),
                 no_g=no_g,
                 max_gabor=max_gabor
             ),
-            MaxPoolCmplx(kernel_size=2, stride=2),
+            Pool(kernel_size=2, stride=2),
             BatchNormCmplx(),
             ReLUCmplx(inplace=True),
         )
@@ -82,7 +89,7 @@ class DoubleIGConvCmplx(nn.Module):
 class IGCNNew(Model):
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
-                 dset='mnist'):
+                 pooling='max', dset='mnist'):
         self.name = (f'igcn_{kernel_size}_{dset}_'
                      f'base_channels={base_channels}_'
                      f'no_g={no_g}_'
@@ -100,6 +107,7 @@ class IGCNNew(Model):
             kernel_size,
             no_g=no_g,
             max_gabor=inter_mg,
+            pooling=pooling,
             first=True
         )
         self.conv2 = ConvBlock(
@@ -108,7 +116,8 @@ class IGCNNew(Model):
             kernel_size,
             no_g=no_g,
             prev_max_gabor=inter_mg,
-            max_gabor=inter_mg
+            max_gabor=inter_mg,
+            pooling=pooling
         )
         self.conv3 = ConvBlock(
             base_channels * 3,
@@ -117,6 +126,7 @@ class IGCNNew(Model):
             no_g=no_g,
             prev_max_gabor=inter_mg,
             max_gabor=final_mg,
+            pooling=pooling,
             last=True
         )
         self.classifier = nn.Sequential(
