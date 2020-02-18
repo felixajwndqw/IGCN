@@ -275,3 +275,8 @@ mnistrot	3		8	False	True	True	0.8614	0.8594	0.8593	92.2		100		4		0.0326	 21m22s
 mnistrot	3		16	False	True	True	0.8156	0.8136	0.8129	97.0		100		4		0.0191	 31m32s
 
 dset    ksize   no_g    i_mg    f_mg    cmplx   accur   prec    recall  b_ep    n_ep    b_spl   n_spl   t_p     time    acc_e   prec_e  rec_e
+
+
+
+mnistr	3		2	True	True	True	0.9154	0.9145	0.9144	100		100		4		5		0.0929	 14m 4s	0.0038	0.0039	0.0039
+mnistr	3		4	True	True	True	0.9032	0.9021	0.9019	98		100		2		5		0.0440	 16m19s	0.0030	0.0030	0.0030
