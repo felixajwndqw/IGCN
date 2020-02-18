@@ -82,7 +82,7 @@ class IGConv(Conv2d):
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
-                 rot_pool=None, no_g=2, pool_stride=1, pool_kernel=3, plot=False,
+                 pooling=None, no_g=2, pool_stride=1, pool_kernel=3, plot=False,
                  max_gabor=False, include_gparams=False, **conv_kwargs):
         if not max_gabor:
             if output_features % no_g:
@@ -95,14 +95,10 @@ class IGConv(Conv2d):
 
         self.gabor = IGabor(no_g, kernel_size=kernel_size)
         self.no_g = no_g
-        self.rot_pool = rot_pool
+        self.pooling = pooling(kernel_size=pool_kernel, stride=pool_stride)
         self.max_gabor = max_gabor
         self.conv_kwargs = conv_kwargs
         self.pooling = []
-        if rot_pool:
-            self.pooling = RotMaxPool2d(kernel_size=pool_kernel, stride=pool_stride)
-        else:
-            self.pooling = nn.MaxPool2d(kernel_size=pool_kernel, stride=pool_stride)
         self.bn = nn.BatchNorm2d(output_features * no_g)
         self.include_gparams = include_gparams
 
@@ -121,11 +117,8 @@ class IGConv(Conv2d):
                              enhanced_weight[:, 0].clone().detach().cpu().numpy(),
                              self.gabor_params.clone().detach().cpu().numpy())
 
-        if self.rot_pool is not None:
-            if self.rot_pool:
-                out = self.pooling(out, self.gabor_params[0, :])
-            elif not self.rot_pool:
-                out = self.pooling(out)
+        if self.pooling is not None:
+            out = self.pooling(out)
 
         if self.max_gabor or self.include_gparams:
             max_out = out.view(out.size(0),

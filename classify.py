@@ -21,9 +21,12 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
+                  pooling='maxmag',
                   best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
+    if pooling == 'maxmag':
+        pooling = 'mag'
     f = open("results.txt", "a+")
     out = ("\n" + dset +
            "\t" + str(kernel_size) +
@@ -32,7 +35,8 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
-           '\t' + "{:1.4f}".format(m['accuracy']) +
+           '\t' + pooling +
+           '\t\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
@@ -51,7 +55,8 @@ def write_results(dset, kernel_size, no_g, base_channels,
     f.close()
 
 
-def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
+def run_exp(dset, kernel_size, base_channels, no_g,
+            inter_mg, final_mg, cmplx, pooling,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
     metrics = []
     if nsplits == 1:
@@ -96,8 +101,8 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             n_classes = 100
 
         model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes, kernel_size=kernel_size,
-                        inter_mg=inter_mg, final_mg=final_mg, 
-                        cmplx=cmplx, dset=dset).to(device)
+                        inter_mg=inter_mg, final_mg=final_mg,
+                        cmplx=cmplx, pooling=pooling, dset=dset).to(device)
 
         total_params = sum(p.numel()
                         for p in model.parameters() if p.requires_grad)
@@ -173,6 +178,10 @@ def main():
     parser.add_argument('--cmplx',
                         default=False, action='store_true',
                         help='Whether to use a complex architecture.')
+    parser.add_argument('--pooling',
+                        default='maxmag', type=str,
+                        choices=['max', 'maxmag', 'avg'],
+                        help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
 
     parser.add_argument('--epochs',
                         default=250, type=int,
@@ -197,6 +206,7 @@ def main():
         args.inter_mg,
         args.final_mg,
         args.cmplx,
+        args.pooling,
         args.epochs,
         args.lr,
         args.weight_decay,
