@@ -71,12 +71,9 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         n_channels = 1
         n_classes = 10
         if 'mnist' in dset:
-            if inter_mg or final_mg:
-                b_size = int(4096 // no_g)
-            else:
-                b_size = 4096
+            b_size = 65536 // (base_channels // 16)
             if cmplx:
-                b_size //= 4
+                b_size //= 2
             if dset == 'mnist':
                 train_loader, test_loader, _ = mnist(batch_size=b_size,
                                                      rotate=False,
