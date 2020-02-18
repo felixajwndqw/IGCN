@@ -25,6 +25,8 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
+    if pooling == 'maxmag':
+        pooling = 'mag'
     f = open("results.txt", "a+")
     out = ("\n" + dset +
            "\t" + str(kernel_size) +
@@ -34,7 +36,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
            '\t' + pooling +
-           '\t' + "{:1.4f}".format(m['accuracy']) +
+           '\t\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
