@@ -68,9 +68,7 @@ class IGConvCmplx(nn.Module):
         input_features (torch.Tensor): Feature channels in.
         output_features (torch.Tensor): Feature channels out.
         kernel_size (int, tuple): Size of kernel.
-        rot_pool (bool, optional):
         no_g (int, optional): The number of desired Gabor filters.
-        pool_stride (int, optional):
         plot (bool, optional): Plots feature maps/weights
         max_gabor (bool, optional):
         include_gparams (bool, optional): Includes gabor params with highest
@@ -79,7 +77,7 @@ class IGConvCmplx(nn.Module):
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
-                 rot_pool=None, no_g=2, pool_stride=1, plot=False,
+                 no_g=2, plot=False,
                  max_gabor=False, include_gparams=False, **conv_kwargs):
         if not max_gabor:
             if output_features % no_g:
@@ -94,15 +92,9 @@ class IGConvCmplx(nn.Module):
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
         self.no_g = no_g
-        self.rot_pool = rot_pool
         self.max_gabor = max_gabor
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
-        self.pooling = []
-        if rot_pool:
-            self.pooling = RotMaxPool2d(kernel_size=3, stride=pool_stride)
-        else:
-            self.pooling = nn.MaxPool2d(kernel_size=3, stride=pool_stride)
         self.bn = nn.BatchNorm2d(output_features * no_g)
 
         if plot:
@@ -172,10 +164,23 @@ class BatchNormCmplx(nn.Module):
 class MaxPoolCmplx(nn.Module):
     """Implements complex max pooling.
     """
+    def __init__(self, kernel_size, maxmag=True, **pool_kwargs):
+        super().__init__()
+        self.kernel_size = _pair(kernel_size)
+        self.pool_kwargs = pool_kwargs
+        self.operator = 'maxmag' if maxmag else None
+
+    def forward(self, x):
+        return pool_cmplx(x, self.kernel_size, operator=self.operator, **self.pool_kwargs)
+
+
+class AvgPoolCmplx(nn.Module):
+    """Implements complex average pooling.
+    """
     def __init__(self, kernel_size, **pool_kwargs):
         super().__init__()
         self.kernel_size = _pair(kernel_size)
         self.pool_kwargs = pool_kwargs
 
     def forward(self, x):
-        return pool_cmplx(x, self.kernel_size, **self.pool_kwargs)
+        return pool_cmplx(x, self.kernel_size, operator='avg', **self.pool_kwargs)
