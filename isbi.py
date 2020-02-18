@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 from igcn.seg.models import UNetIGCN
 from igcn.seg.cmplxmodels import UNetIGCNCmplx
 from quicktorch.utils import train, imshow
-from data import EMDataset
+from data import EMDataset, post_em_data
+
 
 
 def get_train_data(batch_size=8):
@@ -61,7 +62,18 @@ def get_test_data(batch_size=8):
     )
 
 
-def produce_output(model=None, path=None, no_g=4, padding=16, batch_size=8):
+def parse_filename(filename):
+    ks_i = filename.index('kernel_size') + len('kernel_size') + 1
+    ng_i = filename.index('no_g') + len('no_g') + 1
+    bc_i = filename.index('base_channels') + len('base_channels') + 1
+    return {
+        'kernel_size': int(filename[ks_i:filename.index('_', ks_i)]),
+        'no_g': int(filename[ng_i:filename.index('_', ng_i)]),
+        'base_channels': int(filename[bc_i:filename.index('_', bc_i)]),
+    }
+
+
+def produce_output(model=None, path=None, padding=16, batch_size=8, device='cpu'):
     if model is None and path is None:
         return TypeError('No model or path provided.')
     if model is not None and path is not None:
@@ -69,10 +81,13 @@ def produce_output(model=None, path=None, no_g=4, padding=16, batch_size=8):
     if model is not None:
         name = model.name
     if path is not None:
-        model = UNetIGCN(1, 1, no_g=no_g)
-        model.load(save_path=path)
         name = os.path.split(path)[-1]
+        params = parse_filename(name)
+        print(params)
+        model = UNetIGCNCmplx(1, 1, **params)
+        model.load(save_path=path)
     imgs = get_test_data(batch_size)
+    model.to(device)
 
     save_dir = 'data/isbi/test/labels'
     if not os.path.isdir(save_dir):
@@ -81,16 +96,15 @@ def produce_output(model=None, path=None, no_g=4, padding=16, batch_size=8):
         os.mkdir(os.path.join(save_dir, name))
 
     for i, (batch, _) in enumerate(imgs):
-        batch_out = model(batch)
+        batch_out = model(batch.to(device))
         batch_out = batch_out.cpu().detach()
         batch_out = batch_out.squeeze(1)[..., padding:batch_out.size(-2)-padding, padding:batch_out.size(-1)-padding]
         batch_out = torch.clamp(batch_out, 0, 1)
-        # batch_out = torch.round(batch_out)
         batch_out = batch_out.numpy()
         batch_out = (batch_out * 255).astype('uint8')
         for j, img in enumerate(batch_out):
             img = Image.fromarray(img)
-            img.save(os.path.join(save_dir, name, f'{i*8 + j:05d}.png'))
+            img.save(os.path.join(save_dir, name, f'{i*batch_size + j:05d}.png'))
 
 
 def write_results(dset, kernel_size, no_g, base_channels, m, no_epochs,
@@ -144,13 +158,12 @@ def main():
                         help='Number of samples in each batch.')
     args = parser.parse_args()
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if args.produce:
         if args.path is None:
             raise TypeError('Empty --path argument.')
-        produce_output(path=args.path, batch_size=args.batch_size)
+        produce_output(path=args.path, batch_size=args.batch_size, device=device)
     else:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
         train_data, valid_data = get_train_data(batch_size=args.batch_size)
 
         if args.cmplx:
@@ -161,7 +174,7 @@ def main():
             n_channels=1,
             n_classes=1,
             save_dir='models/seg/isbi',
-            name='isbi',
+            name=f'isbi_kernel_size={args.kernel_size}_no_g={args.no_g}_base_channels={args.base_channels}',
             no_g=args.no_g,
             kernel_size=args.kernel_size,
             base_channels=args.base_channels
@@ -200,6 +213,10 @@ def main():
             secs,
             cmplx=args.cmplx,
         )
+
+        model.name += f'_epoch{m["epoch"]}.pk'
+        produce_output(model, device=device)
+        post_em_data(os.path.join('data/isbi/test/labels', model.name))
 
 
 if __name__ == '__main__':

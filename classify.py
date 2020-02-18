@@ -12,11 +12,13 @@ SIZES = {
     'mnist': 60000,
     'mnistrotated': 60000,
     'mnistrot': 12000,
-    'cifar': 12000,
+    'mnistrp': 12000,
+    'cifar': 50000,
 }
 
 
-def write_results(dset, kernel_size, no_g, m, no_epochs,
+def write_results(dset, kernel_size, no_g, base_channels,
+                  m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
                   best_split=1, splits=5, error_m=None):
@@ -26,7 +28,8 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
     out = ("\n" + dset +
            "\t" + str(kernel_size) +
            "\t\t" + str(no_g) +
-           "\t" + str(inter_mg) +
+           "\t\t" + str(base_channels) +
+           "\t\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
            '\t' + "{:1.4f}".format(m['accuracy']) +
@@ -62,7 +65,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
 
         n_channels = 1
         n_classes = 10
-        if dset == 'mnist' or dset == 'mnistrot':
+        if 'mnist' in dset:
             if inter_mg or final_mg:
                 b_size = int(4096 // no_g)
             else:
@@ -80,6 +83,10 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
             if dset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=8, split=split)
+            if dset == 'mnistrp':
+                train_loader, test_loader, _ = mnistrot(batch_size=b_size,
+                                                        num_workers=8, split=split,
+                                                        rotate=True)
         if dset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
             n_channels = 3
@@ -132,7 +139,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
         error_m = {key: math.sqrt(sum((mi[key] - mean_m[key]) ** 2 for mi in metrics) / (nsplits * (nsplits - 1)))
                    for key in m.keys()}
 
-    write_results(dset, kernel_size, no_g,
+    write_results(dset, kernel_size, no_g, base_channels,
                   mean_m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
@@ -146,7 +153,7 @@ def main():
 
     parser.add_argument('--dataset',
                         default='mnistrot', type=str,
-                        choices=['mnist', 'mnistrotated', 'mnistrot', 'cifar'],
+                        choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar'],
                         help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
     parser.add_argument('--kernel_size',
                         default=3, type=int,
