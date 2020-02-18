@@ -17,7 +17,8 @@ SIZES = {
 }
 
 
-def write_results(dset, kernel_size, no_g, m, no_epochs,
+def write_results(dset, kernel_size, no_g, base_channels,
+                  m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
                   best_split=1, splits=5, error_m=None):
@@ -27,7 +28,8 @@ def write_results(dset, kernel_size, no_g, m, no_epochs,
     out = ("\n" + dset +
            "\t" + str(kernel_size) +
            "\t\t" + str(no_g) +
-           "\t" + str(inter_mg) +
+           "\t\t" + str(base_channels) +
+           "\t\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
            '\t' + "{:1.4f}".format(m['accuracy']) +
@@ -137,7 +139,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, inter_mg, final_mg, cmplx,
         error_m = {key: math.sqrt(sum((mi[key] - mean_m[key]) ** 2 for mi in metrics) / (nsplits * (nsplits - 1)))
                    for key in m.keys()}
 
-    write_results(dset, kernel_size, no_g,
+    write_results(dset, kernel_size, no_g, base_channels,
                   mean_m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
