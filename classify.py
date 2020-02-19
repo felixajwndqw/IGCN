@@ -71,7 +71,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         n_channels = 1
         n_classes = 10
         if 'mnist' in dset:
-            b_size = 65536 // (base_channels // 16)
+            b_size = 8192 // (base_channels // 16)
             if cmplx:
                 b_size //= 2
             if dset == 'mnist':
@@ -83,7 +83,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
                                                      rotate=True,
                                                      num_workers=8)
             if dset == 'mnistrot':
-                train_loader, test_loader, _ = mnistrot(batch_size=b_size//4,
+                train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=1, split=split)
             if dset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
