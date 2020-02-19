@@ -71,7 +71,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         n_channels = 1
         n_classes = 10
         if 'mnist' in dset:
-            b_size = 8192 // (base_channels // 16)
+            b_size = 4096 // (base_channels // 16)
             if cmplx:
                 b_size //= 2
             if dset == 'mnist':
@@ -84,7 +84,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
                                                      num_workers=8)
             if dset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=1, split=split)
+                                                        num_workers=8, split=split)
             if dset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=8, split=split,
@@ -121,8 +121,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         secs = int(time_taken % 60)
 
         if dset == 'mnistrot':
-            eval_loader, _ = mnistrot(batch_size=b_size//4,
-                                      num_workers=1,
+            eval_loader, _ = mnistrot(batch_size=b_size,
+                                      num_workers=8,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
