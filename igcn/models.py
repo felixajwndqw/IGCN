@@ -121,7 +121,7 @@ class SingleIGConvCmplx(nn.Module):
 class IGCNNew(Model):
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
-                 pooling='max', dset='mnist', single=False):
+                 pooling='max', dropout=0.3, dset='mnist', single=False):
         self.name = (f'igcn_{kernel_size}_{dset}_'
                      f'base_channels={base_channels}_'
                      f'no_g={no_g}_'
@@ -166,10 +166,10 @@ class IGCNNew(Model):
         self.classifier = nn.Sequential(
             nn.Linear((2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1), 64),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=dropout),
             nn.Linear(64, 64),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=dropout),
             nn.Linear(64, 10)
         )
         self.cmplx = cmplx
