@@ -21,7 +21,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
-                  pooling='maxmag',
+                  single=False, dropout=0.3, pooling='maxmag',
                   best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
@@ -32,9 +32,11 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + str(kernel_size) +
            "\t\t" + str(no_g) +
            "\t\t" + str(base_channels) +
+           "\t\t" + str(dropout) +
            "\t\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
+           "\t" + str(single) +
            '\t' + pooling +
            '\t\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
@@ -55,8 +57,8 @@ def write_results(dset, kernel_size, no_g, base_channels,
     f.close()
 
 
-def run_exp(dset, kernel_size, base_channels, no_g,
-            inter_mg, final_mg, cmplx, pooling,
+def run_exp(dset, kernel_size, base_channels, no_g, dropout,
+            inter_mg, final_mg, cmplx, single, pooling,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
     metrics = []
     if nsplits == 1:
@@ -84,7 +86,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
                                                      num_workers=8)
             if dset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=8, split=split)
+                                                        num_workers=4, split=split)
             if dset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=8, split=split,
@@ -100,7 +102,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes,
                         base_channels=base_channels, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg,
-                        cmplx=cmplx, pooling=pooling, dset=dset).to(device)
+                        cmplx=cmplx, pooling=pooling, single=single, dropout=dropout,
+                        dset=dset).to(device)
 
         total_params = sum(p.numel()
                         for p in model.parameters() if p.requires_grad)
@@ -122,7 +125,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
 
         if dset == 'mnistrot':
             eval_loader, _ = mnistrot(batch_size=b_size,
-                                      num_workers=8,
+                                      num_workers=4,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
@@ -146,6 +149,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
                   mean_m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
+                  single=single, dropout=dropout,
                   best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
@@ -167,6 +171,9 @@ def main():
     parser.add_argument('--no_g',
                         default=4, type=int,
                         help='Number of Gabor filters.')
+    parser.add_argument('--dropout',
+                        default=0.3, type=float,
+                        help='Learning rate.')
     parser.add_argument('--inter_mg',
                         default=False, action='store_true',
                         help='Whether to pool over orientations in intermediate layers. (default: %(default)s)')
@@ -176,6 +183,9 @@ def main():
     parser.add_argument('--cmplx',
                         default=False, action='store_true',
                         help='Whether to use a complex architecture.')
+    parser.add_argument('--single',
+                        default=False, action='store_true',
+                        help='Whether to use a single gconv layer between each pooling layer.')
     parser.add_argument('--pooling',
                         default='maxmag', type=str,
                         choices=['max', 'maxmag', 'avg'],
@@ -201,9 +211,11 @@ def main():
         args.kernel_size,
         args.base_channels,
         args.no_g,
+        args.dropout,
         args.inter_mg,
         args.final_mg,
         args.cmplx,
+        args.single,
         args.pooling,
         args.epochs,
         args.lr,

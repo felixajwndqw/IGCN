@@ -1,0 +1,137 @@
+First batch:    1>32>64>128>256>1024>1024>10
+                igconv>pool>relu
+
+dset    ksize   no_g    r_pool  max_g   accur   b_ep    n_ep 
+mnist	3	    2	    False	False	0.8052	50	    50
+mnist	3	    2	    False	False	0.9188	49	    50
+mnist	3	    2	    False	True	0.913	50	    50
+mnist	3	    4	    False	False	0.9158	50	    50
+mnist	3		4		False	False	0.9183	47		50
+mnist	3		4		False	False	0.9015	50		50
+mnist	3		4		False	False	0.6395	25		50
+mnist	3		4		False	False	0.9219	50		50
+mnist	3		4		False	False	0.7738	50		50
+mnist	3		2		False	True	0.9815	300		300
+mnist	3		2		False	False	0.9822	268		300
+mnist	3		4		False	True	0.9137	36		300
+mnist	3		4		False	False	0.9873	282		300
+mnist	3		8		False	True	0.7075	10		300
+mnist	3		8		False	False	0.9864	257		300
+mnist	3		16		False	True	0.6583	8		300
+mnist	3		16		False	False	0.9807	221		300
+mnist	3		32		False	True	0.5057	5		300
+mnist	3		32		False	False	0.9747	295		300
+mnist	5		2		False	True	0.9868	281		300
+mnist	5		2		False	False	0.9867	244		300
+mnist	5		4		False	True	0.9804	101		300
+mnist	5		4		False	False	0.9842	181		300
+mnist	5		8		False	True	0.8751	15		300
+mnist	5		8		False	False	0.9895	279		300
+mnist	5		16		False	True	0.44	3		300
+mnist	5		16		False	False	0.9854	278		300
+mnist	5		2		False	True	0.9916	295		300
+mnist	5		4		False	True	0.9908	299		300
+mnist	5		8		False	True	0.9911	281		300
+mnist	5		16		False	True	0.9896	204		300
+mnist	5		32		False	Truew	0.9893	244		300
+mnist	7		2		False	True	0.9898	270		300
+mnist	7		4		False	True	0.9911	281		300
+mnist	7		8		False	True	0.9917	300		300
+mnist	7		16		False	True	0.9905	236		300
+mnist	7		32		False	True	0.9896	263		300
+mnist	9		2		False	True	0.9916	280		300
+mnist	9		4		False	True	0.9918	260		300
+mnist	9		8		False	True	0.9918	267		300
+mnist	9		16		False	True	0.9915	278		300
+mnist	9		32		False	True	0.9895	240		300
+mnist	3		2		False	True	0.9673	72		300
+mnist	3		2		False	False	0.9899	296		300
+mnist	3		4		False	True	0.9501	26		300
+mnist	5		2		True	True	0.9909	244		300
+mnist	5		4		True	True	0.9903	281		300
+mnist	5		8		True	True	0.9909	188		300
+mnist	5		16		True	True	0.9911	298		300
+
+Second batch: 1>24>32>>48>64>96>96>10
+
+
+dset    ksize   no_g    r_pool  i_mg    f_mg    accur   b_ep    n_ep    t_mem  time
+mnist	3		2		True	False	True	0.9572	100		100		10.90
+mnist	3		2		True	False	False	0.9616	93		100		10.46
+mnist	3		2		True	True	True	0.9645	99		100		11.24
+mnist	3		2		True	True	False	0.9692	97		100		10.80
+mnist	3		2		False	False	True	0.958	94		100		10.90
+mnist	3		2		False	False	False	0.9575	98		100		10.46
+mnist	3		2		False	True	True	0.9686	90		100		11.24
+mnist	3		2		False	True	False	0.9691	99		100		10.80
+mnist	3		4		True	False	True	0.9218	96		100		10.74
+mnist	3		4		True	False	False	0.9581	100		100		10.07
+mnist	3		4		True	True	True	0.9743	96		100		11.27
+
+mnist	3		2		True	False	True	0.9453	100		100		10.90	103m52s
+mnist	3		2		True	False	False	0.9593	100		100		10.46	103m14s
+mnist	3		2		True	True	True	0.971	100		100		11.25	110m59s
+mnist	3		2		True	True	False	0.972	97		100		10.80	109m55s
+mnist	3		2		False	False	True	0.9518	100		100		10.90	 17m43s
+mnist	3		2		False	False	False	0.9565	100		100		10.46	 17m22s
+mnist	3		2		False	True	True	0.9697	94		100		11.25	 18m31s
+mnist	3		2		False	True	False	0.9722	100		100		10.80	 18m 9s
+mnist	3		4		True	False	True	0.9452	100		100		10.74	189m34s
+mnist	3		4		True	False	False	0.949	100		100		10.07	188m22s
+mnist	3		4		True	True	True	0.972	97		100		11.27	219m21s
+mnist	3		4		True	True	False	0.9769	94		100		10.59	217m50s
+mnist	3		4		False	False	True	0.9485	99		100		10.74	 18m29s
+mnist	3		4		False	False	False	0.9549	100		100		10.07	 17m22s
+mnist	3		4		False	True	True	0.9734	95		100		11.27	 22m 7s
+mnist	3		4		False	True	False	0.9743	97		100		10.59	 21m16s
+mnist	3		8		True	False	True	0.9722	83		100		10.68	485m10s
+mnist	3		8		True	False	False	0.9515	96		100		9.88	359m56s
+mnist	3		8		True	True	True	0.978	99		100		11.31	490m26s
+mnist	3		8		True	True	False	0.9751	98		100		10.51	487m20s
+mnist	3		8		False	False	True	0.9702	92		100		10.68	 23m38s
+mnist	3		8		False	False	False	0.9392	98		100		9.88	 17m 0s
+mnist	3		8		False	True	True	0.9763	89		100		11.31	 31m52s
+mnist	3		8		False	True	False	0.9736	92		100		10.51	 28m45s
+mnist	3		16		True	False	True	0.9691	100		100		10.67	1192m54s
+mnist	3		16		True	False	False	0.9322	100		100		9.77	692m59s
+mnist	3		16		True	True	True	0.977	93		100		11.32	1202m56s
+mnist	3		16		True	True	False	0.9756	100		100		10.42	1197m23s
+mnist	3		16		False	False	True	0.9648	96		100		10.67	 35m13s
+mnist	3		16		False	False	False	0.9303	97		100		9.77	 17m 5s
+mnist	3		16		False	True	True	0.9768	97		100		11.32	 48m24s
+mnist	3		16		False	True	False	0.9728	99		100		10.42	 42m41s
+mnist	5		16		True	False	True	0.9766	92		100		12.30	1198m57s
+mnist	5		16		True	False	False	0.9464	99		100		9.94	694m 1s
+mnist	5		16		True	True	True	0.9818	93		100		13.94	1211m28s
+mnist	5		16		True	True	False	0.9803	91		100		11.58	1203m29s
+mnist	5		16		False	False	True	0.9755	94		100		12.30	 37m53s
+mnist	5		16		False	False	False	0.9495	98		100		9.94	 17m14s
+mnist	5		16		False	True	True	0.9831	87		100		13.94	 56m31s
+mnist	5		16		False	True	False	0.9782	85		100		11.58	 47m33s
+
+
+
+Third batch: 1>24>32>>48>64>96>96>10 prec+rec
+
+
+dset    ksize   no_g    r_pool  i_mg    f_mg    cmplx   accur   prec    recall  b_ep    n_ep    t_p     time
+mnist	3oc		2		False	False	True	True	0.9885	0.9884	0.9884	241		250		0.11	120m29s
+mnist	3oc		2		False	True	False	True	0.9893	0.9892	0.9892	248		250		0.10	124m51s
+mnist	3oc		2		False	True	True	True	0.9909	0.9908	0.9908	240		250		0.13	124m52s
+mnist	3oc		4		False	False	True	True	0.9877	0.9876	0.9876	243		250		0.09	155m43s
+mnist	3oc		4		False	True	False	True	0.9874	0.9873	0.9873	235		250		0.08	170m 5s
+mnist	3oc		4		False	True	True	True	0.9913	0.9913	0.9912	237		250		0.12	168m20s
+mnist	3oc		8		False	False	True	True	0.9854	0.9853	0.9853	238		250		0.08	231m 8s
+mnist	3oc		8		False	True	False	True	0.9847	0.9847	0.9845	238		250		0.06	261m31s
+mnist	3oc		8		False	True	True	True	0.9899	0.9898	0.9898	250		250		0.11	262m11s
+mnist	3oc		16		False	False	True	True	0.9802	0.9801	0.9800	247		250		0.07	379m15s
+mnist	3oc		16		False	True	False	True	0.9795	0.9794	0.9792	239		250		0.06	445m56s
+mnist	3oc		16		False	True	True	True	0.9871	0.9870	0.9870	228		250		0.11	446m36s
+mnist	5oc		2		False	False	True	True	0.9908	0.9907	0.9907	245		250		0.30	133m43s
+mnist	5oc		2		False	True	False	True	0.9922	0.9921	0.9921	247		250		0.27	142m23s
+mnist	5oc		2		False	True	True	True	0.9941	0.9940	0.9940	248		250		0.35	144m50s
+mnist	5oc		4		False	False	True	True	0.9895	0.9895	0.9894	247		250		0.23	160m 6s
+mnist	5oc		4		False	True	False	True	0.9911	0.9911	0.9911	243		250		0.19	175m 3s
+mnist	5oc		4		False	True	True	True	0.9931	0.9931	0.9930	243		250		0.31	177m47s
+mnist	5oc		8		False	False	True	True	0.9883	0.9883	0.9882	233		250		0.20	229m46s
+mnist	5oc		8		False	True	False	True	0.9898	0.9897	0.9897	250		250		0.15	261m43s
