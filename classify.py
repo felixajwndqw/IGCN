@@ -149,7 +149,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
                   mean_m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
-                  single=single, dropout=dropout,
+                  single=single, dropout=dropout, pooling=pooling,
                   best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
