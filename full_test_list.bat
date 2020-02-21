@@ -1,5 +1,9 @@
-python .\classify.py --dataset mnistrot --kernel_size 7 --base_channels 64 --no_g 8 --epochs 300 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
-python .\classify.py --dataset mnistrot --kernel_size 7 --base_channels 128 --no_g 8 --epochs 300 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+REM python .\classify.py --dataset mnistrot --kernel_size 7 --base_channels 64 --no_g 8 --epochs 300 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+REM python .\classify.py --dataset mnistrot --kernel_size 7 --base_channels 128 --no_g 8 --epochs 300 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+python .\classify.py --dataset mnistrot --kernel_size 3 --base_channels 96 --no_g 8 --dropout 0.55 --pooling avg --epochs 100 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+python .\classify.py --dataset mnistrot --kernel_size 3 --base_channels 96 --no_g 8 --dropout 0.6 --pooling avg --epochs 100 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+python .\classify.py --dataset mnistrot --kernel_size 3 --base_channels 96 --no_g 8 --dropout 0.55 --pooling maxmag --epochs 100 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
+python .\classify.py --dataset mnistrot --kernel_size 3 --base_channels 96 --no_g 8 --dropout 0.6 --pooling maxmag --epochs 100 --lr 1e-4 --weight_decay 1e-7 --splits 5 --inter_mg --final_mg --cmplx
 
 
 REM DONE
