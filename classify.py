@@ -21,7 +21,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   m, no_epochs,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
-                  pooling='maxmag',
+                  single=False, pooling='maxmag',
                   best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
@@ -35,6 +35,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
+           "\t" + str(single) +
            '\t' + pooling +
            '\t\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
@@ -56,7 +57,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
 
 
 def run_exp(dset, kernel_size, base_channels, no_g,
-            inter_mg, final_mg, cmplx, pooling,
+            inter_mg, final_mg, cmplx, single, pooling,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
     metrics = []
     if nsplits == 1:
@@ -100,7 +101,8 @@ def run_exp(dset, kernel_size, base_channels, no_g,
         model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes,
                         base_channels=base_channels, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg,
-                        cmplx=cmplx, pooling=pooling, dset=dset).to(device)
+                        cmplx=cmplx, pooling=pooling, single=single,
+                        dset=dset).to(device)
 
         total_params = sum(p.numel()
                         for p in model.parameters() if p.requires_grad)
@@ -145,7 +147,7 @@ def run_exp(dset, kernel_size, base_channels, no_g,
     write_results(dset, kernel_size, no_g, base_channels,
                   mean_m, no_epochs,
                   total_params, mins, secs,
-                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
+                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx, single=single,
                   best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
@@ -176,6 +178,9 @@ def main():
     parser.add_argument('--cmplx',
                         default=False, action='store_true',
                         help='Whether to use a complex architecture.')
+    parser.add_argument('--single',
+                        default=False, action='store_true',
+                        help='Whether to use a single gconv layer between each pooling layer.')
     parser.add_argument('--pooling',
                         default='maxmag', type=str,
                         choices=['max', 'maxmag', 'avg'],
@@ -204,6 +209,7 @@ def main():
         args.inter_mg,
         args.final_mg,
         args.cmplx,
+        args.single,
         args.pooling,
         args.epochs,
         args.lr,
