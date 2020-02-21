@@ -315,3 +315,9 @@ mnistr	3		2		96		True	True	True	mag		0.9509	0.9506	0.9503	97		100		1		5		3.0212	
 mnistr	3		4		96		True	True	True	mag		0.9514	0.9510	0.9508	94		100		4		5		1.3281	 22m15s	0.0018	0.0018	0.0018
 mnistr	3		8		96		True	True	True	mag		0.9453	0.9447	0.9448	96		100		2		5		0.6215	 21m27s	0.0010	0.0010	0.0010
 mnistr	3		16		96		True	True	True	mag		0.9362	0.9357	0.9354	98		100		3		5		0.3033	 21m 8s	0.0009	0.0010	0.0010
+
+mnistr	3		8		64		True	True	True	True	mag		0.6709	0.6620	0.6648	100		100		5		5		0.0313	 23m 7s	0.0145	0.0162	0.0150
+mnistr	5		8		64		0.3		True	True	True	True	mag		0.8751	0.8735	0.8734	93		100		5		5		0.0687	 23m58s	0.0024	0.0024	0.0024
+mnistr	3		8		96		0.4		True	True	True	False	mag		0.9466	0.9460	0.9460	89		100		3		5		0.6215	 39m 9s	0.0007	0.0007	0.0007
+mnistr	3		8		96		0.45	True	True	True	False	mag		0.9448	0.9443	0.9441	87		100		2		5		0.6215	 38m28s	0.0010	0.0010	0.0010
+mnistr	3		8		96		0.5		True	True	True	False	mag		0.9425	0.9421	0.9418	100		100		5		5		0.6215	 38m29s	0.0012	0.0011	0.0012
