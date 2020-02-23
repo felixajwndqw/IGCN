@@ -163,14 +163,15 @@ class IGCNNew(Model):
             pooling=pooling,
             last=True
         )
+        self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1)
         self.classifier = nn.Sequential(
-            nn.Linear((2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1), 64),
+            nn.Linear(self.fcn, self.fcn),
             nn.ReLU(inplace=True),
             nn.Dropout(p=dropout),
-            nn.Linear(64, 64),
+            nn.Linear(self.fcn, self.fcn),
             nn.ReLU(inplace=True),
             nn.Dropout(p=dropout),
-            nn.Linear(64, 10)
+            nn.Linear(self.fcn, 10)
         )
         self.cmplx = cmplx
 
