@@ -89,7 +89,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
                                                         num_workers=4, split=split)
             if dset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=8, split=split,
+                                                        num_workers=2, split=split,
                                                         rotate=True)
         if dset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
@@ -123,9 +123,9 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         mins = int(time_taken // 60)
         secs = int(time_taken % 60)
 
-        if dset == 'mnistrot':
+        if dset == 'mnistrot' or dset == 'mnistrp':
             eval_loader, _ = mnistrot(batch_size=b_size,
-                                      num_workers=4,
+                                      num_workers=2,
                                       test=True)
             print('Evaluating')
             temp_metrics = evaluate(model, eval_loader, device=device)
