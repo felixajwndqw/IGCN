@@ -343,3 +343,8 @@ mnistr	3		8		96		0.35	True	True	True	False	avg		0.9591	0.9587	0.9586	93		100		2	
 mnistr	3		8		96		0.4		True	True	True	False	avg		0.9573	0.9570	0.9568	92		100		1		5		0.6215	 24m11s	0.0006	0.0006	0.0006
 mnistr	3		8		96		0.45	True	True	True	False	avg		0.9587	0.9584	0.9582	100		100		5		5		0.6215	 24m14s	0.0006	0.0006	0.0006
 mnistr	3		8		96		0.5		True	True	True	False	avg		0.9566	0.9562	0.9561	92		100		4		5		0.6215	 24m51s	0.0003	0.0002	0.0003
+
+mnistr	3		4		64		0.35		True	True	True	False	avg		0.9580	0.9577	0.9575	96		100		2		5		0.5967	 19m34s	0.0009	0.0009	0.0010
+mnistr	3		8		96		0.35		True	True	True	False	avg		0.9589	0.9586	0.9584	96		100		5		5		0.6215	 24m21s	0.0007	0.0007	0.0007
+mnistr	3		16		144		0.35		True	True	True	False	avg		0.9562	0.9559	0.9557	93		100		2		5		0.6711	 32m28s	0.0007	0.0007	0.0007
+mnistrp	3		16		144		0.35		True	True	True	False	avg		0.9797	0.9794	0.9797	253		300		5		5		0.6711	107m43s	0.0016	0.0017	0.0016
