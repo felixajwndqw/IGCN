@@ -32,8 +32,8 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + str(kernel_size) +
            "\t\t" + str(no_g) +
            "\t\t" + str(base_channels) +
-           "\t\t" + str(dropout) +
-           "\t\t" + str(inter_mg) +
+           '\t\t' + "{:1.2f}".format(dropout) +
+           "\t" + str(inter_mg) +
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
            "\t" + str(single) +
