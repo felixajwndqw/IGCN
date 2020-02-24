@@ -370,3 +370,12 @@ mnistrp	3		8		96		0.20	True	True	True	False	avg		0.9743	0.9741	0.9740	88		100		5
 mnistrp	3		8		96		0.15	True	True	True	False	avg		0.9763	0.9759	0.9760	96		100		5		5		0.6215	 20m48s	0.0010	0.0010	0.0010
 
 Changed FC features
+
+mnistrp	3		16		144		0.15	True	True	True	False	avg		0.9763	0.9760	0.9762	99		100		4		5		0.6729	 35m55s	0.0014	0.0015	0.0014
+mnistrp	3		16		144		0.10	True	True	True	False	avg		0.9765	0.9761	0.9762	93		100		4		5		0.6729	 35m48s	0.0018	0.0018	0.0019
+mnistrp	3		16		144		0.35	True	True	True	False	avg		0.9720	0.9718	0.9718	91		100		2		5		0.6729	 35m48s	0.0003	0.0003	0.0003
+mnistrp	3		16		144		0.30	True	True	True	False	avg		0.9739	0.9737	0.9737	99		100		4		5		0.6729	 35m50s	0.0005	0.0005	0.0006
+mnistrp	3		16		144		0.25	True	True	True	False	avg		0.9746	0.9744	0.9744	100		100		4		5		0.6729	 35m54s	0.0005	0.0005	0.0005
+mnistrp	3		16		144		0.20	True	True	True	False	avg		0.9762	0.9761	0.9761	93		100		2		5		0.6729	 36m 5s	0.0004	0.0004	0.0004
+mnistrp	3		16		144		0.15	True	True	True	False	avg		0.9767	0.9766	0.9765	93		100		2		5		0.6729	 36m 3s	0.0004	0.0003	0.0004
+mnistrp	3		16		144		0.10	True	True	True	False	avg		0.9767	0.9766	0.9765	91		100		5		5		0.6729	 36m 4s	0.0006	0.0007	0.0007
