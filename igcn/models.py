@@ -49,7 +49,7 @@ class DoubleIGConv(nn.Module):
 class DoubleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_max_gabor=False, max_gabor=False,
-                 pooling='maxmag',
+                 pooling='maxmag', weight_init=None,
                  first=False, last=True):
         super().__init__()
         padding = kernel_size // 2 - 1
@@ -67,7 +67,8 @@ class DoubleIGConvCmplx(nn.Module):
                 kernel_size,
                 padding=padding,
                 no_g=no_g,
-                max_gabor=False
+                max_gabor=False,
+                weight_init=weight_init
             ),
             IGConvCmplx(
                 out_channels // first_div,
@@ -75,7 +76,8 @@ class DoubleIGConvCmplx(nn.Module):
                 kernel_size,
                 padding=padding + int(last),
                 no_g=no_g,
-                max_gabor=max_gabor
+                max_gabor=max_gabor,
+                weight_init=weight_init
             ),
             Pool(kernel_size=2, stride=2),
             BatchNormCmplx(),
@@ -89,7 +91,7 @@ class DoubleIGConvCmplx(nn.Module):
 class SingleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_max_gabor=False, max_gabor=False,
-                 pooling='maxmag',
+                 pooling='maxmag', weight_init=None,
                  last=True, **kwargs):
         super().__init__()
         print(f'out_channels={out_channels}')
@@ -107,7 +109,8 @@ class SingleIGConvCmplx(nn.Module):
                 kernel_size,
                 padding=padding,
                 no_g=no_g,
-                max_gabor=max_gabor
+                max_gabor=max_gabor,
+                weight_init=weight_init
             ),
             Pool(kernel_size=2, stride=2),
             BatchNormCmplx(),
@@ -118,17 +121,36 @@ class SingleIGConvCmplx(nn.Module):
         return self.double_conv(x)
 
 
+class LinearBlock(nn.Module):
+    def __init__(self, fcn, dropout):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Linear(fcn, fcn),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
 class IGCNNew(Model):
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
-                 pooling='max', dropout=0.3, dset='mnist', single=False):
+                 pooling='max', dropout=0.3, dset='mnist', single=False,
+                 nfc=2, weight_init=None):
         self.name = (f'igcn_{kernel_size}_{dset}_'
                      f'base_channels={base_channels}_'
                      f'no_g={no_g}_'
                      f'cmplx={cmplx}_'
                      f'inter_mg={inter_mg}_'
-                     f'final_mg={final_mg}_')
-        super(IGCNNew, self).__init__()
+                     f'final_mg={final_mg}_'
+                     f'pooling={pooling}_'
+                     f'dropout={dropout}_'
+                     f'single={single}_'
+                     f'nfc={nfc}_'
+                     f'weight_init={weight_init}_')
+        super().__init__()
         if cmplx:
             ConvBlock = DoubleIGConvCmplx
             if single:
@@ -142,7 +164,8 @@ class IGCNNew(Model):
             no_g=no_g,
             max_gabor=inter_mg,
             pooling=pooling,
-            first=True
+            first=True,
+            weight_init=weight_init
         )
         self.conv2 = ConvBlock(
             base_channels * 2,
@@ -151,7 +174,8 @@ class IGCNNew(Model):
             no_g=no_g,
             prev_max_gabor=inter_mg,
             max_gabor=inter_mg,
-            pooling=pooling
+            pooling=pooling,
+            weight_init=weight_init
         )
         self.conv3 = ConvBlock(
             base_channels * 3,
@@ -161,16 +185,15 @@ class IGCNNew(Model):
             prev_max_gabor=inter_mg,
             max_gabor=final_mg,
             pooling=pooling,
-            last=True
+            last=True,
+            weight_init=weight_init
         )
         self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1)
+        linear_blocks = []
+        for _ in range(nfc):
+            linear_blocks.append(LinearBlock(self.fcn, dropout))
         self.classifier = nn.Sequential(
-            nn.Linear(self.fcn, self.fcn),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(self.fcn, self.fcn),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
+            *linear_blocks,
             nn.Linear(self.fcn, 10)
         )
         self.cmplx = cmplx
