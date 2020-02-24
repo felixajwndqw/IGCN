@@ -8,7 +8,7 @@ from .igabor import gabor_cmplx
 from .vis import FilterPlot
 from .rot_pool import RotMaxPool2d
 from .utils import _pair
-from .cmplx import cmplx, conv_cmplx, relu_cmplx, bnorm_cmplx, pool_cmplx
+from .cmplx import cmplx, conv_cmplx, relu_cmplx, bnorm_cmplx, pool_cmplx, init_weights
 
 
 log = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class IGConvCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, plot=False,
-                 max_gabor=False, include_gparams=False, **conv_kwargs):
+                 max_gabor=False, include_gparams=False, weight_init=None, **conv_kwargs):
         if not max_gabor:
             if output_features % no_g:
                 raise ValueError("Number of filters ({}) does not divide output features ({})"
@@ -88,6 +88,8 @@ class IGConvCmplx(nn.Module):
         super().__init__()
         self.ReConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
         self.ImConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
+        if weight_init is not None:
+            init_weights(self.ReConv.weight, self.ImConv.weight, weight_init)
         self.conv = conv_cmplx
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
