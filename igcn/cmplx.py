@@ -101,35 +101,3 @@ def init_weights(re, im, mode='he'):
     with torch.no_grad():
         re.data = mag * torch.cos(phase)
         im.data = mag * torch.sin(phase)
-
-
-    # # Delete this
-    # exp = math.sqrt(math.pi / (2 * fan_in))
-    # var = (4 - math.pi) / (2 * (fan_in))
-    # varw = 2 / ((fan_in))
-    # print(f"Expecting E(|W|)={exp}, Var(|W|)={var}, Var(W)={varw}")
-
-
-
-
-
-
-# from torch.nn.modules.conv import Conv2d
-
-
-# def main():
-#     ReConv = Conv2d(4, 8, (3, 3))
-#     ImConv = Conv2d(4, 8, (3, 3))
-#     print(ReConv.weight.min(), ReConv.weight.max(), ReConv.weight.mean())
-#     pre_init = magnitude(cmplx(ReConv.weight, ImConv.weight))
-#     print(pre_init.mean().item())
-
-#     init_weights(ReConv.weight, ImConv.weight)
-
-#     post_init = magnitude(cmplx(ReConv.weight, ImConv.weight))
-#     print(post_init.mean().item(), post_init.std().item() ** 2)
-#     print(ReConv.weight.min(), ReConv.weight.max(), ReConv.weight.mean())
-
-
-# if __name__ == '__main__':
-#     main()
