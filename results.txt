@@ -324,13 +324,13 @@ mnistr	7		8		32		True	True	True	mag		0.9306	0.9300	0.9298	97		100		2		5		0.3755	
 mnistr	7		8		32		True	True	True	mag		0.9248	0.9240	0.9240	97		100		5		5		0.3755	 23m30s	0.0027	0.0027	0.0028
 mnistr	9		8		32		True	True	True	mag		0.9300	0.9293	0.9292	86		100		4		5		0.6154	 27m19s	0.0025	0.0026	0.0026
 mnistr	9		8		32		True	True	True	mag		0.9263	0.9256	0.9254	99		100		2		5		0.6154	 20m59s	0.0030	0.0030	0.0030
-mnistr	7		8		64		True	True	True	mag		0.9467	0.9463	0.9461	227		300		2		5		1.4799	 89m49s	0.0008	0.0008	0.0008
-mnistr	7		8		128		True	True	True	mag		0.9535	0.9532	0.9530	231		300		2		5		5.8902	240m17s	0.0005	0.0006	0.0005
 mnistr	3		32		192		True	True	True	mag		0.9299	0.9293	0.9291	99		100		1		3		0.5867	 41m15s	0.0013	0.0013	0.0014
 mnistr	3		32		128		True	True	True	mag		0.9144	0.9137	0.9132	97		100		3		3		0.2659	 29m59s	0.0014	0.0013	0.0014
 mnistr	5		4		16		True	True	True	mag		0.8340	0.8324	0.8313	99		100		1		5		0.1086	 17m38s	0.0217	0.0222	0.0223
 mnistr	7		4		16		True	True	True	mag		0.8762	0.8752	0.8746	99		100		2		5		0.2056	 19m55s	0.0113	0.0114	0.0116
 mnistr	9		4		16		True	True	True	mag		0.8989	0.8977	0.8975	100		100		2		5		0.3349	 21m59s	0.0056	0.0055	0.0057
+mnistr	7		8		64		True	True	True	mag		0.9467	0.9463	0.9461	227		300		2		5		1.4799	 89m49s	0.0008	0.0008	0.0008
+mnistr	7		8		128		True	True	True	mag		0.9535	0.9532	0.9530	231		300		2		5		5.8902	240m17s	0.0005	0.0006	0.0005
 mnistr	9		4		16		True	True	True	mag     0.9558  0.9551  0.9551  273     300     1       1       
 
 dset    ksize   no_g    base_c  dropout i_mg    f_mg    cmplx   single  pooling accur   prec    recall  b_ep    n_ep    b_spl   n_spl   t_p     time    acc_e   prec_e  rec_e
@@ -363,10 +363,16 @@ mnistr	3		8		96		0.35	True	True	True	False	avg		0.9593	0.9590	0.9589	298		300		4
 
 mnistrp	3		8		96		0.35	True	True	True	False	avg		0.9818	0.9814	0.9817	273		300		2		5		0.6215	 63m10s	0.0004	0.0004	0.0003
 mnistrp	3		8		96		0.40	True	True	True	False	avg		0.9781	0.9776	0.9780	274		300		1		5		0.6215	 62m28s	0.0008	0.0007	0.0007
-mnistrp	3		8		96		0.30	True	True	True	False	avg		0.9709	0.9704	0.9708	100		100		1		5		0.6215	 26m30s	0.0015	0.0015	0.0014
 mnistrp	3		8		96		0.45	True	True	True	False	avg		0.9759	0.9758	0.9756	300		300		4		5		0.6215	 86m27s	0.0010	0.0008	0.0010
+mnistrp	3		8		96		0.30	True	True	True	False	avg		0.9709	0.9704	0.9708	100		100		1		5		0.6215	 26m30s	0.0015	0.0015	0.0014
 mnistrp	3		8		96		0.25	True	True	True	False	avg		0.9717	0.9715	0.9714	90		100		4		5		0.6215	 28m12s	0.0018	0.0017	0.0018
 mnistrp	3		8		96		0.20	True	True	True	False	avg		0.9743	0.9741	0.9740	88		100		5		5		0.6215	 20m47s	0.0013	0.0012	0.0012
 mnistrp	3		8		96		0.15	True	True	True	False	avg		0.9763	0.9759	0.9760	96		100		5		5		0.6215	 20m48s	0.0010	0.0010	0.0010
 
 Changed FC features
+
+mnistrp	3		8		96		0.20	True	True	True	False	avg		0.9785	0.9784	0.9784	100		100		2		5		0.6301	 36m 4s	0.0005	0.0005	0.0005
+mnistrp	3		8		96		0.23	True	True	True	False	avg		0.9769	0.9767	0.9767	100		100		3		5		0.6301	 36m19s	0.0008	0.0008	0.0008
+mnistrp	3		8		96		0.25	True	True	True	False	avg		0.9765	0.9764	0.9764	88		100		4		5		0.6301	 35m14s	0.0005	0.0005	0.0005
+mnistrp	3		8		96		0.28	True	True	True	False	avg		0.9761	0.9759	0.9759	91		100		2		5		0.6301	 35m 9s	0.0007	0.0007	0.0007
+mnistrp	3		8		96		0.30	True	True	True	False	avg		0.9763	0.9761	0.9761	94		100		3		5		0.6301	 35m 9s	0.0009	0.0009	0.0009
