@@ -22,7 +22,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
                   single=False, dropout=0.3, pooling='maxmag',
-                  best_split=1, splits=5, error_m=None):
+                  two_fc=False, best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
     if pooling == 'maxmag':
@@ -37,8 +37,9 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + str(final_mg) +
            "\t" + str(cmplx) +
            "\t" + str(single) +
-           '\t' + pooling +
-           '\t\t' + "{:1.4f}".format(m['accuracy']) +
+           '\t' + str(pooling) +
+           '\t\t' + str(two_fc) +
+           '\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
@@ -58,18 +59,15 @@ def write_results(dset, kernel_size, no_g, base_channels,
 
 
 def run_exp(dset, kernel_size, base_channels, no_g, dropout,
-            inter_mg, final_mg, cmplx, single, pooling,
+            inter_mg, final_mg, cmplx, single, pooling, two_fc,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
     metrics = []
     if nsplits == 1:
         splits = [None]
     else:
         splits = get_splits(SIZES[dset], nsplits)
-    for split in splits:
-        print("Training igcn{} on {}, base_channels={}, no_g={}, "
-            "inter_mg={}, final_mg={}".format(kernel_size, dset, base_channels,
-                                                no_g, inter_mg, final_mg))
-
+    for split_no, split in enumerate(splits):
+        print('Beginning split #{}/{}'.format(split_no + 1, nsplits))
         n_channels = 1
         n_classes = 10
         if 'mnist' in dset:
@@ -102,11 +100,14 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes,
                         base_channels=base_channels, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg,
-                        cmplx=cmplx, pooling=pooling, single=single, dropout=dropout,
+                        cmplx=cmplx, pooling=pooling, single=single,
+                        dropout=dropout, two_fc=two_fc,
                         dset=dset).to(device)
 
+        print("Training {}".format(model.name))
+
         total_params = sum(p.numel()
-                        for p in model.parameters() if p.requires_grad)
+                           for p in model.parameters() if p.requires_grad)
         total_params = total_params/1000000
         print("Total # parameter: " + str(total_params) + "M")
 
@@ -116,8 +117,8 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         scheduler = None
         start = time.time()
         m = train(model, [train_loader, test_loader], save_best=True,
-                epochs=no_epochs, opt=optimizer, device=device,
-                sch=scheduler)
+                  epochs=no_epochs, opt=optimizer, device=device,
+                  sch=scheduler)
 
         time_taken = time.time() - start
         mins = int(time_taken // 60)
@@ -150,6 +151,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
                   single=single, dropout=dropout, pooling=pooling,
+                  two_fc=two_fc,
                   best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
@@ -190,6 +192,9 @@ def main():
                         default='maxmag', type=str,
                         choices=['max', 'maxmag', 'avg'],
                         help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
+    parser.add_argument('--two_fc',
+                        default=False, action='store_true',
+                        help='Whether to use two fully connected layers before classification.')
 
     parser.add_argument('--epochs',
                         default=250, type=int,
@@ -217,6 +222,7 @@ def main():
         args.cmplx,
         args.single,
         args.pooling,
+        args.two_fc,
         args.epochs,
         args.lr,
         args.weight_decay,
