@@ -138,7 +138,7 @@ class IGCNNew(Model):
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
                  pooling='max', dropout=0.3, dset='mnist', single=False,
-                 two_fc=False, weight_init=None):
+                 nfc=2, weight_init=None):
         self.name = (f'igcn_{kernel_size}_{dset}_'
                      f'base_channels={base_channels}_'
                      f'no_g={no_g}_'
@@ -148,7 +148,7 @@ class IGCNNew(Model):
                      f'pooling={pooling}_'
                      f'dropout={dropout}_'
                      f'single={single}_'
-                     f'two_fc={two_fc}_'
+                     f'nfc={nfc}_'
                      f'weight_init={weight_init}_')
         super().__init__()
         if cmplx:
@@ -189,8 +189,8 @@ class IGCNNew(Model):
             weight_init=weight_init
         )
         self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1)
-        linear_blocks = [LinearBlock(self.fcn, dropout)]
-        if two_fc:
+        linear_blocks = []
+        for _ in range(nfc):
             linear_blocks.append(LinearBlock(self.fcn, dropout))
         self.classifier = nn.Sequential(
             *linear_blocks,

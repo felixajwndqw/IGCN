@@ -22,7 +22,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
                   total_params, mins, secs,
                   inter_mg=False, final_mg=False, cmplx=False,
                   single=False, dropout=0.3, pooling='maxmag',
-                  two_fc=False, weight_init=None,
+                  nfc=2, weight_init=None,
                   best_split=1, splits=5, error_m=None):
     if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dset = 'mnistr'
@@ -39,7 +39,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + str(cmplx) +
            "\t" + str(single) +
            '\t' + str(pooling) +
-           '\t\t' + str(two_fc) +
+           '\t\t' + str(nfc) +
            '\t' + str(weight_init)[:2] +
            '\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
@@ -61,7 +61,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
 
 
 def run_exp(dset, kernel_size, base_channels, no_g, dropout,
-            inter_mg, final_mg, cmplx, single, pooling, two_fc, weight_init,
+            inter_mg, final_mg, cmplx, single, pooling, nfc, weight_init,
             no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
     metrics = []
     if nsplits == 1:
@@ -103,7 +103,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
                         base_channels=base_channels, kernel_size=kernel_size,
                         inter_mg=inter_mg, final_mg=final_mg,
                         cmplx=cmplx, pooling=pooling, single=single,
-                        dropout=dropout, two_fc=two_fc,
+                        dropout=dropout, nfc=nfc,
                         weight_init=weight_init,
                         dset=dset).to(device)
 
@@ -154,7 +154,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
                   total_params, mins, secs,
                   inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
                   single=single, dropout=dropout, pooling=pooling,
-                  two_fc=two_fc, weight_init=weight_init,
+                  nfc=nfc, weight_init=weight_init,
                   best_split=best_split, splits=nsplits, error_m=error_m)
 
     return metrics
@@ -195,9 +195,9 @@ def main():
                         default='maxmag', type=str,
                         choices=['max', 'maxmag', 'avg'],
                         help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
-    parser.add_argument('--two_fc',
-                        default=False, action='store_true',
-                        help='Whether to use two fully connected layers before classification.')
+    parser.add_argument('--nfc',
+                        default=2, type=int,
+                        help='Number of fully connected layers before classification.')
     parser.add_argument('--weight_init',
                         default=None,
                         type=lambda x: None if x == 'None' else x,
@@ -231,7 +231,7 @@ def main():
         args.cmplx,
         args.single,
         args.pooling,
-        args.two_fc,
+        args.nfc,
         args.weight_init,
         args.epochs,
         args.lr,
