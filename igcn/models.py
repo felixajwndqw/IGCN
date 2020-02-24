@@ -118,17 +118,35 @@ class SingleIGConvCmplx(nn.Module):
         return self.double_conv(x)
 
 
+class LinearBlock(nn.Module):
+    def __init__(self, fcn, dropout):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Linear(fcn, fcn),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
 class IGCNNew(Model):
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_mg=False, final_mg=False, cmplx=False,
-                 pooling='max', dropout=0.3, dset='mnist', single=False):
+                 pooling='max', dropout=0.3, dset='mnist', single=False,
+                 two_fc=False):
         self.name = (f'igcn_{kernel_size}_{dset}_'
                      f'base_channels={base_channels}_'
                      f'no_g={no_g}_'
                      f'cmplx={cmplx}_'
                      f'inter_mg={inter_mg}_'
-                     f'final_mg={final_mg}_')
-        super(IGCNNew, self).__init__()
+                     f'final_mg={final_mg}_'
+                     f'pooling={pooling}_'
+                     f'dropout={dropout}_'
+                     f'single={single}_'
+                     f'two_fc={two_fc}_')
+        super().__init__()
         if cmplx:
             ConvBlock = DoubleIGConvCmplx
             if single:
@@ -164,13 +182,11 @@ class IGCNNew(Model):
             last=True
         )
         self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1)
+        linear_blocks = [LinearBlock(self.fcn, dropout)]
+        if two_fc:
+            linear_blocks.append(LinearBlock(self.fcn, dropout))
         self.classifier = nn.Sequential(
-            nn.Linear(self.fcn, self.fcn),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(self.fcn, self.fcn),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
+            *linear_blocks,
             nn.Linear(self.fcn, 10)
         )
         self.cmplx = cmplx
