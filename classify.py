@@ -199,7 +199,8 @@ def main():
                         default=False, action='store_true',
                         help='Whether to use two fully connected layers before classification.')
     parser.add_argument('--weight_init',
-                        default=None, type=str,
+                        default=None,
+                        type=lambda x: None if x == 'None' else x,
                         choices=[None, 'he', 'glorot'],
                         help=('Type of weight initialisation. Choices: %(choices)s '
                               '(default: %(default)s, corresponding to re/im independent He init.)'))
