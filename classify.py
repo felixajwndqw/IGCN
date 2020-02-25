@@ -67,7 +67,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
     if nsplits == 1:
         splits = [None]
     else:
-        splits = get_splits(SIZES[dset], nsplits)
+        splits = get_splits(SIZES[dset], max(6, nsplits))  # Divide into 6 or more blocks
     for split_no, split in enumerate(splits):
         print('Beginning split #{}/{}'.format(split_no + 1, nsplits))
         n_channels = 1
