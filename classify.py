@@ -68,7 +68,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         splits = [None]
     else:
         splits = get_splits(SIZES[dset], max(6, nsplits))  # Divide into 6 or more blocks
-    for split_no, split in enumerate(splits):
+    for split_no, split in zip(range(nsplits), splits):
         print('Beginning split #{}/{}'.format(split_no + 1, nsplits))
         n_channels = 1
         n_classes = 10
