@@ -21,8 +21,11 @@ class IGaborCmplx(nn.Module):
         no_g (int, optional): The number of desired Gabor filters.
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
+        kernel_size (boolean, optional): Kernel size of gabor filters.
+        prev_max_gabor (boolean, optional): Whether the filter is modulating
+            a tensor which has been orientation pooled.
     """
-    def __init__(self, no_g=4, layer=False, kernel_size=None, **kwargs):
+    def __init__(self, no_g=4, layer=False, kernel_size=None, prev_max_gabor=False, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
@@ -35,14 +38,23 @@ class IGaborCmplx(nn.Module):
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
         self.register_backward_hook(self.set_filter_calc)
+        self.prev_max_gabor = prev_max_gabor
 
     def forward(self, x):
-        log.debug(f'x.size()={x.unsqueeze(1).size()}, gabor={gabor_cmplx(x, self.gabor_params).unsqueeze(2).size()}')
         if self.calc_filters:
             self.generate_gabor_filters(x)
-        out = self.gabor_filters * x.unsqueeze(1)
-        out = out.view(2, -1 , *out.size()[3:])
-        log.debug(f'out.size()={out.size()}')
+        # print(f'x.size()={x.size()}')
+        # print(f'x.size()={x.unsqueeze(1).size()}, gabor={self.gabor_filters.size()}')
+        if x.size(2) != 1 and not self.prev_max_gabor:
+            out = self.gabor_filters.repeat(1, 1, 1, self.no_g, 1, 1).unsqueeze(4) * x.unsqueeze(2).unsqueeze(1)
+            # print(f'out.size()={out.size()}')
+            out = out.view(2, out.size(1)*out.size(2), out.size(3)*out.size(4), *out.size()[5:])
+        else:
+            out = self.gabor_filters * x.unsqueeze(1)
+            # print(f'out.size()={out.size()}')
+            out = out.view(2, -1 , *out.size()[3:])
+        # print(f'x.size()={x.size()}, gabor={self.gabor_filters.size()}')
+        # print(f'out.size()={out.size()}')
         if self.layer:
             out = out.view(x.size(0), x.size(1) * self.no_g, *x.size()[2:])
         return out
@@ -73,50 +85,33 @@ class IGConvCmplx(nn.Module):
         max_gabor (bool, optional):
         include_gparams (bool, optional): Includes gabor params with highest
             activations as extra feature channels.
+        weight_init (str, optional): Type of weight initialisation. Choices
+            are ['he', 'glorot', None]. None corresponds to He init on real
+            and imaginary parts independent of each other. Defaults to None.
         conv_kwargs (dict, optional): Contains keyword arguments to be passed
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, plot=False,
-                 max_gabor=False, include_gparams=False, weight_init=None, **conv_kwargs):
-        if not max_gabor:
-            if output_features % no_g:
-                raise ValueError("Number of filters ({}) does not divide output features ({})"
-                                 .format(str(no_g), str(output_features)))
-            output_features //= no_g
-        kernel_size = _pair(kernel_size)
+                 max_gabor=False, prev_max_gabor=False,
+                 include_gparams=False, weight_init=None, **conv_kwargs):
         super().__init__()
+        kernel_size = _pair(kernel_size)
         self.ReConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
         self.ImConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
         if weight_init is not None:
             init_weights(self.ReConv.weight, self.ImConv.weight, weight_init)
         self.conv = conv_cmplx
 
-        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, prev_max_gabor=prev_max_gabor)
         self.no_g = no_g
         self.max_gabor = max_gabor
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
-        self.bn = nn.BatchNorm2d(output_features * no_g)
-
-        if plot:
-            self.plot = FilterPlot(no_g, kernel_size[0], output_features)
-        else:
-            self.plot = None
-        log.debug(f'stride={self.ReConv.stride}, padding={self.ReConv.padding}, dilation={self.ReConv.dilation}')
 
     def forward(self, x):
         enhanced_weight = self.gabor(cmplx(self.ReConv.weight, self.ImConv.weight))
         out = self.conv(x, enhanced_weight, **self.conv_kwargs)
-        log.info(f'x.size()={x.size()}, '
-                 f'self.ReConv.weight.size()={self.ReConv.weight.size()}, '
-                 f'enhanced_weight.size()={enhanced_weight.size()}, '
-                 f'out.size()={out.size()}')
-
-        if self.plot is not None:
-            self.plot.update(self.weight[:, 0].clone().detach().cpu().numpy(),
-                             enhanced_weight[:, 0].clone().detach().cpu().numpy(),
-                             self.gabor_params.clone().detach().cpu().numpy())
 
         max_out = None
         if self.max_gabor or self.include_gparams:
@@ -127,8 +122,6 @@ class IGConvCmplx(nn.Module):
                                out.size(3),
                                out.size(4))
             max_out, max_idxs = torch.max(max_out, dim=3)
-            # max_gparams = max_gparams.permute(1, 2, 3, 0, 4, 5)
-            # print(f'max_gparams.size()={max_gparams.size()}')
 
         if self.max_gabor:
             out = max_out

@@ -54,25 +54,25 @@ class DoubleIGConvCmplx(nn.Module):
         super().__init__()
         padding = kernel_size // 2 - 1
         first_div = 2 if first else 1
-        max_g_div = no_g if max_gabor else 1
-        prev_max_g_div = no_g if prev_max_gabor else 1
+        # max_g_div = no_g if max_gabor else 1
+        # prev_max_g_div = no_g if prev_max_gabor else 1
         if 'max' in pooling:
             Pool = MaxPoolCmplx
         elif pooling == 'avg':
             Pool = AvgPoolCmplx
         self.double_conv = nn.Sequential(
             IGConvCmplx(
-                in_channels // prev_max_g_div,
+                in_channels,
                 out_channels // first_div,
                 kernel_size,
                 padding=padding,
                 no_g=no_g,
-                max_gabor=False,
+                prev_max_gabor=prev_max_gabor,
                 weight_init=weight_init
             ),
             IGConvCmplx(
                 out_channels // first_div,
-                out_channels // max_g_div,
+                out_channels,
                 kernel_size,
                 padding=padding + int(last),
                 no_g=no_g,
@@ -94,7 +94,6 @@ class SingleIGConvCmplx(nn.Module):
                  pooling='maxmag', weight_init=None,
                  last=True, **kwargs):
         super().__init__()
-        print(f'out_channels={out_channels}')
         padding = kernel_size // 2 - 1
         max_g_div = no_g if max_gabor else 1
         prev_max_g_div = no_g if prev_max_gabor else 1
@@ -188,7 +187,7 @@ class IGCNNew(Model):
             last=True,
             weight_init=weight_init
         )
-        self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_mg else 1) * (4 if n_channels == 3 else 1)
+        self.fcn = (2 if cmplx else 1) * 4 * base_channels * (1 if final_mg else no_g) * (4 if n_channels == 3 else 1)
         linear_blocks = []
         for _ in range(nfc):
             linear_blocks.append(LinearBlock(self.fcn, dropout))
