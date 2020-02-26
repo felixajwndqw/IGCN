@@ -24,7 +24,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='maxmag',
                   nfc=2, weight_init=None,
-                  best_split=1, splits=5, error_m=None):
+                  best_split=1, splits=5, error_m=None,
+                  **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
     if pooling == 'maxmag':
@@ -100,8 +101,8 @@ def run_exp(net_args, training_args, device='0', **kwargs):
 
         model = IGCN(n_channels=n_channels,
                      n_classes=n_classes,
-                     save_dir='models/seg/bsd',
-                     name=('bsd_' + ExperimentParser.args_to_str(net_args)),
+                     save_dir='models/'+net_args.dataset+'/',
+                     name=(ExperimentParser.args_to_str(net_args)),
                      **vars(net_args)).to(device)
 
         print("Training {}".format(model.name))
