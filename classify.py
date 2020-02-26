@@ -73,7 +73,7 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         n_channels = 1
         n_classes = 10
         if 'mnist' in dset:
-            b_size = 4096 // (base_channels)
+            b_size = 4096 // (no_g // 8 * base_channels // 8)
             if cmplx:
                 b_size //= 2
             if dset == 'mnist':
