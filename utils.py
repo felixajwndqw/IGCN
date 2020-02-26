@@ -1,6 +1,10 @@
 import argparse
 
 
+def parse_none(x):
+    return None if x == 'None' else x
+
+
 class ExperimentParser(argparse.ArgumentParser):
     """Constructs an argument parser that returns arguments in groups
 
@@ -34,15 +38,20 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--dropout',
             default=0.3, type=float,
-            help='Learning rate.')
+            help='Probability of dropout layer(s).')
         self.n_parser.add_argument(
-            '--inter_mg',
-            default=False, action='store_true',
-            help='Whether to pool over orientations in intermediate layers. (default: %(default)s)')
+            '--inter_gp',
+            default=None, type=parse_none,
+            choices=[None, 'max', 'avg'],
+            help='Type of pooling to apply across Gabor '
+                 'axis for intermediate layers. '
+                 'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
-            '--final_mg',
-            default=False, action='store_true',
-            help='Whether to pool over orientations in final layers. (default: %(default)s)')
+            '--final_gp',
+            default=None, type=parse_none,
+            choices=[None, 'max', 'avg'],
+            help='Type of pooling to apply across Gabor axis for the final layer. '
+                 '(default: %(default)s)')
         self.n_parser.add_argument(
             '--cmplx',
             default=False, action='store_true',
@@ -63,7 +72,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--weight_init',
             default=None,
-            type=lambda x: None if x == 'None' else x,
+            type=parse_none,
             choices=[None, 'he', 'glorot'],
             help=('Type of weight initialisation. Choices: %(choices)s '
                   '(default: %(default)s, corresponding to re/im independent He init.)'))
