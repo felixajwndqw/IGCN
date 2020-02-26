@@ -23,7 +23,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   total_params=1, mins=None, secs=None,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='maxmag',
-                  nfc=2, weight_init=None,
+                  nfc=2, weight_init=None, all_gp=False,
                   best_split=1, splits=5, error_m=None,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
@@ -43,6 +43,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            '\t' + str(pooling) +
            '\t\t' + str(nfc) +
            '\t' + str(weight_init)[:2] +
+           '\t\t' + str(all_gp) +
            '\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +

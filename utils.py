@@ -53,6 +53,10 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Type of pooling to apply across Gabor axis for the final layer. '
                  '(default: %(default)s)')
         self.n_parser.add_argument(
+            '--all_gp',
+            default=False, action='store_true',
+            help='Whether to apply Gabor pooling on all layers')
+        self.n_parser.add_argument(
             '--cmplx',
             default=False, action='store_true',
             help='Whether to use a complex architecture.')
