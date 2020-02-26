@@ -21,8 +21,9 @@ class IGaborCmplx(nn.Module):
         no_g (int, optional): The number of desired Gabor filters.
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
+        kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
     """
-    def __init__(self, no_g=4, layer=False, kernel_size=None, **kwargs):
+    def __init__(self, no_g=4, layer=False, kernel_size=3, **kwargs):
         super().__init__(**kwargs)
         self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
         self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
@@ -69,17 +70,17 @@ class IGConvCmplx(nn.Module):
         output_features (torch.Tensor): Feature channels out.
         kernel_size (int, tuple): Size of kernel.
         no_g (int, optional): The number of desired Gabor filters.
-        plot (bool, optional): Plots feature maps/weights
-        max_gabor (bool, optional):
+        gabor_pooling (str, optional): Type of pooling to apply across Gabor
+            axis. Choices are [None, 'max', 'avg']. Defaults to None.
         include_gparams (bool, optional): Includes gabor params with highest
             activations as extra feature channels.
         conv_kwargs (dict, optional): Contains keyword arguments to be passed
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
-                 no_g=2, plot=False,
-                 max_gabor=False, include_gparams=False, weight_init=None, **conv_kwargs):
-        if not max_gabor:
+                 no_g=2, gabor_pooling=None, include_gparams=False,
+                 weight_init=None, **conv_kwargs):
+        if gabor_pooling is None:
             if output_features % no_g:
                 raise ValueError("Number of filters ({}) does not divide output features ({})"
                                  .format(str(no_g), str(output_features)))
@@ -94,48 +95,34 @@ class IGConvCmplx(nn.Module):
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
         self.no_g = no_g
-        self.max_gabor = max_gabor
+        self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
-        self.bn = nn.BatchNorm2d(output_features * no_g)
-
-        if plot:
-            self.plot = FilterPlot(no_g, kernel_size[0], output_features)
-        else:
-            self.plot = None
-        log.debug(f'stride={self.ReConv.stride}, padding={self.ReConv.padding}, dilation={self.ReConv.dilation}')
 
     def forward(self, x):
         enhanced_weight = self.gabor(cmplx(self.ReConv.weight, self.ImConv.weight))
         out = self.conv(x, enhanced_weight, **self.conv_kwargs)
-        log.info(f'x.size()={x.size()}, '
-                 f'self.ReConv.weight.size()={self.ReConv.weight.size()}, '
-                 f'enhanced_weight.size()={enhanced_weight.size()}, '
-                 f'out.size()={out.size()}')
 
-        if self.plot is not None:
-            self.plot.update(self.weight[:, 0].clone().detach().cpu().numpy(),
-                             enhanced_weight[:, 0].clone().detach().cpu().numpy(),
-                             self.gabor_params.clone().detach().cpu().numpy())
+        if self.gabor_pooling is None:
+            return out
 
-        max_out = None
-        if self.max_gabor or self.include_gparams:
-            max_out = out.view(2,
-                               out.size(1),
-                               enhanced_weight.size(1) // self.no_g,
-                               self.no_g,
-                               out.size(3),
-                               out.size(4))
-            max_out, max_idxs = torch.max(max_out, dim=3)
-            # max_gparams = max_gparams.permute(1, 2, 3, 0, 4, 5)
-            # print(f'max_gparams.size()={max_gparams.size()}')
+        pool_out = out.view(2,
+                            out.size(1),
+                            enhanced_weight.size(1) // self.no_g,
+                            self.no_g,
+                            out.size(3),
+                            out.size(4))
 
-        if self.max_gabor:
-            out = max_out
+        if self.gabor_pooling == 'max' or self.include_gparams:
+            pool_out, max_idxs = torch.max(pool_out, dim=3)
+            if self.gabor_pooling == 'max':
+                out = pool_out
+            if self.include_gparams:
+                max_gparams = self.gabor.gabor_params[0, max_idxs]
+                out = torch.stack(out, max_gparams, dim=3)
 
-        if self.include_gparams:
-            max_gparams = self.gabor.gabor_params[0, max_idxs]
-            out = torch.stack(out, max_gparams, dim=3)
+        if self.gabor_pooling == 'avg':
+            out = torch.mean(pool_out, dim=3)
 
         return out
 
