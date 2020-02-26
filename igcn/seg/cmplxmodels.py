@@ -7,7 +7,7 @@ from igcn.cmplx import new_cmplx
 
 class UNetIGCNCmplx(Model):
     def __init__(self, n_classes, n_channels=1, no_g=4, base_channels=16,
-                 kernel_size=3, mode='nearest', **kwargs):
+                 kernel_size=3, nfc=1, dropout=0., pooling='max', mode='nearest', **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -15,16 +15,26 @@ class UNetIGCNCmplx(Model):
         self.kernel_size = kernel_size
 
         self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g)
-        self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g)
-        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g)
-        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g)
-        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g)
+        self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, pooling=pooling)
+        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, pooling=pooling)
+        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, pooling=pooling)
+        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g, pooling=pooling)
         self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, no_g=no_g, mode=mode)
         self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, no_g=no_g, mode=mode)
         self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, no_g=no_g, mode=mode)
         self.up4 = UpCmplx(base_channels, base_channels, kernel_size, no_g=no_g, mode=mode, last=True)
-        self.outc = nn.Conv2d(base_channels * 2, base_channels * 2, kernel_size=1)
-        self.outc = nn.Conv2d(base_channels * 2, n_classes, kernel_size=1)
+
+        linear_blocks = []
+        for _ in range(nfc):
+            linear_blocks.append(nn.Sequential(
+                nn.Conv2d(base_channels * 2, base_channels * 2, kernel_size=1),
+                nn.ReLU(inplace=True),
+                nn.Dropout(p=dropout)
+            ))
+        self.outc = nn.Sequential(
+            *linear_blocks,
+            nn.Conv2d(base_channels * 2, n_classes, kernel_size=1)
+        )
 
     def forward(self, x):
         x = new_cmplx(x)

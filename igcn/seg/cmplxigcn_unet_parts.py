@@ -1,6 +1,6 @@
 import torch.nn as nn
 from igcn.cmplx import cmplx
-from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx
+from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
 
 
 class TripleIGConvCmplx(nn.Module):
@@ -41,15 +41,19 @@ class TripleIGConvCmplx(nn.Module):
 class DownCmplx(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg'):
         super().__init__()
-        self.maxpool_conv = nn.Sequential(
-            MaxPoolCmplx(2),
+        if pooling == 'avg':
+            Pool = AvgPoolCmplx(2)
+        else:
+            Pool = MaxPoolCmplx(2)
+        self.pool_conv = nn.Sequential(
+            Pool,
             TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g)
         )
 
     def forward(self, x):
-        return self.maxpool_conv(x)
+        return self.pool_conv(x)
 
 
 class UpCmplx(nn.Module):
