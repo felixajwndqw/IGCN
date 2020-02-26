@@ -5,7 +5,8 @@ import torch
 import torch.optim as optim
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
-from igcn.models import IGCNNew
+from igcn.models import IGCN
+from utils import ExperimentParser
 
 
 SIZES = {
@@ -17,26 +18,26 @@ SIZES = {
 }
 
 
-def write_results(dset, kernel_size, no_g, base_channels,
-                  m, no_epochs,
-                  total_params, mins, secs,
-                  inter_mg=False, final_mg=False, cmplx=False,
-                  single=False, dropout=0.3, pooling='maxmag',
+def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
+                  m={}, epochs=100,
+                  total_params=1, mins=None, secs=None,
+                  inter_gp=None, final_gp=None, cmplx=True,
+                  single=False, dropout=0., pooling='maxmag',
                   nfc=2, weight_init=None,
                   best_split=1, splits=5, error_m=None):
-    if dset == 'mnistrot':  # this is dumb but it works with my dumb notation
-        dset = 'mnistr'
+    if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
+        dataset = 'mnistr'
     if pooling == 'maxmag':
         pooling = 'mag'
     f = open("results.txt", "a+")
-    out = ("\n" + dset +
+    out = ("\n" + dataset +
            "\t" + str(kernel_size) +
            "\t\t" + str(no_g) +
            "\t\t" + str(base_channels) +
            '\t\t' + "{:1.2f}".format(dropout) +
-           "\t" + str(inter_mg) +
-           "\t" + str(final_mg) +
-           "\t" + str(cmplx) +
+           "\t" + str(inter_gp) +
+           "\t\t" + str(final_gp) +
+           "\t\t" + str(cmplx) +
            "\t" + str(single) +
            '\t' + str(pooling) +
            '\t\t' + str(nfc) +
@@ -45,7 +46,7 @@ def write_results(dset, kernel_size, no_g, base_channels,
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
-           "\t\t" + str(no_epochs) +
+           "\t\t" + str(epochs) +
            "\t\t" + str(best_split) +
            "\t\t" + str(splits) +
            '\t\t' + "{:1.4f}".format(total_params) +
@@ -60,52 +61,48 @@ def write_results(dset, kernel_size, no_g, base_channels,
     f.close()
 
 
-def run_exp(dset, kernel_size, base_channels, no_g, dropout,
-            inter_mg, final_mg, cmplx, single, pooling, nfc, weight_init,
-            no_epochs=250, lr=1e-4, weight_decay=1e-7, device='0', nsplits=1):
+def run_exp(net_args, training_args, device='0', **kwargs):
     metrics = []
-    if nsplits == 1:
+    if training_args.nsplits == 1:
         splits = [None]
     else:
-        splits = get_splits(SIZES[dset], nsplits)
-    for split_no, split in enumerate(splits):
-        print('Beginning split #{}/{}'.format(split_no + 1, nsplits))
+        splits = get_splits(SIZES[net_args.dataset], max(6, training_args.nsplits))  # Divide into 6 or more blocks
+    for split_no, split in zip(range(training_args.nsplits), splits):
+        print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         n_channels = 1
         n_classes = 10
-        if 'mnist' in dset:
-            b_size = 4096 // (base_channels // 16)
-            if cmplx:
+        if 'mnist' in net_args.dataset:
+            b_size = 4096 // (net_args.no_g // 8 * net_args.base_channels // 8)
+            if net_args.cmplx:
                 b_size //= 2
-            if dset == 'mnist':
+            if net_args.dataset == 'mnist':
                 train_loader, test_loader, _ = mnist(batch_size=b_size,
                                                      rotate=False,
                                                      num_workers=4)
-            if dset == 'mnistrotated':
+            if net_args.dataset == 'mnistrotated':
                 train_loader, test_loader, _ = mnist(batch_size=b_size,
                                                      rotate=True,
                                                      num_workers=4)
-            if dset == 'mnistrot':
+            if net_args.dataset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=4, split=split)
-            if dset == 'mnistrp':
+            if net_args.dataset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=4, split=split,
                                                         rotate=True)
-        if dset == 'cifar':
+        if net_args.dataset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
             n_channels = 3
-        if dset == 'cifar100':
+        if net_args.dataset == 'cifar100':
             train_loader, test_loader, _ = cifar(batch_size=2048, hundred=True)
             n_channels = 3
             n_classes = 100
 
-        model = IGCNNew(no_g=no_g, n_channels=n_channels, n_classes=n_classes,
-                        base_channels=base_channels, kernel_size=kernel_size,
-                        inter_mg=inter_mg, final_mg=final_mg,
-                        cmplx=cmplx, pooling=pooling, single=single,
-                        dropout=dropout, nfc=nfc,
-                        weight_init=weight_init,
-                        dset=dset).to(device)
+        model = IGCN(n_channels=n_channels,
+                     n_classes=n_classes,
+                     save_dir='models/seg/bsd',
+                     name=('bsd_' + ExperimentParser.args_to_str(net_args)),
+                     **vars(net_args)).to(device)
 
         print("Training {}".format(model.name))
 
@@ -114,20 +111,22 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         total_params = total_params/1000000
         print("Total # parameter: " + str(total_params) + "M")
 
-        optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-7)
+        optimizer = optim.Adam(model.parameters(),
+                               lr=training_args.lr,
+                               weight_decay=training_args.weight_decay)
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
         scheduler = None
         start = time.time()
         m = train(model, [train_loader, test_loader], save_best=True,
-                  epochs=no_epochs, opt=optimizer, device=device,
+                  epochs=training_args.epochs, opt=optimizer, device=device,
                   sch=scheduler)
 
         time_taken = time.time() - start
         mins = int(time_taken // 60)
         secs = int(time_taken % 60)
 
-        if dset == 'mnistrot' or dset == 'mnistrp':
+        if net_args.dataset == 'mnistrot' or net_args.dataset == 'mnistrp':
             eval_loader, _ = mnistrot(batch_size=b_size,
                                       num_workers=4,
                                       test=True)
@@ -140,104 +139,45 @@ def run_exp(dset, kernel_size, base_channels, no_g, dropout,
         torch.cuda.empty_cache()
         metrics.append(m)
 
-    mean_m = {key: sum(mi[key] for mi in metrics) / nsplits for key in m.keys()}
+    mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
     best_acc = max([mi['accuracy'] for mi in metrics])
     best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
     mean_m['epoch'] = metrics[best_split-1]['epoch']
     error_m = None
-    if nsplits > 1:
-        error_m = {key: math.sqrt(sum((mi[key] - mean_m[key]) ** 2 for mi in metrics) / (nsplits * (nsplits - 1)))
+    if training_args.nsplits > 1:
+        error_m = {key: calculate_error([mi[key] for mi in metrics])
                    for key in m.keys()}
 
-    write_results(dset, kernel_size, no_g, base_channels,
-                  mean_m, no_epochs,
-                  total_params, mins, secs,
-                  inter_mg=inter_mg, final_mg=final_mg, cmplx=cmplx,
-                  single=single, dropout=dropout, pooling=pooling,
-                  nfc=nfc, weight_init=weight_init,
-                  best_split=best_split, splits=nsplits, error_m=error_m)
+    write_results(
+        **vars(net_args),
+        **vars(training_args),
+        m=mean_m,
+        total_params=total_params,
+        mins=mins,
+        secs=secs,
+        best_split=best_split,
+        error_m=error_m
+    )
 
     return metrics
 
 
+def calculate_error(items):
+    N = len(items)
+    mean_items = sum(items) / N
+    diff_sq_sum = sum((item - mean_items) ** 2 for item in items)
+    return math.sqrt(diff_sq_sum / (N * (N - 1)))
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Handles MNIST/CIFAR tasks.')
-
-    parser.add_argument('--dataset',
-                        default='mnistrot', type=str,
-                        choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar'],
-                        help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
-    parser.add_argument('--kernel_size',
-                        default=3, type=int,
-                        help='Kernel size')
-    parser.add_argument('--base_channels',
-                        default=16, type=int,
-                        help='Number of feature channels in first layer of network.')
-    parser.add_argument('--no_g',
-                        default=4, type=int,
-                        help='Number of Gabor filters.')
-    parser.add_argument('--dropout',
-                        default=0.3, type=float,
-                        help='Learning rate.')
-    parser.add_argument('--inter_mg',
-                        default=False, action='store_true',
-                        help='Whether to pool over orientations in intermediate layers. (default: %(default)s)')
-    parser.add_argument('--final_mg',
-                        default=False, action='store_true',
-                        help='Whether to pool over orientations in final layers. (default: %(default)s)')
-    parser.add_argument('--cmplx',
-                        default=False, action='store_true',
-                        help='Whether to use a complex architecture.')
-    parser.add_argument('--single',
-                        default=False, action='store_true',
-                        help='Whether to use a single gconv layer between each pooling layer.')
-    parser.add_argument('--pooling',
-                        default='maxmag', type=str,
-                        choices=['max', 'maxmag', 'avg'],
-                        help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
-    parser.add_argument('--nfc',
-                        default=2, type=int,
-                        help='Number of fully connected layers before classification.')
-    parser.add_argument('--weight_init',
-                        default=None,
-                        type=lambda x: None if x == 'None' else x,
-                        choices=[None, 'he', 'glorot'],
-                        help=('Type of weight initialisation. Choices: %(choices)s '
-                              '(default: %(default)s, corresponding to re/im independent He init.)'))
-
-    parser.add_argument('--epochs',
-                        default=250, type=int,
-                        help='Number of epochs to train over.')
-    parser.add_argument('--lr',
-                        default=1e-4, type=float,
-                        help='Learning rate.')
-    parser.add_argument('--weight_decay',
-                        default=1e-7, type=float,
-                        help='Weight decay/l2 reg.')
-    parser.add_argument('--splits',
-                        default=1, type=int,
-                        help='Number of validation splits to train over')
-    args = parser.parse_args()
+    parser = ExperimentParser(description='Handles MNIST/CIFAR tasks.')
+    net_args, training_args = parser.parse_group_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     run_exp(
-        args.dataset,
-        args.kernel_size,
-        args.base_channels,
-        args.no_g,
-        args.dropout,
-        args.inter_mg,
-        args.final_mg,
-        args.cmplx,
-        args.single,
-        args.pooling,
-        args.nfc,
-        args.weight_init,
-        args.epochs,
-        args.lr,
-        args.weight_decay,
-        device,
-        nsplits=args.splits
+        net_args,
+        training_args,
+        device
     )
 
 
