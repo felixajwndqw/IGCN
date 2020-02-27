@@ -24,7 +24,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='maxmag',
                   nfc=2, weight_init=None, all_gp=False,
-                  best_split=1, splits=5, error_m=None,
+                  best_split=1, nsplits=5, error_m=None,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
@@ -50,7 +50,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t" + str(m['epoch']) +
            "\t\t" + str(epochs) +
            "\t\t" + str(best_split) +
-           "\t\t" + str(splits) +
+           "\t\t" + str(nsplits) +
            '\t\t' + "{:1.4f}".format(total_params) +
            '\t' + "{:3d}m{:2d}s".format(mins, secs))
     if error_m is not None:
