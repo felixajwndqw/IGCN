@@ -11,21 +11,21 @@ class TripleIGConvCmplx(nn.Module):
         self.conv1 = nn.Sequential(
             IGConvCmplx(in_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
-                        padding=padding, max_gabor=False),
+                        padding=padding, gabor_pooling=None),
             BatchNormCmplx(),
             ReLUCmplx(inplace=True)
         )
         self.conv2 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
-                        padding=padding, max_gabor=False),
+                        padding=padding, gabor_pooling=None),
             BatchNormCmplx(),
             ReLUCmplx(inplace=True)
         )
         self.conv3 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
-                        padding=padding, max_gabor=last,
+                        padding=padding, gabor_pooling='max',
                         include_gparams=include_gparams),
             BatchNormCmplx(),
             ReLUCmplx(inplace=True)
