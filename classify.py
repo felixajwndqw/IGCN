@@ -26,6 +26,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   nfc=2, weight_init=None, all_gp=False,
                   relu_type='c', fc_type='cat',
                   best_split=1, nsplits=5, error_m=None,
+                  weight_decay=1e-7, lr=1e-4, lr_decay=1,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
@@ -54,7 +55,10 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t\t" + str(epochs) +
            "\t\t" + str(best_split) +
            "\t\t" + str(nsplits) +
-           '\t\t' + "{:1.4f}".format(total_params) +
+           '\t\t' + "{:1.4f}".format(weight_decay) +
+           '\t' + "{:1.4f}".format(lr) +
+           '\t' + "{:1.4f}".format(lr_decay) +
+           '\t' + "{:1.4f}".format(total_params) +
            '\t' + "{:3d}m{:2d}s".format(mins, secs))
     if error_m is not None:
         out += (
@@ -120,8 +124,8 @@ def run_exp(net_args, training_args, device='0', **kwargs):
                                lr=training_args.lr,
                                weight_decay=training_args.weight_decay)
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
-        scheduler = None
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
+        # scheduler = None
         start = time.time()
         m = train(model, [train_loader, test_loader], save_best=True,
                   epochs=training_args.epochs, opt=optimizer, device=device,

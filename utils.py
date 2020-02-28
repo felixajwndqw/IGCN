@@ -102,6 +102,10 @@ class ExperimentParser(argparse.ArgumentParser):
             default=1e-4, type=float,
             help='Learning rate.')
         self.t_parser.add_argument(
+            '--lr_decay',
+            default=1, type=float,
+            help='Learning rate decay.')
+        self.t_parser.add_argument(
             '--weight_decay',
             default=1e-7, type=float,
             help='Weight decay/l2 reg.')
