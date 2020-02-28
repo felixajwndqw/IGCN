@@ -5,10 +5,16 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.conv import Conv2d
 from .igabor import gabor_cmplx
-from .vis import FilterPlot
-from .rot_pool import RotMaxPool2d
 from .utils import _pair
-from .cmplx import cmplx, conv_cmplx, relu_cmplx, bnorm_cmplx, pool_cmplx, init_weights
+from .cmplx import (
+    cmplx,
+    conv_cmplx,
+    relu_cmplx,
+    bnorm_cmplx,
+    pool_cmplx,
+    init_weights,
+    max_mag_gabor_pool
+)
 
 
 log = logging.getLogger(__name__)
@@ -114,7 +120,10 @@ class IGConvCmplx(nn.Module):
                             out.size(4))
 
         if self.gabor_pooling == 'max' or self.include_gparams:
-            pool_out, max_idxs = torch.max(pool_out, dim=3)
+            # print(out.min(), out.max(), out.mean())
+            # pool_out, max_idxs = torch.max(pool_out, dim=3)
+            pool_out, max_idxs = max_mag_gabor_pool(pool_out)
+            # print(pool_out.min(), pool_out.max(), pool_out.mean())
             if self.gabor_pooling == 'max':
                 out = pool_out
             if self.include_gparams:

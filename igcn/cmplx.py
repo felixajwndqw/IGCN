@@ -85,6 +85,16 @@ def max_mag_pool(x, kernel_size, **kwargs):
     return max_by_mags.view_as(cmplx_idxs)
 
 
+def max_mag_gabor_pool(x, **kwargs):
+    """Computes max magnitude pooling over gabor axis.
+    """
+    r = magnitude(x)
+    _, idxs = torch.max(r, dim=2, keepdim=True)
+    re_max = x[0].gather(dim=2, index=idxs)
+    im_max = x[1].gather(dim=2, index=idxs)
+    return cmplx(re_max, im_max).squeeze(3), idxs
+
+
 def init_weights(re, im, mode='he'):
     """Initialises conv. weights according to C. Trabelsi, Deep Complex Networks
     """
