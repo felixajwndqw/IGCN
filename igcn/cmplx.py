@@ -41,11 +41,17 @@ def conv_cmplx(x, w, transpose=False, **kwargs):
     return cmplx(real, imag)
 
 
-def relu_cmplx(x, inplace):
+def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
     """Computes complex relu.
     """
     r = magnitude(x)
-    return F.relu(r) * x / r
+    return F.relu(r + b) * x / r
+
+
+def relu_cmplx(x, inplace=False, **kwargs):
+    """Computes complex relu.
+    """
+    return cmplx(F.relu(x[0]), F.relu(x[1]))
 
 
 def bnorm_cmplx(x, eps=1e-8):

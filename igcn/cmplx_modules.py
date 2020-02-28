@@ -13,7 +13,8 @@ from .cmplx import (
     bnorm_cmplx,
     pool_cmplx,
     init_weights,
-    max_mag_gabor_pool
+    max_mag_gabor_pool,
+    relu_cmplx_mod
 )
 
 
@@ -77,7 +78,7 @@ class IGConvCmplx(nn.Module):
         kernel_size (int, tuple): Size of kernel.
         no_g (int, optional): The number of desired Gabor filters.
         gabor_pooling (str, optional): Type of pooling to apply across Gabor
-            axis. Choices are [None, 'max', 'avg']. Defaults to None.
+            axis. Choices are [None, 'max', 'mag', 'avg']. Defaults to None.
         include_gparams (bool, optional): Includes gabor params with highest
             activations as extra feature channels.
         conv_kwargs (dict, optional): Contains keyword arguments to be passed
@@ -101,6 +102,13 @@ class IGConvCmplx(nn.Module):
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
         self.no_g = no_g
+        if gabor_pooling == 'max':
+            gabor_pooling = torch.max
+        elif gabor_pooling == 'avg':
+            gabor_pooling = torch.mean
+        elif gabor_pooling == 'mag':
+            gabor_pooling = max_mag_gabor_pool
+
         self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
@@ -119,33 +127,48 @@ class IGConvCmplx(nn.Module):
                             out.size(3),
                             out.size(4))
 
-        if self.gabor_pooling == 'max' or self.include_gparams:
-            # print(out.min(), out.max(), out.mean())
-            # pool_out, max_idxs = torch.max(pool_out, dim=3)
-            pool_out, max_idxs = max_mag_gabor_pool(pool_out)
-            # print(pool_out.min(), pool_out.max(), pool_out.mean())
-            if self.gabor_pooling == 'max':
-                out = pool_out
-            if self.include_gparams:
-                max_gparams = self.gabor.gabor_params[0, max_idxs]
-                out = torch.stack(out, max_gparams, dim=3)
+        # print(out.min(), out.max(), out.mean())
+        pool_out, max_idxs = self.gabor_pooling(pool_out, dim=3)
+        out = pool_out
+        # print(pool_out.min(), pool_out.max(), pool_out.mean())
 
-        if self.gabor_pooling == 'avg':
-            out = torch.mean(pool_out, dim=3)
+
+        # if self.include_gparams:
+            # if self.gabor_pooling == 'max':
+            #     out = pool_out
+            # if self.include_gparams:
+            #     max_gparams = self.gabor.gabor_params[0, max_idxs]
+            #     out = torch.stack(out, max_gparams, dim=3)
 
         return out
 
 
 class ReLUCmplx(nn.Module):
     """Implements complex rectified linear unit.
+
+    if relu_type == 'c':
+        x' = relu(re(x)) + i*relu(im(x))
+    if relu_type == 'mod':
+        x' = relu(|x|+b)*(x/|x|)
+
+        Biases are pulled from uniformly from between [1/sqrt(c),-1/sqrt(c)]
     """
-    def __init__(self, eps=1e-8, inplace=False):
+    def __init__(self, inplace=False, relu_type='c', channels=None):
         super().__init__()
-        self.eps = eps
-        self.inplace = inplace
+        self.relu_kwargs = {'inplace': inplace}
+        if relu_type == 'c':
+            self.relu = relu_cmplx
+        elif relu_type == 'mod':
+            assert channels is not None
+            self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
+            self.b.data.uniform_(-1 / math.sqrt(channels),
+                                 1 / math.sqrt(channels))
+            self.register_parameter(name="b", param=self.b)
+            self.relu_kwargs['b'] = self.b
+            self.relu = relu_cmplx_mod
 
     def forward(self, x):
-        return relu_cmplx(x, inplace=self.inplace)
+        return self.relu(x, **self.relu_kwargs)
 
 
 class BatchNormCmplx(nn.Module):

@@ -24,6 +24,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='maxmag',
                   nfc=2, weight_init=None, all_gp=False,
+                  relu_type='c', fc_type='cat',
                   best_split=1, nsplits=5, error_m=None,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
@@ -38,6 +39,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            '\t\t' + "{:1.2f}".format(dropout) +
            "\t" + str(inter_gp) +
            "\t\t" + str(final_gp) +
+           "\t\t" + str(relu_type) +
+           "\t\t" + str(fc_type) +
            "\t\t" + str(cmplx) +
            "\t" + str(single) +
            '\t' + str(pooling) +

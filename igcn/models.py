@@ -3,7 +3,7 @@ import torch.nn as nn
 from quicktorch.models import Model
 from igcn import IGConv
 from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
-from igcn.cmplx import new_cmplx
+from igcn.cmplx import new_cmplx, magnitude
 
 
 class DoubleIGConv(nn.Module):
@@ -50,7 +50,7 @@ class DoubleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_gabor_pooling=None, gabor_pooling=None,
                  pooling='maxmag', weight_init=None, all_gp=False,
-                 first=False, last=True):
+                 relu_type='c', first=False, last=True):
         super().__init__()
         padding = kernel_size // 2 - 1
         all_gp_div = no_g if all_gp else 1
@@ -83,7 +83,11 @@ class DoubleIGConvCmplx(nn.Module):
             ),
             Pool(kernel_size=2, stride=2),
             BatchNormCmplx(),
-            ReLUCmplx(inplace=True),
+            ReLUCmplx(
+                inplace=True,
+                relu_type=relu_type,
+                channels=out_channels // max_g_div
+            ),
         )
 
     def forward(self, x):
@@ -157,14 +161,21 @@ class IGCN(Model):
         dset (str, optional): Type of dataset.
         single (bool, optional): Whether to use a single gconv layer between each pooling layer.
         all_gp (bool, optional): Whether to apply Gabor pooling on all layers.
+        relu_type (str, optional): Type of relu layer. Choices are ['c', 'mod'].
+            Defaults to 'c'.
         nfc (int, optional): Number of fully connected layers before classification.
         weight_init (str, optional): Type of weight initialisation.
+        fc_type (str, optional): How complex tensors are combined into real
+            tensors prior to FC. Choices are ['cat', 'mag']. Defaults to 'cat'.
     """
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_gp=None, final_gp=None, cmplx=False,
                  pooling='max', dropout=0.3, dset='mnist', single=False,
-                 all_gp=False, nfc=2, weight_init=None, **kwargs):
+                 all_gp=False, relu_type='c', nfc=2, weight_init=None,
+                 fc_type='cat',
+                 **kwargs):
         super().__init__(**kwargs)
+        self.fc_type = fc_type
         if cmplx:
             ConvBlock = DoubleIGConvCmplx
             if single:
@@ -180,7 +191,8 @@ class IGCN(Model):
             pooling=pooling,
             first=True,
             weight_init=weight_init,
-            all_gp=all_gp
+            all_gp=all_gp,
+            relu_type=relu_type
         )
         self.conv2 = ConvBlock(
             base_channels * 2,
@@ -191,7 +203,8 @@ class IGCN(Model):
             gabor_pooling=inter_gp,
             pooling=pooling,
             weight_init=weight_init,
-            all_gp=all_gp
+            all_gp=all_gp,
+            relu_type=relu_type
         )
         self.conv3 = ConvBlock(
             base_channels * 3,
@@ -203,9 +216,11 @@ class IGCN(Model):
             pooling=pooling,
             last=True,
             weight_init=weight_init,
-            all_gp=all_gp
+            all_gp=all_gp,
+            relu_type=relu_type
         )
-        self.fcn = (2 if cmplx else 1) * 4 * base_channels // (no_g if final_gp else 1) * (4 if n_channels == 3 else 1)
+        # This line is hideous don't look at him
+        self.fcn = (2 if cmplx and self.fc_type == 'cat' else 1) * 4 * base_channels // (no_g if final_gp else 1) * (4 if n_channels == 3 else 1)
         linear_blocks = []
         for _ in range(nfc):
             linear_blocks.append(LinearBlock(self.fcn, dropout))
@@ -222,7 +237,10 @@ class IGCN(Model):
         x = self.conv2(x)
         x = self.conv3(x)
         if self.cmplx:
-            x = torch.cat([x[0], x[1]], dim=1)
+            if self.fc_type == 'cat':
+                x = torch.cat([x[0], x[1]], dim=1)
+            else:
+                x = magnitude(x)
         x = x.flatten(1)
         x = self.classifier(x)
         return x

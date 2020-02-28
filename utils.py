@@ -42,20 +42,32 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--inter_gp',
             default=None, type=parse_none,
-            choices=[None, 'max', 'avg'],
+            choices=[None, 'max', 'mag', 'avg'],
             help='Type of pooling to apply across Gabor '
                  'axis for intermediate layers. '
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--final_gp',
             default=None, type=parse_none,
-            choices=[None, 'max', 'avg'],
+            choices=[None, 'max', 'mag', 'avg'],
             help='Type of pooling to apply across Gabor axis for the final layer. '
                  '(default: %(default)s)')
         self.n_parser.add_argument(
             '--all_gp',
             default=False, action='store_true',
             help='Whether to apply Gabor pooling on all layers')
+        self.n_parser.add_argument(
+            '--relu_type',
+            default='c', type=str,
+            choices=['c', 'mod'],
+            help='Type of relu layer. '
+                 'Choices: %(choices)s (default: %(default)s)')
+        self.n_parser.add_argument(
+            '--fc_type',
+            default='cat', type=str,
+            choices=['cat', 'mag'],
+            help='How complex tensors are combined into real tensors prior to FC. '
+                 'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--cmplx',
             default=False, action='store_true',
