@@ -80,6 +80,12 @@ def cartesian_coords(weight):
     return x, y
 
 
+def norm(t):
+    """Normalises tensor between 0 and 1
+    """
+    return (t - t.min()) / (t.max() - t.min())
+
+
 def gabor(weight, params):
     """Computes a gabor filter.
 
@@ -99,7 +105,7 @@ def gabor(weight, params):
     theta = params[0]
     l = params[1].unsqueeze(1).unsqueeze(1)
     x_p = x_prime(x, y, theta)
-    return f_h(x, y) * s_h(x_p, l)
+    return norm(f_h(x, y) * s_h(x_p, l))
 
 
 def gabor_cmplx(weight, params):
@@ -126,7 +132,7 @@ def gabor_cmplx(weight, params):
     real = f * s_h(x_p, l)
     imag = f * s_h_imag(x_p, l)
 
-    return cmplx(real, imag).unsqueeze(2)
+    return norm(cmplx(real, imag)).unsqueeze(2)
 
 
 def gabor_gradient(weight, params):
