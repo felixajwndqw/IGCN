@@ -80,10 +80,10 @@ def cartesian_coords(weight):
     return x, y
 
 
-def norm(t):
+def norm(t, eps=1e-12):
     """Normalises tensor between 0 and 1
     """
-    return (t - t.min()) / (t.max() - t.min())
+    return ((t - t.min()) / (t.max() - t.min())).clamp(min=eps)
 
 
 def gabor(weight, params):
