@@ -14,7 +14,8 @@ from .cmplx import (
     pool_cmplx,
     init_weights,
     max_mag_gabor_pool,
-    relu_cmplx_mod
+    relu_cmplx_mod,
+    relu_cmplx_z
 )
 
 
@@ -158,12 +159,18 @@ class ReLUCmplx(nn.Module):
         self.relu_kwargs = {'inplace': inplace}
         if relu_type == 'c':
             self.relu = relu_cmplx
+        elif relu_type == 'z':
+            self.relu = relu_cmplx_z
         elif relu_type == 'mod':
             assert channels is not None
             self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
-            self.b.data.uniform_(-1 / math.sqrt(channels),
-                                 1 / math.sqrt(channels))
+            # self.b = torch.Tensor(channels, 1, 1)
+            self.b.data.uniform_(-2 / math.sqrt(channels),
+                                 0)
+            # self.b.data.uniform_(-1 / math.sqrt(channels),
+            #                      1 / math.sqrt(channels))
             self.register_parameter(name="b", param=self.b)
+            self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
             self.relu = relu_cmplx_mod
 
