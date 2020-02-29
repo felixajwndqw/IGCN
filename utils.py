@@ -70,7 +70,7 @@ class ExperimentParser(argparse.ArgumentParser):
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--fc_block',
-            default='cat', type=str,
+            default='lin', type=str,
             choices=['lin', 'cnv'],
             help='Linear or 1x1 conv for FC layers. Latter will be applied '
                  'before projection.'
