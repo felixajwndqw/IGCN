@@ -144,11 +144,41 @@ class IGConvCmplx(nn.Module):
         return out
 
 
+class ConvCmplx(nn.Module):
+    """Implements a complex convolutional layer.
+
+    Args:
+        input_features (torch.Tensor): Feature channels in.
+        output_features (torch.Tensor): Feature channels out.
+        kernel_size (int, tuple): Size of kernel.
+        weight_init (str, optional): Type of weight initialisation method.
+        conv_kwargs (dict, optional): Contains keyword arguments to be passed
+            to convolution operator. E.g. stride, dilation, padding.
+    """
+    def __init__(self, input_features, output_features, kernel_size,
+                 weight_init=None, **conv_kwargs):
+        kernel_size = _pair(kernel_size)
+        super().__init__()
+        self.ReConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
+        self.ImConv = Conv2d(input_features, output_features, kernel_size, **conv_kwargs)
+        if weight_init is not None:
+            init_weights(self.ReConv.weight, self.ImConv.weight, weight_init)
+        self.conv = conv_cmplx
+        self.conv_kwargs = conv_kwargs
+
+    def forward(self, x):
+        cmplx_weight = cmplx(self.ReConv.weight, self.ImConv.weight)
+        out = self.conv(x, cmplx_weight, **self.conv_kwargs)
+        return out
+
+
 class ReLUCmplx(nn.Module):
     """Implements complex rectified linear unit.
 
     if relu_type == 'c':
         x' = relu(re(x)) + i*relu(im(x))
+    if relu_type == 'z':
+        x' = x if both re(x) and im(x) are positive <=> 0<arctan(im(x)/re(x))<pi/2
     if relu_type == 'mod':
         x' = relu(|x|+b)*(x/|x|)
 

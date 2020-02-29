@@ -19,12 +19,18 @@ def new_cmplx(real):
     return cmplx(real, torch.zeros_like(real))
 
 
-def magnitude(x, eps=1e-8):
+def magnitude(x, eps=1e-8, **kwargs):
     """Computes magnitude of given complex tensor.
 
     Must return nonzero as grad(0)=inf
     """
     return torch.sqrt(torch.clamp(x.pow(2).sum(dim=0), min=eps))
+
+
+def concatenate(x, **kwargs):
+    """Concatenates complex tensor into real tensor
+    """
+    return torch.cat([x[0], x[1]], dim=1)
 
 
 def conv_cmplx(x, w, transpose=False, **kwargs):

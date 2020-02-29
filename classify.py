@@ -24,7 +24,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='maxmag',
                   nfc=2, weight_init=None, all_gp=False,
-                  relu_type='c', fc_type='cat',
+                  relu_type='c', fc_type='cat', fc_block='lin',
                   best_split=1, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1,
                   **kwargs):
@@ -42,6 +42,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t\t" + str(final_gp) +
            "\t\t" + str(relu_type) +
            "\t\t" + str(fc_type) +
+           "\t\t" + str(fc_block) +
            "\t\t" + str(cmplx) +
            "\t" + str(single) +
            '\t' + str(pooling) +

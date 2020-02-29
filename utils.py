@@ -69,6 +69,13 @@ class ExperimentParser(argparse.ArgumentParser):
             help='How complex tensors are combined into real tensors prior to FC. '
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
+            '--fc_block',
+            default='cat', type=str,
+            choices=['lin', 'cnv'],
+            help='Linear or 1x1 conv for FC layers. Latter will be applied '
+                 'before projection.'
+                 'Choices: %(choices)s (default: %(default)s)')
+        self.n_parser.add_argument(
             '--cmplx',
             default=False, action='store_true',
             help='Whether to use a complex architecture.')

@@ -2,8 +2,15 @@ import torch
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn import IGConv
-from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
-from igcn.cmplx import new_cmplx, magnitude
+from igcn.cmplx_modules import (
+    IGConvCmplx,
+    ReLUCmplx,
+    BatchNormCmplx,
+    MaxPoolCmplx,
+    AvgPoolCmplx,
+    ConvCmplx
+)
+from igcn.cmplx import new_cmplx, magnitude, concatenate
 
 
 class DoubleIGConv(nn.Module):
@@ -128,11 +135,24 @@ class SingleIGConvCmplx(nn.Module):
 
 
 class LinearBlock(nn.Module):
-    def __init__(self, fcn, dropout):
+    def __init__(self, fcn, dropout=0., **kwargs):
         super().__init__()
         self.block = nn.Sequential(
             nn.Linear(fcn, fcn),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class LinearConvBlock(nn.Module):
+    def __init__(self, channels, dropout=0., relu_type='c', **kwargs):
+        super().__init__()
+        self.block = nn.Sequential(
+            ConvCmplx(channels, channels, kernel_size=1),
+            ReLUCmplx(inplace=True, relu_type=relu_type, channels=channels),
             nn.Dropout(p=dropout)
         )
 
@@ -172,7 +192,7 @@ class IGCN(Model):
                  kernel_size=3, inter_gp=None, final_gp=None, cmplx=False,
                  pooling='max', dropout=0.3, dset='mnist', single=False,
                  all_gp=False, relu_type='c', nfc=2, weight_init=None,
-                 fc_type='cat',
+                 fc_type='cat', fc_block='linear',
                  **kwargs):
         super().__init__(**kwargs)
         self.fc_type = fc_type
@@ -182,6 +202,11 @@ class IGCN(Model):
                 ConvBlock = SingleIGConvCmplx
         else:
             ConvBlock = DoubleIGConv
+        self.fc_block = fc_block
+        if fc_block == 'lin':
+            FCBlock = LinearBlock
+        elif fc_block == 'cnv':
+            FCBlock = LinearConvBlock
         self.conv1 = ConvBlock(
             n_channels,
             base_channels * 2,
@@ -220,14 +245,24 @@ class IGCN(Model):
             relu_type=relu_type
         )
         # This line is hideous don't look at him
-        self.fcn = (2 if cmplx and self.fc_type == 'cat' else 1) * 4 * base_channels // (no_g if final_gp else 1) * (4 if n_channels == 3 else 1)
+        self.fcn = 4 * base_channels // (no_g if final_gp else 1) * (4 if n_channels == 3 else 1)
+        if cmplx and self.fc_block == 'lin' and self.fc_type == 'cat':
+            self.fcn *= 2
         linear_blocks = []
         for _ in range(nfc):
-            linear_blocks.append(LinearBlock(self.fcn, dropout))
-        self.classifier = nn.Sequential(
+            linear_blocks.append(FCBlock(self.fcn, dropout, relu_type=relu_type))
+        self.linear = nn.Sequential(
             *linear_blocks,
+        )
+        if (self.fc_type == 'cat' and self.fc_block == 'cnv'):
+            self.fcn *= 2
+        self.classifier = nn.Sequential(
             nn.Linear(self.fcn, 10)
         )
+        if self.fc_type == 'cat':
+            self.project = concatenate
+        elif self.fc_type == 'mag':
+            self.project = magnitude
         self.cmplx = cmplx
 
     def forward(self, x):
@@ -236,11 +271,12 @@ class IGCN(Model):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
+        if self.fc_block == 'cnv':
+            x = self.linear(x)
         if self.cmplx:
-            if self.fc_type == 'cat':
-                x = torch.cat([x[0], x[1]], dim=1)
-            else:
-                x = magnitude(x)
+            x = self.project(x)
         x = x.flatten(1)
+        if self.fc_block == 'lin':
+            x = self.linear(x)
         x = self.classifier(x)
         return x
