@@ -9,11 +9,12 @@ from .utils import _pair
 from .cmplx import (
     cmplx,
     conv_cmplx,
-    relu_cmplx,
     bnorm_cmplx,
     pool_cmplx,
     init_weights,
     max_mag_gabor_pool,
+    max_summed_mag_gabor_pool,
+    relu_cmplx,
     relu_cmplx_mod,
     relu_cmplx_z
 )
@@ -109,6 +110,8 @@ class IGConvCmplx(nn.Module):
             gabor_pooling = torch.mean
         elif gabor_pooling == 'mag':
             gabor_pooling = max_mag_gabor_pool
+        elif gabor_pooling == 'sum':
+            gabor_pooling = max_summed_mag_gabor_pool
 
         self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams

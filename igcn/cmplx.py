@@ -109,9 +109,17 @@ def max_mag_gabor_pool(x, **kwargs):
     """
     r = magnitude(x)
     _, idxs = torch.max(r, dim=2, keepdim=True)
-    re_max = x[0].gather(dim=2, index=idxs)
-    im_max = x[1].gather(dim=2, index=idxs)
-    return cmplx(re_max, im_max).squeeze(3), idxs
+    idxs = idxs.unsqueeze(0).repeat(2, 1, 1, 1, 1, 1)
+    return x.gather(dim=3, index=idxs).squeeze(3), idxs
+
+
+def max_summed_mag_gabor_pool(x, **kwargs):
+    """Computes max summed magnitude pooling over gabor axis.
+    """
+    r_summed = magnitude(x).sum(dim=(-1, -2), keepdim=True)
+    _, idxs = torch.max(r_summed, dim=2, keepdim=True)
+    idxs = idxs.unsqueeze(0).repeat(2, 1, 1, 1, x.size(-2), x.size(-1))
+    return x.gather(dim=3, index=idxs).squeeze(3), idxs
 
 
 def init_weights(re, im, mode='he'):

@@ -42,14 +42,14 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--inter_gp',
             default=None, type=parse_none,
-            choices=[None, 'max', 'mag', 'avg'],
+            choices=[None, 'max', 'mag', 'avg', 'sum'],
             help='Type of pooling to apply across Gabor '
                  'axis for intermediate layers. '
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--final_gp',
             default=None, type=parse_none,
-            choices=[None, 'max', 'mag', 'avg'],
+            choices=[None, 'max', 'mag', 'avg', 'sum'],
             help='Type of pooling to apply across Gabor axis for the final layer. '
                  '(default: %(default)s)')
         self.n_parser.add_argument(
