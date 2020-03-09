@@ -3,20 +3,21 @@ import math
 import logging
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 from torch.nn.modules.conv import Conv2d
 from .igabor import gabor_cmplx
 from .utils import _pair
 from .cmplx import (
     cmplx,
     conv_cmplx,
-    bnorm_cmplx,
     pool_cmplx,
     init_weights,
     max_mag_gabor_pool,
     max_summed_mag_gabor_pool,
     relu_cmplx,
     relu_cmplx_mod,
-    relu_cmplx_z
+    relu_cmplx_z,
+    magnitude
 )
 
 
@@ -107,7 +108,7 @@ class IGConvCmplx(nn.Module):
         if gabor_pooling == 'max':
             gabor_pooling = torch.max
         elif gabor_pooling == 'avg':
-            gabor_pooling = torch.mean
+            gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
         elif gabor_pooling == 'mag':
             gabor_pooling = max_mag_gabor_pool
         elif gabor_pooling == 'sum':
@@ -131,10 +132,8 @@ class IGConvCmplx(nn.Module):
                             out.size(3),
                             out.size(4))
 
-        # print(out.min(), out.max(), out.mean())
         pool_out, max_idxs = self.gabor_pooling(pool_out, dim=3)
         out = pool_out
-        # print(pool_out.min(), pool_out.max(), pool_out.mean())
 
 
         # if self.include_gparams:
@@ -198,12 +197,12 @@ class ReLUCmplx(nn.Module):
             assert channels is not None
             self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
             # self.b = torch.Tensor(channels, 1, 1)
-            self.b.data.uniform_(-2 / math.sqrt(channels),
-                                 0)
-            # self.b.data.uniform_(-1 / math.sqrt(channels),
-            #                      1 / math.sqrt(channels))
+            # self.b.data.uniform_(-2 / math.sqrt(channels),
+            #                      0)
+            self.b.data.uniform_(-1 / math.sqrt(channels),
+                                 1 / math.sqrt(channels))
             self.register_parameter(name="b", param=self.b)
-            self.b.requires_grad = False
+            # self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
             self.relu = relu_cmplx_mod
 
@@ -214,25 +213,60 @@ class ReLUCmplx(nn.Module):
 class BatchNormCmplx(nn.Module):
     """Implements complex batch normalisation.
     """
-    def __init__(self, eps=1e-8):
+    def __init__(self, num_features, momentum=0.999, eps=1e-8):
         super().__init__()
+        self.num_features = num_features
+        self.momentum = momentum
         self.eps = eps
+        self.register_buffer('running_mean', torch.zeros(num_features, 1, 1))
+        self.register_buffer('running_var', torch.ones(num_features, 1, 1))
+        self.weight = nn.Parameter(torch.Tensor(num_features, 1, 1))
+        self.bias = nn.Parameter(torch.Tensor(num_features, 1, 1))
+        self.reset_parameters()
+
+    def reset_running_stats(self):
+        self.running_mean.zero_()
+        self.running_var.fill_(1)
+
+    def reset_parameters(self):
+        self.reset_running_stats()
+        init.ones_(self.weight)
+        init.zeros_(self.bias)
 
     def forward(self, x):
-        return bnorm_cmplx(x, self.eps)
+        r = magnitude(x, eps=self.eps)
+        batch_mean = r.mean((0, 2, 3), keepdim=True)
+        batch_var = r.var((0, 2, 3), keepdim=True)
+
+        mean = (1.0 - self.momentum) * batch_mean + self.momentum * self.running_mean
+        var = (1.0 - self.momentum) * batch_var + self.momentum * self.running_var
+
+        r_bn = self.weight * (r - mean) / (var + self.eps) + self.bias
+        return r_bn * x / r
+
+
+class MaxMagPoolCmplx(nn.Module):
+    """Implements complex max by magnitude pooling.
+    """
+    def __init__(self, kernel_size, **pool_kwargs):
+        super().__init__()
+        self.kernel_size = _pair(kernel_size)
+        self.pool_kwargs = pool_kwargs
+
+    def forward(self, x):
+        return pool_cmplx(x, self.kernel_size, operator='mag', **self.pool_kwargs)
 
 
 class MaxPoolCmplx(nn.Module):
     """Implements complex max pooling.
     """
-    def __init__(self, kernel_size, maxmag=True, **pool_kwargs):
+    def __init__(self, kernel_size, **pool_kwargs):
         super().__init__()
         self.kernel_size = _pair(kernel_size)
         self.pool_kwargs = pool_kwargs
-        self.operator = 'maxmag' if maxmag else None
 
     def forward(self, x):
-        return pool_cmplx(x, self.kernel_size, operator=self.operator, **self.pool_kwargs)
+        return pool_cmplx(x, self.kernel_size, operator='max', **self.pool_kwargs)
 
 
 class AvgPoolCmplx(nn.Module):

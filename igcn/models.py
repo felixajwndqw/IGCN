@@ -7,6 +7,7 @@ from igcn.cmplx_modules import (
     ReLUCmplx,
     BatchNormCmplx,
     MaxPoolCmplx,
+    MaxMagPoolCmplx,
     AvgPoolCmplx,
     ConvCmplx
 )
@@ -56,7 +57,7 @@ class DoubleIGConv(nn.Module):
 class DoubleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_gabor_pooling=None, gabor_pooling=None,
-                 pooling='maxmag', weight_init=None, all_gp=False,
+                 pooling='mag', weight_init=None, all_gp=False,
                  relu_type='c', first=False, last=True):
         super().__init__()
         padding = kernel_size // 2 - 1
@@ -65,10 +66,12 @@ class DoubleIGConvCmplx(nn.Module):
         prev_max_g_div = no_g if prev_gabor_pooling is not None else 1
         first_div = 2 if first else 1
         all_gp = gabor_pooling if all_gp else None
-        if 'max' in pooling:
+        if pooling == 'max':
             Pool = MaxPoolCmplx
         elif pooling == 'avg':
             Pool = AvgPoolCmplx
+        elif pooling == 'mag':
+            Pool = MaxMagPoolCmplx
         self.double_conv = nn.Sequential(
             IGConvCmplx(
                 in_channels // prev_max_g_div,
@@ -89,7 +92,7 @@ class DoubleIGConvCmplx(nn.Module):
                 weight_init=weight_init
             ),
             Pool(kernel_size=2, stride=2),
-            BatchNormCmplx(),
+            BatchNormCmplx(out_channels // max_g_div),
             ReLUCmplx(
                 inplace=True,
                 relu_type=relu_type,
@@ -104,17 +107,18 @@ class DoubleIGConvCmplx(nn.Module):
 class SingleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_gabor_pooling=None, gabor_pooling=None,
-                 pooling='maxmag', weight_init=None,
+                 pooling='mag', weight_init=None,
                  last=True, **kwargs):
         super().__init__()
-        print(f'out_channels={out_channels}')
         padding = kernel_size // 2 - 1
         max_g_div = no_g if gabor_pooling is not None else 1
         prev_max_g_div = no_g if prev_gabor_pooling is not None else 1
-        if 'max' in pooling:
+        if pooling == 'max':
             Pool = MaxPoolCmplx
         elif pooling == 'avg':
             Pool = AvgPoolCmplx
+        if pooling == 'mag':
+            Pool = MaxMagPoolCmplx
         self.double_conv = nn.Sequential(
             IGConvCmplx(
                 in_channels // prev_max_g_div,

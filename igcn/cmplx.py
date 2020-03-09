@@ -67,25 +67,13 @@ def relu_cmplx(x, inplace=False, **kwargs):
     return cmplx(F.relu(x[0]), F.relu(x[1]))
 
 
-def bnorm_cmplx(x, eps=1e-8):
-    """Computes complex batch normalisation.
-    """
-    means = torch.mean(x, (1, 3, 4), keepdim=True)
-    x = x - means
-
-    stds = torch.std(magnitude(x, eps=eps), (0, 2, 3), keepdim=True)
-    x = x / torch.clamp(stds.unsqueeze(0), min=eps)
-
-    return x
-
-
 def pool_cmplx(x, kernel_size, operator='max', **kwargs):
     """Computes complex pooling.
     """
     pool = F.max_pool2d
     if operator == 'avg' or operator == 'average':
         pool = F.avg_pool2d
-    if operator == 'maxmag':
+    if operator == 'mag':
         return max_mag_pool(x, kernel_size, **kwargs)
 
     return cmplx(
