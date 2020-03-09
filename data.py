@@ -22,7 +22,7 @@ class CirrusDataset(Dataset):
         target_transform (Trasform, optional): Transform(s) to
             be applied to the targets.
     """
-    def __init__(self, img_dir,
+    def __init__(self, img_dir, indices=None,
                  transform=None, target_transform=None):
         self.cirrus_paths = [
             img for img in glob.glob(os.path.join(img_dir, 'input/*.png'))
@@ -34,6 +34,10 @@ class CirrusDataset(Dataset):
         self.num_classes = 2
         self.transform = transform
         self.target_transform = target_transform
+
+        if indices is not None:
+            self.cirrus_paths = [self.cirrus_paths[i] for i in indices]
+            self.mask_paths = [self.mask_paths[i] for i in indices]
 
     def __getitem__(self, i):
         cirrus = transforms.ToTensor()(

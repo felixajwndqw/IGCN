@@ -6,7 +6,7 @@ import torch.optim as optim
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
 from igcn.models import IGCN
-from utils import ExperimentParser
+from utils import ExperimentParser, calculate_error
 
 
 SIZES = {
@@ -22,7 +22,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   m={}, epochs=100,
                   total_params=1, mins=None, secs=None,
                   inter_gp=None, final_gp=None, cmplx=True,
-                  single=False, dropout=0., pooling='maxmag',
+                  single=False, dropout=0., pooling='mag',
                   nfc=2, weight_init=None, all_gp=False,
                   relu_type='c', fc_type='cat', fc_block='lin',
                   best_split=1, nsplits=5, error_m=None,
@@ -30,7 +30,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
-    if pooling == 'maxmag':
+    if pooling == 'mag':
         pooling = 'mag'
     f = open("results.txt", "a+")
     out = ("\n" + dataset +
@@ -128,9 +128,10 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         # scheduler = None
         start = time.time()
-        m = train(model, [train_loader, test_loader], save_best=True,
-                  epochs=training_args.epochs, opt=optimizer, device=device,
-                  sch=scheduler)
+        with torch.autograd.detect_anomaly():
+            m = train(model, [train_loader, test_loader], save_best=True,
+                      epochs=training_args.epochs, opt=optimizer, device=device,
+                      sch=scheduler)
 
         time_taken = time.time() - start
         mins = int(time_taken // 60)
@@ -170,13 +171,6 @@ def run_exp(net_args, training_args, device='0', **kwargs):
     )
 
     return metrics
-
-
-def calculate_error(items):
-    N = len(items)
-    mean_items = sum(items) / N
-    diff_sq_sum = sum((item - mean_items) ** 2 for item in items)
-    return math.sqrt(diff_sq_sum / (N * (N - 1)))
 
 
 def main():
