@@ -1,5 +1,7 @@
 import argparse
 import os
+import math
+import random
 import time
 import torch
 import torch.optim as optim
@@ -12,10 +14,10 @@ from quicktorch.utils import train, imshow
 from data import EMDataset, post_em_data
 
 
-
 def get_train_data(batch_size=8):
-    train_idxs = range(29)
-    valid_idxs = [29]
+    train_idxs = list(range(30))
+    valid_idxs = [train_idxs.pop(random.randint(0, 29))]
+    print(valid_idxs)
     trainloader = DataLoader(
         EMDataset(
             'data/isbi/train',
@@ -108,9 +110,10 @@ def produce_output(model=None, path=None, padding=16, batch_size=8, device='cpu'
 
 
 def write_results(dset, kernel_size, no_g, base_channels, m, no_epochs,
-                  total_params, mins, secs, cmplx=False):
+                  total_params, mins, secs, cmplx=False,
+                  best_split=1, nsplits=1, error_m=None):
     f = open("seg_results.txt", "a+")
-    f.write(
+    out = (
         "\n" + dset +
         "," + str(kernel_size) +
         "," + str(no_g) +
@@ -119,9 +122,14 @@ def write_results(dset, kernel_size, no_g, base_channels, m, no_epochs,
         ',' + "{:1.4f}".format(m['accuracy']) +
         "," + str(m['epoch']) +
         "," + str(no_epochs) +
+        "," + str(best_split) +
+        "," + str(nsplits) +
         ',' + "{:1.4f}".format(total_params) +
         ',' + "{:3d}m{:2d}s".format(mins, secs)
     )
+    if error_m is not None:
+        out += ',' + "{:1.4f}".format(error_m['accuracy'])
+    f.write(out)
     f.close()
 
 
@@ -156,6 +164,9 @@ def main():
     parser.add_argument('--batch_size',
                         default=8, type=int,
                         help='Number of samples in each batch.')
+    parser.add_argument('--splits',
+                        default=1, type=int,
+                        help='Number of validation splits to train over')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -164,59 +175,77 @@ def main():
             raise TypeError('Empty --path argument.')
         produce_output(path=args.path, batch_size=args.batch_size, device=device)
     else:
-        train_data, valid_data = get_train_data(batch_size=args.batch_size)
+        metrics = []
+        for i in range(args.splits):
+            train_data, valid_data = get_train_data(batch_size=args.batch_size)
 
-        if args.cmplx:
-            Net = UNetIGCNCmplx
-        else:
-            Net = UNetIGCN
-        model = Net(
-            n_channels=1,
-            n_classes=1,
-            save_dir='models/seg/isbi',
-            name=f'isbi_kernel_size={args.kernel_size}_no_g={args.no_g}_base_channels={args.base_channels}',
-            no_g=args.no_g,
-            kernel_size=args.kernel_size,
-            base_channels=args.base_channels
-        ).to(device)
+            if args.cmplx:
+                Net = UNetIGCNCmplx
+            else:
+                Net = UNetIGCN
+            model = Net(
+                n_channels=1,
+                n_classes=1,
+                save_dir='models/seg/isbi',
+                name=f'isbi_kernel_size={args.kernel_size}_no_g={args.no_g}_base_channels={args.base_channels}',
+                no_g=args.no_g,
+                kernel_size=args.kernel_size,
+                base_channels=args.base_channels
+            ).to(device)
 
-        total_params = sum(p.numel()
-                           for p in model.parameters()
-                           if p.requires_grad) / 1000000
-        print("Total # parameter: " + str(total_params) + "M")
+            total_params = sum(p.numel()
+                               for p in model.parameters()
+                               if p.requires_grad) / 1000000
+            print("Total # parameter: " + str(total_params) + "M")
 
-        optimizer = optim.Adam(model.parameters(), lr=1e-2)
+            optimizer = optim.Adam(model.parameters(), lr=1e-2)
 
-        start = time.time()
-        m = train(
-            model,
-            [train_data, valid_data],
-            epochs=args.epochs,
-            opt=optimizer,
-            device=device,
-            save_best=True
-        )
+            start = time.time()
+            m = train(
+                model,
+                [train_data, valid_data],
+                epochs=args.epochs,
+                opt=optimizer,
+                device=device,
+                save_best=True
+            )
 
-        time_taken = time.time() - start
-        mins = int(time_taken // 60)
-        secs = int(time_taken % 60)
+            time_taken = time.time() - start
+            mins = int(time_taken // 60)
+            secs = int(time_taken % 60)
+            del(model)
+            torch.cuda.empty_cache()
+            metrics.append(m)
 
+            if args.produce:
+                model.name += f'_epoch{m["epoch"]}.pk'
+                produce_output(model, device=device)
+                post_em_data(os.path.join('data/isbi/test/labels', model.name))
+
+        mean_m = {key: sum(mi[key] for mi in metrics) / args.splits for key in m.keys()}
+        best_acc = max([mi['accuracy'] for mi in metrics])
+        best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
+        mean_m['epoch'] = metrics[best_split-1]['epoch']
+        error_m = None
+        if args.splits > 1:
+            error_m = {key: math.sqrt(sum((mi[key] - mean_m[key]) ** 2 for mi in metrics) / (args.splits * (args.splits - 1)))
+                       for key in m.keys()}
         write_results(
             'isbi',
             args.kernel_size,
             args.no_g,
             args.base_channels,
-            m,
+            mean_m,
             args.epochs,
             total_params,
             mins,
             secs,
             cmplx=args.cmplx,
+            nsplits=args.splits,
+            best_split=best_split,
+            error_m=error_m
         )
 
-        model.name += f'_epoch{m["epoch"]}.pk'
-        produce_output(model, device=device)
-        post_em_data(os.path.join('data/isbi/test/labels', model.name))
 
 
 if __name__ == '__main__':
