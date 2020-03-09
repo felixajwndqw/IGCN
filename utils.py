@@ -1,4 +1,5 @@
 import argparse
+import math
 
 
 def parse_none(x):
@@ -21,7 +22,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--dataset',
             default='mnistrot', type=str,
-            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd'],
+            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus'],
             help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--kernel_size',
@@ -85,8 +86,8 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Whether to use a single gconv layer between each pooling layer.')
         self.n_parser.add_argument(
             '--pooling',
-            default='maxmag', type=str,
-            choices=['max', 'maxmag', 'avg'],
+            default='mag', type=str,
+            choices=['max', 'mag', 'avg'],
             help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--nfc',
@@ -139,6 +140,13 @@ class ExperimentParser(argparse.ArgumentParser):
     def args_to_str(args):
         kwargs = vars(args)
         return '_'.join([f'{key}={val}' for key, val in kwargs.items()])
+
+
+def calculate_error(items):
+    N = len(items)
+    mean_items = sum(items) / N
+    diff_sq_sum = sum((item - mean_items) ** 2 for item in items)
+    return math.sqrt(diff_sq_sum / (N * (N - 1)))
 
 
 def main():

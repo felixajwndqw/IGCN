@@ -12,23 +12,23 @@ class TripleIGConvCmplx(nn.Module):
             IGConvCmplx(in_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
                         padding=padding, gabor_pooling=None),
-            BatchNormCmplx(),
-            ReLUCmplx(inplace=True)
+            BatchNormCmplx(out_channels),
+            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
         self.conv2 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
                         padding=padding, gabor_pooling=None),
-            BatchNormCmplx(),
-            ReLUCmplx(inplace=True)
+            BatchNormCmplx(out_channels),
+            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
         self.conv3 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
                         padding=padding, gabor_pooling='max',
                         include_gparams=include_gparams),
-            BatchNormCmplx(),
-            ReLUCmplx(inplace=True)
+            BatchNormCmplx(out_channels),
+            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
 
     def forward(self, x):

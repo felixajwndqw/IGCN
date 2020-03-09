@@ -6,7 +6,7 @@ from igcn.cmplx import new_cmplx
 
 
 class UNetIGCNCmplx(Model):
-    def __init__(self, n_classes, n_channels=1, no_g=4, base_channels=16,
+    def __init__(self, n_classes, n_channels=1, no_g=8, base_channels=16,
                  kernel_size=3, nfc=1, dropout=0., pooling='max', mode='nearest', **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
