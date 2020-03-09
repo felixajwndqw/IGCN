@@ -17,6 +17,12 @@ def produce_output(model=None, path=None, padding=16, batch_size=8, device='cpu'
     pass
 
 
+def crop(t, w, h):
+    dw = t.size(-1) - w
+    dh = t.size(-2) - h
+    return t[..., dh//2:dh//2+h, dw//2:dw//2+w]
+
+
 def write_results(dset='bsd', kernel_size=3, no_g=8, base_channels=16, m={},
                   no_epochs=100, total_params=1, mins=None, secs=None,
                   cmplx=False,
@@ -79,6 +85,15 @@ def main():
                 num_workers=4,
                 batch_size=training_args.batch_size
             )
+            eval_loader = bsd(
+                transform=albumentations.Compose([
+                    albumentations.PadIfNeeded(336, 512)
+                ]),
+                split=split,
+                num_workers=4,
+                batch_size=training_args.batch_size,
+                test=True
+            )
 
             if net_args.cmplx:
                 Net = UNetIGCNCmplx
@@ -88,18 +103,27 @@ def main():
                 n_channels=3,
                 n_classes=1,
                 save_dir='models/seg/bsd',
-                name=('bsd_' + parser.args_to_str(net_args)),
+                name=('bsd_' + parser.args_to_str(net_args)) + '_epoch87',
                 **vars(net_args)
             ).to(device)
 
             if args.test:
                 model.load()
-                img_batch, mask_batch = next(iter(trainloader))
+                img_batch, mask_batch = next(iter(eval_loader))
                 img_batch, mask_batch = img_batch.to(device), mask_batch.to(device)
                 out_batch = model(img_batch)
+                with torch.no_grad():
+                    out_batch = out_batch - out_batch.min() / (out_batch.max() - out_batch.min())
+                mask_batch = mask_batch.repeat(1, 3, 1, 1)
+                out_batch = out_batch.repeat(1, 3, 1, 1)
+                img_batch = crop(img_batch, 481, 321)
+                mask_batch = crop(mask_batch, 481, 321)
+                out_batch = crop(out_batch, 481, 321)
+                print(img_batch.size())
                 print(mask_batch.size())
                 print(out_batch.size())
-                imshow(mask_batch, lbls=out_batch)
+                print(torch.cat([img_batch, mask_batch, out_batch], dim=0).size())
+                imshow(torch.cat([img_batch, mask_batch, out_batch], dim=0))
                 return
 
             total_params = sum(p.numel()
@@ -122,16 +146,6 @@ def main():
             time_taken = time.time() - start
             mins = int(time_taken // 60)
             secs = int(time_taken % 60)
-
-            eval_loader = bsd(
-                transform=albumentations.Compose([
-                    albumentations.PadIfNeeded(336, 512)
-                ]),
-                split=split,
-                num_workers=4,
-                batch_size=training_args.batch_size,
-                test=True
-            )
             temp_metrics = evaluate(model, eval_loader, device=device)
             m['accuracy'] = temp_metrics['accuracy']
             del(model)
