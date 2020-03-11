@@ -3,6 +3,7 @@ import math
 import time
 import torch
 import torch.optim as optim
+from torchvision import transforms
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
 from igcn.models import IGCN
@@ -25,7 +26,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   single=False, dropout=0., pooling='mag',
                   nfc=2, weight_init=None, all_gp=False,
                   relu_type='c', fc_type='cat', fc_block='lin',
-                  best_split=1, nsplits=5, error_m=None,
+                  best_split=1, augment=False, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
@@ -54,6 +55,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
            "\t\t" + str(epochs) +
+           "\t\t" + str(augment) +
            "\t\t" + str(best_split) +
            "\t\t" + str(nsplits) +
            '\t\t' + "{:1.4f}".format(weight_decay) +
@@ -81,8 +83,11 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         n_channels = 1
         n_classes = 10
+        transform = None
         if 'mnist' in net_args.dataset:
             b_size = 4096 // (net_args.no_g // 8 * net_args.base_channels // 8)
+            if training_args.augment:
+                transform = transforms.RandomAffine(0, translate=(0.1, 0.1), scale=(0.8, 1.2))
             if net_args.cmplx:
                 b_size //= 2
             if net_args.dataset == 'mnist':
@@ -99,7 +104,7 @@ def run_exp(net_args, training_args, device='0', **kwargs):
             if net_args.dataset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=4, split=split,
-                                                        rotate=True)
+                                                        rotate=True, transform=transform)
         if net_args.dataset == 'cifar':
             train_loader, test_loader, _ = cifar(batch_size=2048)
             n_channels = 3

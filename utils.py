@@ -106,6 +106,10 @@ class ExperimentParser(argparse.ArgumentParser):
             default=250, type=int,
             help='Number of epochs to train over.')
         self.t_parser.add_argument(
+            '--augment',
+            default=False, action='store_true',
+            help='Whether to apply data augmentation.')
+        self.t_parser.add_argument(
             '--lr',
             default=1e-4, type=float,
             help='Learning rate.')
