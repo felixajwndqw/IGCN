@@ -92,12 +92,12 @@ class DoubleIGConvCmplx(nn.Module):
                 weight_init=weight_init
             ),
             Pool(kernel_size=2, stride=2),
-            BatchNormCmplx(out_channels // max_g_div),
             ReLUCmplx(
                 inplace=True,
                 relu_type=relu_type,
                 channels=out_channels // max_g_div
             ),
+            BatchNormCmplx(out_channels // max_g_div),
         )
 
     def forward(self, x):
