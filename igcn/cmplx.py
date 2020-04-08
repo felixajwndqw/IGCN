@@ -47,10 +47,27 @@ def conv_cmplx(x, w, transpose=False, **kwargs):
     return cmplx(real, imag)
 
 
+def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
+    """Computes complex linear transformation
+    """
+    linear = F.linear
+    if transpose:
+        pass
+
+    real = linear(x[0, ...], w[0, ...]) - linear(x[1, ...], w[1, ...])
+    imag = linear(x[0, ...], w[1, ...]) + linear(x[1, ...], w[0, ...])
+
+    if b is not None:
+        real = real - b[0]
+        imag = imag - b[1]
+
+    return cmplx(real, imag)
+
+
 def relu_cmplx_z(x, inplace=False, eps=1e-12, **kwargs):
     """Computes complex relu.
     """
-    relu_mult = F.relu(x[0]*x[1])
+    relu_mult = F.relu(x[0]) * F.relu(x[1])
     return cmplx(relu_mult / (x[1] + eps), relu_mult / (x[0] + eps))
 
 
@@ -58,6 +75,8 @@ def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
     """Computes complex relu.
     """
     r = magnitude(x)
+    if r.dim() < b.dim():
+        b = b.flatten(0)
     return F.relu(r + b) * x / r
 
 

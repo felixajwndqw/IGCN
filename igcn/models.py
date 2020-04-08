@@ -4,6 +4,7 @@ from quicktorch.models import Model
 from igcn import IGConv
 from igcn.cmplx_modules import (
     IGConvCmplx,
+    LinearCmplx,
     ReLUCmplx,
     BatchNormCmplx,
     MaxPoolCmplx,
@@ -151,6 +152,19 @@ class LinearBlock(nn.Module):
         return self.block(x)
 
 
+class LinearCmplxBlock(nn.Module):
+    def __init__(self, fcn, dropout=0., relu_type='c', bias=True, **kwargs):
+        super().__init__()
+        self.block = nn.Sequential(
+            LinearCmplx(fcn, fcn, bias),
+            ReLUCmplx(inplace=True, relu_type=relu_type, channels=fcn),
+            nn.Dropout(p=dropout)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
 class LinearConvBlock(nn.Module):
     def __init__(self, channels, dropout=0., relu_type='c', **kwargs):
         super().__init__()
@@ -209,6 +223,8 @@ class IGCN(Model):
         self.fc_block = fc_block
         if fc_block == 'lin':
             FCBlock = LinearBlock
+        elif fc_block == 'clin':
+            FCBlock = LinearCmplxBlock
         elif fc_block == 'cnv':
             FCBlock = LinearConvBlock
         self.conv1 = ConvBlock(
@@ -258,15 +274,26 @@ class IGCN(Model):
         self.linear = nn.Sequential(
             *linear_blocks,
         )
-        if (self.fc_type == 'cat' and self.fc_block == 'cnv'):
+        if (self.fc_type == 'cat' and (self.fc_block == 'cnv' or self.fc_block == 'clin')):
             self.fcn *= 2
-        self.classifier = nn.Sequential(
-            nn.Linear(self.fcn, 10)
-        )
         if self.fc_type == 'cat':
             self.project = concatenate
         elif self.fc_type == 'mag':
             self.project = magnitude
+        if self.fc_block == 'clin':
+            if self.fc_type == 'cat':
+                self.classifier = nn.Sequential(
+                    concatenate,
+                    nn.Linear(self.fcn, 10)
+                )
+            elif self.fc_type == 'mag':
+                self.classifier = nn.Sequential(
+                    LinearCmplx(self.fcn // 2, 10, project=True)
+                )
+        else:
+            self.classifier = nn.Sequential(
+                nn.Linear(self.fcn, 10)
+            )
         self.cmplx = cmplx
 
     def forward(self, x):
@@ -277,10 +304,18 @@ class IGCN(Model):
         x = self.conv3(x)
         if self.fc_block == 'cnv':
             x = self.linear(x)
-        if self.cmplx:
-            x = self.project(x)
-        x = x.flatten(1)
-        if self.fc_block == 'lin':
+            if self.cmplx:
+                x = self.project(x)
+            x = x.flatten(1)
+            x = self.classifier(x)
+        elif self.fc_block == 'clin':
+            x = x.flatten(2)
             x = self.linear(x)
-        x = self.classifier(x)
+            x = self.classifier(x)
+        else:
+            if self.cmplx:
+                x = self.project(x)
+            x = x.flatten(1)
+            x = self.linear(x)
+            x = self.classifier(x)
         return x

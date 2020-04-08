@@ -72,8 +72,8 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--fc_block',
             default='lin', type=str,
-            choices=['lin', 'cnv'],
-            help='Linear or 1x1 conv for FC layers. Latter will be applied '
+            choices=['lin', 'clin', 'cnv'],
+            help='Linear, complex linear or 1x1 conv for FC layers. Former will not be applied '
                  'before projection.'
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(

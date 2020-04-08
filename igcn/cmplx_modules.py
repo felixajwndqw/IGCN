@@ -10,6 +10,7 @@ from .utils import _pair
 from .cmplx import (
     cmplx,
     conv_cmplx,
+    linear_cmplx,
     pool_cmplx,
     init_weights,
     max_mag_gabor_pool,
@@ -171,6 +172,36 @@ class ConvCmplx(nn.Module):
     def forward(self, x):
         cmplx_weight = cmplx(self.ReConv.weight, self.ImConv.weight)
         out = self.conv(x, cmplx_weight, **self.conv_kwargs)
+        return out
+
+
+class LinearCmplx(nn.Module):
+    """Implements a complex linear layer.
+
+    Args:
+        input_features (torch.Tensor): Feature channels in.
+        output_features (torch.Tensor): Feature channels out.
+        bias (bool, optional): Whether to use biases. Defaults to True.
+        project (bool, optional): Projects output to real using magnitude.
+            Defaults to False.
+    """
+    def __init__(self, input_features, output_features, bias=True, project=False):
+        super().__init__()
+        self.ReLinear = nn.Linear(input_features, output_features, bias=bias)
+        self.ImLinear = nn.Linear(input_features, output_features, bias=bias)
+        self.bias = bias
+        self.linear = linear_cmplx
+        self.project = project
+
+    def forward(self, x):
+        cmplx_weight = cmplx(self.ReLinear.weight, self.ImLinear.weight)
+        if self.bias:
+            cmplx_bias = cmplx(self.ReLinear.bias, self.ImLinear.bias)
+        else:
+            cmplx_bias = None
+        out = self.linear(x, cmplx_weight, cmplx_bias)
+        if self.project:
+            out = magnitude(out)
         return out
 
 
