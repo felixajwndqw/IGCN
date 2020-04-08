@@ -10,7 +10,8 @@ from igcn.cmplx_modules import (
     MaxPoolCmplx,
     MaxMagPoolCmplx,
     AvgPoolCmplx,
-    ConvCmplx
+    ConvCmplx,
+    Project
 )
 from igcn.cmplx import new_cmplx, magnitude, concatenate
 
@@ -276,19 +277,17 @@ class IGCN(Model):
         )
         if (self.fc_type == 'cat' and (self.fc_block == 'cnv' or self.fc_block == 'clin')):
             self.fcn *= 2
-        if self.fc_type == 'cat':
-            self.project = concatenate
-        elif self.fc_type == 'mag':
-            self.project = magnitude
+        self.project = Project(self.fc_type)
         if self.fc_block == 'clin':
             if self.fc_type == 'cat':
                 self.classifier = nn.Sequential(
-                    concatenate,
+                    self.project,
                     nn.Linear(self.fcn, 10)
                 )
             elif self.fc_type == 'mag':
                 self.classifier = nn.Sequential(
-                    LinearCmplx(self.fcn // 2, 10, project=True)
+                    LinearCmplx(self.fcn, 10),
+                    self.project
                 )
         else:
             self.classifier = nn.Sequential(

@@ -18,7 +18,8 @@ from .cmplx import (
     relu_cmplx,
     relu_cmplx_mod,
     relu_cmplx_z,
-    magnitude
+    magnitude,
+    concatenate
 )
 
 
@@ -147,6 +148,21 @@ class IGConvCmplx(nn.Module):
         return out
 
 
+class Project(nn.Module):
+    """Projects a complex layer to real
+    """
+    def __init__(self, projection):
+        super().__init__()
+        self.projection = projection
+
+    def forward(self, x):
+        if self.projection == 'mag':
+            x = magnitude(x)
+        if self.projection == 'cat':
+            x = concatenate(x)
+        return x
+
+
 class ConvCmplx(nn.Module):
     """Implements a complex convolutional layer.
 
@@ -182,16 +198,13 @@ class LinearCmplx(nn.Module):
         input_features (torch.Tensor): Feature channels in.
         output_features (torch.Tensor): Feature channels out.
         bias (bool, optional): Whether to use biases. Defaults to True.
-        project (bool, optional): Projects output to real using magnitude.
-            Defaults to False.
     """
-    def __init__(self, input_features, output_features, bias=True, project=False):
+    def __init__(self, input_features, output_features, bias=True):
         super().__init__()
         self.ReLinear = nn.Linear(input_features, output_features, bias=bias)
         self.ImLinear = nn.Linear(input_features, output_features, bias=bias)
         self.bias = bias
         self.linear = linear_cmplx
-        self.project = project
 
     def forward(self, x):
         cmplx_weight = cmplx(self.ReLinear.weight, self.ImLinear.weight)
@@ -200,8 +213,6 @@ class LinearCmplx(nn.Module):
         else:
             cmplx_bias = None
         out = self.linear(x, cmplx_weight, cmplx_bias)
-        if self.project:
-            out = magnitude(out)
         return out
 
 
