@@ -24,7 +24,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   total_params=1, mins=None, secs=None,
                   inter_gp=None, final_gp=None, cmplx=True,
                   single=False, dropout=0., pooling='mag',
-                  nfc=2, weight_init=None, all_gp=False,
+                  nfc=2, weight_init=None, all_gp=False, bnorm='new',
                   relu_type='c', fc_type='cat', fc_block='lin',
                   best_split=1, augment=False, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1,
@@ -50,7 +50,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            '\t\t' + str(nfc) +
            '\t' + str(weight_init)[:2] +
            '\t\t' + str(all_gp) +
-           '\t' + "{:1.4f}".format(m['accuracy']) +
+           '\t' + str(bnorm) +
+           '\t\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
@@ -85,7 +86,7 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         n_classes = 10
         transform = None
         if 'mnist' in net_args.dataset:
-            b_size = 4096 // (net_args.no_g // 8 * net_args.base_channels // 8)
+            b_size = 2048 // (net_args.no_g // 8 * net_args.base_channels // 8)
             if training_args.augment:
                 transform = transforms.RandomAffine(0, translate=(0.1, 0.1), scale=(0.8, 1.2))
             if net_args.cmplx:
@@ -133,10 +134,10 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         # scheduler = None
         start = time.time()
-        with torch.autograd.detect_anomaly():
-            m = train(model, [train_loader, test_loader], save_best=True,
-                      epochs=training_args.epochs, opt=optimizer, device=device,
-                      sch=scheduler)
+        # with torch.autograd.detect_anomaly():
+        m = train(model, [train_loader, test_loader], save_best=True,
+                    epochs=training_args.epochs, opt=optimizer, device=device,
+                    sch=scheduler)
 
         time_taken = time.time() - start
         mins = int(time_taken // 60)

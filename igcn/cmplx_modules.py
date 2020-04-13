@@ -18,6 +18,7 @@ from .cmplx import (
     relu_cmplx,
     relu_cmplx_mod,
     relu_cmplx_z,
+    bnorm_cmplx_old,
     magnitude,
     concatenate
 )
@@ -238,11 +239,9 @@ class ReLUCmplx(nn.Module):
         elif relu_type == 'mod':
             assert channels is not None
             self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
-            # self.b = torch.Tensor(channels, 1, 1)
-            # self.b.data.uniform_(-2 / math.sqrt(channels),
-            #                      0)
-            self.b.data.uniform_(-1 / math.sqrt(channels),
-                                 1 / math.sqrt(channels))
+            init.zeros_(self.b)
+            # self.b.data.uniform_(-1 / math.sqrt(channels),
+            #                      1 / math.sqrt(channels))
             self.register_parameter(name="b", param=self.b)
             # self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
@@ -255,7 +254,7 @@ class ReLUCmplx(nn.Module):
 class BatchNormCmplx(nn.Module):
     """Implements complex batch normalisation.
     """
-    def __init__(self, num_features, momentum=0.999, eps=1e-8):
+    def __init__(self, num_features, momentum=0.999, eps=1e-8, bnorm_type='new'):
         super().__init__()
         self.num_features = num_features
         self.momentum = momentum
@@ -264,6 +263,7 @@ class BatchNormCmplx(nn.Module):
         self.register_buffer('running_var', torch.ones(num_features, 1, 1))
         self.weight = nn.Parameter(torch.Tensor(num_features, 1, 1))
         self.bias = nn.Parameter(torch.Tensor(num_features, 1, 1))
+        self.bnorm_type = bnorm_type
         self.reset_parameters()
 
     def reset_running_stats(self):
@@ -276,6 +276,8 @@ class BatchNormCmplx(nn.Module):
         init.zeros_(self.bias)
 
     def forward(self, x):
+        if self.bnorm_type == 'old':
+            return bnorm_cmplx_old(x, self.eps)
         r = magnitude(x, eps=self.eps)
         batch_mean = r.mean((0, 2, 3), keepdim=True)
         batch_var = r.var((0, 2, 3), keepdim=True)

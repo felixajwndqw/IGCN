@@ -94,6 +94,11 @@ class ExperimentParser(argparse.ArgumentParser):
             default=2, type=int,
             help='Number of fully connected layers before classification.')
         self.n_parser.add_argument(
+            '--bnorm',
+            default='new', type=str,
+            choices=['new', 'old'],
+            help='New = proper bnorm /w momentum. Old = plain normalisation.')
+        self.n_parser.add_argument(
             '--weight_init',
             default=None,
             type=parse_none,

@@ -67,8 +67,9 @@ def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
 def relu_cmplx_z(x, inplace=False, eps=1e-12, **kwargs):
     """Computes complex relu.
     """
-    relu_mult = F.relu(x[0]) * F.relu(x[1])
-    return cmplx(relu_mult / (x[1] + eps), relu_mult / (x[0] + eps))
+    x = torch.where(x[0] > 0, x, torch.zeros_like(x))
+    x = torch.where(x[1] > 0, x, torch.zeros_like(x))
+    return x
 
 
 def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
@@ -84,6 +85,22 @@ def relu_cmplx(x, inplace=False, **kwargs):
     """Computes complex relu.
     """
     return cmplx(F.relu(x[0]), F.relu(x[1]))
+
+
+def bnorm_cmplx_old(x, eps=1e-8):
+    """Computes complex simple batch normalisation.
+    """
+    print('before')
+    print(x.max())
+    means = torch.mean(x, (1, 3, 4), keepdim=True)
+    x = x - means
+
+    stds = torch.std(magnitude(x, eps=eps), (0, 2, 3), keepdim=True)
+    x = x / torch.clamp(stds.unsqueeze(0), min=eps)
+    print('after')
+    print(x.max())
+
+    return x
 
 
 def pool_cmplx(x, kernel_size, operator='max', **kwargs):

@@ -60,7 +60,7 @@ class DoubleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, prev_gabor_pooling=None, gabor_pooling=None,
                  pooling='mag', weight_init=None, all_gp=False,
-                 relu_type='c', first=False, last=True):
+                 relu_type='c', first=False, last=True, bnorm='new'):
         super().__init__()
         padding = kernel_size // 2 - 1
         all_gp_div = no_g if all_gp else 1
@@ -99,7 +99,7 @@ class DoubleIGConvCmplx(nn.Module):
                 relu_type=relu_type,
                 channels=out_channels // max_g_div
             ),
-            BatchNormCmplx(out_channels // max_g_div),
+            BatchNormCmplx(out_channels // max_g_div, bnorm_type=bnorm),
         )
 
     def forward(self, x):
@@ -200,7 +200,7 @@ class IGCN(Model):
         dset (str, optional): Type of dataset.
         single (bool, optional): Whether to use a single gconv layer between each pooling layer.
         all_gp (bool, optional): Whether to apply Gabor pooling on all layers.
-        relu_type (str, optional): Type of relu layer. Choices are ['c', 'mod'].
+        relu_type (str, optional): Type of relu layer. Choices are ['c', 'z', 'mod'].
             Defaults to 'c'.
         nfc (int, optional): Number of fully connected layers before classification.
         weight_init (str, optional): Type of weight initialisation.
@@ -211,7 +211,7 @@ class IGCN(Model):
                  kernel_size=3, inter_gp=None, final_gp=None, cmplx=False,
                  pooling='max', dropout=0.3, dset='mnist', single=False,
                  all_gp=False, relu_type='c', nfc=2, weight_init=None,
-                 fc_type='cat', fc_block='linear',
+                 fc_type='cat', fc_block='linear', bnorm='new',
                  **kwargs):
         super().__init__(**kwargs)
         self.fc_type = fc_type
@@ -226,6 +226,8 @@ class IGCN(Model):
             FCBlock = LinearBlock
         elif fc_block == 'clin':
             FCBlock = LinearCmplxBlock
+        elif fc_block == 'h':
+            FCBlock = LinearCmplxBlock
         elif fc_block == 'cnv':
             FCBlock = LinearConvBlock
         self.conv1 = ConvBlock(
@@ -238,7 +240,8 @@ class IGCN(Model):
             first=True,
             weight_init=weight_init,
             all_gp=all_gp,
-            relu_type=relu_type
+            relu_type=relu_type,
+            bnorm=bnorm,
         )
         self.conv2 = ConvBlock(
             base_channels * 2,
@@ -250,7 +253,8 @@ class IGCN(Model):
             pooling=pooling,
             weight_init=weight_init,
             all_gp=all_gp,
-            relu_type=relu_type
+            relu_type=relu_type,
+            bnorm=bnorm,
         )
         self.conv3 = ConvBlock(
             base_channels * 3,
@@ -263,7 +267,8 @@ class IGCN(Model):
             last=True,
             weight_init=weight_init,
             all_gp=all_gp,
-            relu_type=relu_type
+            relu_type=relu_type,
+            bnorm=bnorm,
         )
         # This line is hideous don't look at him
         self.fcn = 4 * base_channels // (no_g if final_gp else 1) * (4 if n_channels == 3 else 1)
