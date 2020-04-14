@@ -28,6 +28,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   relu_type='c', fc_type='cat', fc_block='lin',
                   best_split=1, augment=False, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1,
+                  translate=0, scale=0, shear=0,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
@@ -57,6 +58,9 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t" + str(m['epoch']) +
            "\t\t" + str(epochs) +
            "\t\t" + str(augment) +
+           '\t\t' + "{:1.2f}".format(translate) +
+           "\t" + "{:1.2f}".format(scale) +
+           "\t" + "{:2.2f}".format(shear) +
            "\t\t" + str(best_split) +
            "\t\t" + str(nsplits) +
            '\t\t' + "{:1.4f}".format(weight_decay) +
@@ -88,7 +92,10 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         if 'mnist' in net_args.dataset:
             b_size = 2048 // (net_args.no_g // 8 * net_args.base_channels // 8)
             if training_args.augment:
-                transform = transforms.RandomAffine(0, translate=(0.1, 0.1), scale=(0.8, 1.2))
+                transform = transforms.RandomAffine(0,
+                                                    translate=(training_args.translate, training_args.translate),
+                                                    scale=(1 - training_args.scale, 1 - training_args.scale),
+                                                    shear=(-training_args.shear, training_args.shear))
             if net_args.cmplx:
                 b_size //= 2
             if net_args.dataset == 'mnist':

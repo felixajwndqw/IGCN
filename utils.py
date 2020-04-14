@@ -134,6 +134,18 @@ class ExperimentParser(argparse.ArgumentParser):
             '--batch_size',
             default=32, type=int,
             help='Number of samples in each batch')
+        self.t_parser.add_argument(
+            '--translate',
+            default=0, type=float,
+            help='Translation coefficient for data augmentation.')
+        self.t_parser.add_argument(
+            '--scale',
+            default=0, type=float,
+            help='Scale coefficient for data augmentation.')
+        self.t_parser.add_argument(
+            '--shear',
+            default=0, type=float,
+            help='Shear coefficient for data augmentation.')
 
     def parse_group_args(self):
         args = self.parse_args()
