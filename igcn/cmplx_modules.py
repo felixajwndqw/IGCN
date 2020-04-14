@@ -246,6 +246,16 @@ class ReLUCmplx(nn.Module):
             # self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
             self.relu = relu_cmplx_mod
+        elif relu_type == 'mf':
+            assert channels is not None
+            self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
+            init.zeros_(self.b)
+            # self.b.data.uniform_(-1 / math.sqrt(channels),
+            #                      1 / math.sqrt(channels))
+            self.register_parameter(name="b", param=self.b)
+            self.b.requires_grad = False
+            self.relu_kwargs['b'] = self.b
+            self.relu = relu_cmplx_mod
 
     def forward(self, x):
         return self.relu(x, **self.relu_kwargs)

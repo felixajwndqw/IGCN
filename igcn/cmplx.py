@@ -90,15 +90,11 @@ def relu_cmplx(x, inplace=False, **kwargs):
 def bnorm_cmplx_old(x, eps=1e-8):
     """Computes complex simple batch normalisation.
     """
-    print('before')
-    print(x.max())
     means = torch.mean(x, (1, 3, 4), keepdim=True)
     x = x - means
 
     stds = torch.std(magnitude(x, eps=eps), (0, 2, 3), keepdim=True)
     x = x / torch.clamp(stds.unsqueeze(0), min=eps)
-    print('after')
-    print(x.max())
 
     return x
 

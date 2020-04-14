@@ -60,7 +60,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--relu_type',
             default='c', type=str,
-            choices=['c', 'mod', 'z'],
+            choices=['c', 'mod', 'z', 'mf'],
             help='Type of relu layer. '
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
