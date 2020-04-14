@@ -136,11 +136,11 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Number of samples in each batch')
         self.t_parser.add_argument(
             '--translate',
-            default=0, type=float,
+            default=0.1, type=float,
             help='Translation coefficient for data augmentation.')
         self.t_parser.add_argument(
             '--scale',
-            default=0, type=float,
+            default=0.1, type=float,
             help='Scale coefficient for data augmentation.')
         self.t_parser.add_argument(
             '--shear',
