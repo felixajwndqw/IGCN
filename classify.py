@@ -26,6 +26,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   single=False, dropout=0., pooling='mag',
                   nfc=2, weight_init=None, all_gp=False, bnorm='new',
                   relu_type='c', fc_type='cat', fc_block='lin',
+                  fc_relu_type='c',
                   best_split=1, augment=False, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1,
                   translate=0, scale=0, shear=0,
@@ -45,6 +46,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t\t" + str(relu_type) +
            "\t\t" + str(fc_type) +
            "\t\t" + str(fc_block) +
+           "\t\t" + str(fc_relu_type) +
            "\t\t" + str(cmplx) +
            "\t" + str(single) +
            '\t' + str(pooling) +
@@ -142,7 +144,7 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         # scheduler = None
         start = time.time()
         # with torch.autograd.detect_anomaly():
-        m = train(model, [train_loader, test_loader], save_best=True,
+        m = train(model, [train_loader, test_loader], save_best=False,
                     epochs=training_args.epochs, opt=optimizer, device=device,
                     sch=scheduler)
 

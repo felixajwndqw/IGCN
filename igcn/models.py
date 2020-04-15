@@ -206,12 +206,16 @@ class IGCN(Model):
         weight_init (str, optional): Type of weight initialisation.
         fc_type (str, optional): How complex tensors are combined into real
             tensors prior to FC. Choices are ['cat', 'mag']. Defaults to 'cat'.
+        fc_block(str, optional):
+        fc_relu_type(str, optional):
+        bnorm(str, optional):
     """
     def __init__(self, n_classes=10, n_channels=1, base_channels=16, no_g=4,
                  kernel_size=3, inter_gp=None, final_gp=None, cmplx=False,
                  pooling='max', dropout=0.3, dset='mnist', single=False,
                  all_gp=False, relu_type='c', nfc=2, weight_init=None,
-                 fc_type='cat', fc_block='linear', bnorm='new',
+                 fc_type='cat', fc_block='linear', fc_relu_type='c',
+                 bnorm='new',
                  **kwargs):
         super().__init__(**kwargs)
         self.fc_type = fc_type
@@ -276,7 +280,7 @@ class IGCN(Model):
             self.fcn *= 2
         linear_blocks = []
         for _ in range(nfc):
-            linear_blocks.append(FCBlock(self.fcn, dropout, relu_type=relu_type))
+            linear_blocks.append(FCBlock(self.fcn, dropout, relu_type=fc_relu_type))
         self.linear = nn.Sequential(
             *linear_blocks,
         )

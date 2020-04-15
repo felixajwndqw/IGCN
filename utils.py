@@ -77,6 +77,12 @@ class ExperimentParser(argparse.ArgumentParser):
                  'before projection.'
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
+            '--fc_relu_type',
+            default='c', type=str,
+            choices=['c', 'mod', 'z', 'mf'],
+            help='Type of relu layer for FC layers.'
+                 'Choices: %(choices)s (default: %(default)s)')
+        self.n_parser.add_argument(
             '--cmplx',
             default=False, action='store_true',
             help='Whether to use a complex architecture.')
