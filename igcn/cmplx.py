@@ -19,12 +19,23 @@ def new_cmplx(real):
     return cmplx(real, torch.zeros_like(real))
 
 
-def magnitude(x, eps=1e-8, **kwargs):
+def magnitude(x, eps=1e-8, sq=False, **kwargs):
     """Computes magnitude of given complex tensor.
 
     Must return nonzero as grad(0)=inf
     """
-    return torch.sqrt(torch.clamp(x.pow(2).sum(dim=0), min=eps))
+    mag2 = x.pow(2).sum(dim=0)
+    if sq:
+        return mag2
+    return torch.sqrt(torch.clamp(mag2, min=eps))
+
+
+def phase(x, eps=1e-8, **kwargs):
+    """Computes phase of given complex tensor.
+
+    Must return nonzero as grad(0)=inf
+    """
+    return torch.atan(x[1] / torch.clamp(x[0], min=eps))
 
 
 def concatenate(x, **kwargs):
@@ -75,7 +86,7 @@ def relu_cmplx_z(x, inplace=False, eps=1e-12, **kwargs):
 def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
     """Computes complex relu.
     """
-    r = magnitude(x)
+    r = magnitude(x, sq=False)
     if r.dim() < b.dim():
         b = b.flatten(0)
     return F.relu(r + b) * x / r
@@ -93,7 +104,7 @@ def bnorm_cmplx_old(x, eps=1e-8):
     means = torch.mean(x, (1, 3, 4), keepdim=True)
     x = x - means
 
-    stds = torch.std(magnitude(x, eps=eps), (0, 2, 3), keepdim=True)
+    stds = torch.std(magnitude(x, eps=eps, sq=False), (0, 2, 3), keepdim=True)
     x = x / torch.clamp(stds.unsqueeze(0), min=eps)
 
     return x
@@ -142,7 +153,7 @@ def max_summed_mag_gabor_pool(x, **kwargs):
     return x.gather(dim=3, index=idxs).squeeze(3), idxs
 
 
-def init_weights(re, im, mode='he'):
+def init_weights(re, im, mode='he', polar=False):
     """Initialises conv. weights according to C. Trabelsi, Deep Complex Networks
     """
     assert(re.size() == im.size())
@@ -156,5 +167,9 @@ def init_weights(re, im, mode='he'):
     phase = re.new_tensor(np.random.uniform(low=-np.pi, high=np.pi, size=re.size()))
 
     with torch.no_grad():
-        re.data = mag * torch.cos(phase)
-        im.data = mag * torch.sin(phase)
+        if polar:
+            re.data = mag
+            im.data = phase
+        else:
+            re.data = mag * torch.cos(phase)
+            im.data = mag * torch.sin(phase)

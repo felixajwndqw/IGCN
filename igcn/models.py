@@ -11,6 +11,7 @@ from igcn.cmplx_modules import (
     MaxMagPoolCmplx,
     AvgPoolCmplx,
     ConvCmplx,
+    LinearMagPhase,
     Project
 )
 from igcn.cmplx import new_cmplx, magnitude, concatenate
@@ -179,6 +180,19 @@ class LinearConvBlock(nn.Module):
         return self.block(x)
 
 
+class LinearMagPhaseBlock(nn.Module):
+    def __init__(self, fcn, dropout=0., bias=True, **kwargs):
+        super().__init__()
+        self.block = nn.Sequential(
+            LinearMagPhase(fcn, fcn, bias),
+            ReLUCmplx(inplace=True, relu_type='c', channels=fcn),
+            nn.Dropout(p=dropout)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
 class IGCN(Model):
     """Model factory for IGCN.
 
@@ -215,7 +229,7 @@ class IGCN(Model):
                  pooling='max', dropout=0.3, dset='mnist', single=False,
                  all_gp=False, relu_type='c', nfc=2, weight_init=None,
                  fc_type='cat', fc_block='linear', fc_relu_type='c',
-                 bnorm='new',
+                 bnorm='new', softmax=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.fc_type = fc_type
@@ -230,10 +244,10 @@ class IGCN(Model):
             FCBlock = LinearBlock
         elif fc_block == 'clin':
             FCBlock = LinearCmplxBlock
-        elif fc_block == 'h':
-            FCBlock = LinearCmplxBlock
         elif fc_block == 'cnv':
             FCBlock = LinearConvBlock
+        elif 'mp' in fc_block:
+            FCBlock = LinearMagPhaseBlock
         self.conv1 = ConvBlock(
             n_channels,
             base_channels * 2,
@@ -284,7 +298,7 @@ class IGCN(Model):
         self.linear = nn.Sequential(
             *linear_blocks,
         )
-        if (self.fc_type == 'cat' and (self.fc_block == 'cnv' or self.fc_block == 'clin')):
+        if (self.fc_type == 'cat' and (self.fc_block == 'cnv' or self.fc_block == 'clin' or 'mp' in self.fc_block)):
             self.fcn *= 2
         self.project = Project(self.fc_type)
         if self.fc_block == 'clin':
@@ -298,10 +312,22 @@ class IGCN(Model):
                     LinearCmplx(self.fcn, 10),
                     self.project
                 )
-        else:
+        elif 'mp' in self.fc_block:
+            self.project = Project('mp')
             self.classifier = nn.Sequential(
+                Project('cat'),
                 nn.Linear(self.fcn, 10)
             )
+        else:
+            if softmax:
+                self.classifier = nn.Sequential(
+                    nn.Linear(self.fcn, 10),
+                    nn.Softmax(dim=1)
+                )
+            else:
+                self.classifier = nn.Sequential(
+                    nn.Linear(self.fcn, 10),
+                )
         self.cmplx = cmplx
 
     def forward(self, x):
@@ -318,6 +344,11 @@ class IGCN(Model):
             x = self.classifier(x)
         elif self.fc_block == 'clin':
             x = x.flatten(2)
+            x = self.linear(x)
+            x = self.classifier(x)
+        if 'mp' in self.fc_block:
+            x = x.flatten(2)
+            x = self.project(x)
             x = self.linear(x)
             x = self.classifier(x)
         else:

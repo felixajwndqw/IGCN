@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 from torch.nn.modules.conv import Conv2d
-from .igabor import gabor_cmplx
+from .igabor import gabor_cmplx, norm
 from .utils import _pair
 from .cmplx import (
     cmplx,
@@ -20,6 +20,7 @@ from .cmplx import (
     relu_cmplx_z,
     bnorm_cmplx_old,
     magnitude,
+    phase,
     concatenate
 )
 
@@ -161,6 +162,14 @@ class Project(nn.Module):
             x = magnitude(x)
         if self.projection == 'cat':
             x = concatenate(x)
+        if self.projection == 'bmp':
+            mags = magnitude(x)
+            phases = phase(x)
+            x = torch.stack([mags, phases], dim=0)
+        if self.projection == 'nmp':
+            mags = norm(magnitude(x))
+            phases = norm(phase(x))
+            x = torch.stack([mags, phases], dim=0)
         return x
 
 
@@ -217,6 +226,44 @@ class LinearCmplx(nn.Module):
         return out
 
 
+class LinearMagPhase(nn.Module):
+    """Implements parallel linear layers for mags and phases.
+
+    Args:
+        input_features (torch.Tensor): Feature channels in.
+        output_features (torch.Tensor): Feature channels out.
+        bias (bool, optional): Whether to use biases. Defaults to True.
+    """
+    def __init__(self, input_features, output_features, bias=True):
+        super().__init__()
+        self.MagLinear = nn.Linear(input_features, output_features, bias=bias)
+        self.PhaseLinear = nn.Linear(input_features, output_features, bias=bias)
+        self.bias = bias
+
+    def forward(self, x):
+        return torch.stack([self.MagLinear(x[0]), self.PhaseLinear(x[1])], dim=0)
+
+
+# class LinearMagPhase2(nn.Module):
+#     """Implements linear layer for polar encoding of complex numbers.
+
+#     Args:
+#         input_features (torch.Tensor): Feature channels in.
+#         output_features (torch.Tensor): Feature channels out.
+#         bias (bool, optional): Whether to use biases. Defaults to True.
+#     """
+#     def __init__(self, input_features, output_features, bias=True):
+#         super().__init__()
+#         self.mag = torch.Parameter(torch.Tensor(output_features, input_features))
+#         self.phase = torch.Parameter(torch.Tensor(output_features, input_features))
+#         if bias:
+#             self.bias = torch.Parameter(torch.Tensor(2, output_features))
+#         init_weights(self.mag, self.phase)
+
+#     def forward(self, x):
+#         return torch.stack([self.MagLinear(x[0]), self.PhaseLinear(x[1])], dim=0)
+
+
 class ReLUCmplx(nn.Module):
     """Implements complex rectified linear unit.
 
@@ -240,18 +287,13 @@ class ReLUCmplx(nn.Module):
             assert channels is not None
             self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
             init.zeros_(self.b)
-            # self.b.data.uniform_(-1 / math.sqrt(channels),
-            #                      1 / math.sqrt(channels))
             self.register_parameter(name="b", param=self.b)
-            # self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
             self.relu = relu_cmplx_mod
         elif relu_type == 'mf':
             assert channels is not None
             self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1))
             init.zeros_(self.b)
-            # self.b.data.uniform_(-1 / math.sqrt(channels),
-            #                      1 / math.sqrt(channels))
             self.register_parameter(name="b", param=self.b)
             self.b.requires_grad = False
             self.relu_kwargs['b'] = self.b
@@ -288,7 +330,7 @@ class BatchNormCmplx(nn.Module):
     def forward(self, x):
         if self.bnorm_type == 'old':
             return bnorm_cmplx_old(x, self.eps)
-        r = magnitude(x, eps=self.eps)
+        r = magnitude(x, eps=self.eps, sq=False)
         batch_mean = r.mean((0, 2, 3), keepdim=True)
         batch_var = r.var((0, 2, 3), keepdim=True)
 
