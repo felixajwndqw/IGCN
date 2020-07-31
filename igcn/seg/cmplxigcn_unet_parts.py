@@ -1,33 +1,33 @@
 import torch.nn as nn
 from igcn.cmplx import cmplx
-from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
+from igcn.cmplx_modules import IGConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 
 
 class TripleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                 no_g=4, include_gparams=False, last=False):
+                 no_g=4, include_gparams=False, last=False, gp='max'):
         super().__init__()
         padding = kernel_size // 2
         self.conv1 = nn.Sequential(
             IGConvCmplx(in_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
                         padding=padding, gabor_pooling=None),
-            BatchNormCmplx(out_channels),
+            BatchNormCmplx(out_channels, bnorm_type='old'),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
         self.conv2 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
                         padding=padding, gabor_pooling=None),
-            BatchNormCmplx(out_channels),
+            BatchNormCmplx(out_channels, bnorm_type='old'),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
         self.conv3 = nn.Sequential(
             IGConvCmplx(out_channels, out_channels, no_g=no_g,
                         kernel_size=kernel_size,
-                        padding=padding, gabor_pooling='max',
+                        padding=padding, gabor_pooling=gp,
                         include_gparams=include_gparams),
-            BatchNormCmplx(out_channels),
+            BatchNormCmplx(out_channels, bnorm_type='old'),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
 
@@ -41,15 +41,17 @@ class TripleIGConvCmplx(nn.Module):
 class DownCmplx(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max'):
         super().__init__()
         if pooling == 'avg':
             Pool = AvgPoolCmplx(2)
+        elif pooling == 'mag':
+            Pool = MaxMagPoolCmplx(2)
         else:
             Pool = MaxPoolCmplx(2)
         self.pool_conv = nn.Sequential(
             Pool,
-            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g)
+            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp)
         )
 
     def forward(self, x):
@@ -66,7 +68,7 @@ class UpCmplx(nn.Module):
             be used. Defaults to 'nearest'.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp='max'):
         super().__init__()
 
         if mode is not None:
@@ -74,7 +76,7 @@ class UpCmplx(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
 
-        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last)
+        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp)
 
     def forward(self, x1, x2):
         x1 = cmplx(self.up(x1[0]), self.up(x1[1]))
