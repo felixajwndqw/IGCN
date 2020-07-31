@@ -1,5 +1,7 @@
 import argparse
 import math
+import numpy as np
+import PIL.Image as Image
 
 
 def parse_none(x):
@@ -72,7 +74,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--fc_block',
             default='lin', type=str,
-            choices=['lin', 'clin', 'cnv'],
+            choices=['lin', 'clin', 'cnv', 'bmp', 'cmp', 'nmp'],
             help='Linear, complex linear or 1x1 conv for FC layers. Former will not be applied '
                  'before projection.'
                  'Choices: %(choices)s (default: %(default)s)')
@@ -111,6 +113,10 @@ class ExperimentParser(argparse.ArgumentParser):
             choices=[None, 'he', 'glorot'],
             help=('Type of weight initialisation. Choices: %(choices)s '
                   '(default: %(default)s, corresponding to re/im independent He init.)'))
+        self.n_parser.add_argument(
+            '--softmax',
+            default=False, action='store_true',
+            help='Whether to use softmax for final classification.')
 
         self.t_parser.add_argument(
             '--epochs',
@@ -142,16 +148,21 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Number of samples in each batch')
         self.t_parser.add_argument(
             '--translate',
-            default=0.1, type=float,
+            default=0, type=float,
             help='Translation coefficient for data augmentation.')
         self.t_parser.add_argument(
             '--scale',
-            default=0.1, type=float,
+            default=0, type=float,
             help='Scale coefficient for data augmentation.')
         self.t_parser.add_argument(
             '--shear',
             default=0, type=float,
             help='Shear coefficient for data augmentation.')
+        self.t_parser.add_argument(
+            '--name',
+            default=None,
+            type=parse_none,
+            help='Name to save model under.')
 
     def parse_group_args(self):
         args = self.parse_args()
@@ -167,6 +178,17 @@ class ExperimentParser(argparse.ArgumentParser):
     def args_to_str(args):
         kwargs = vars(args)
         return '_'.join([f'{key}={val}' for key, val in kwargs.items()])
+
+
+class AlbumentationsWrapper():
+    """Wraps albumentations transforms for use with torchvision
+    """
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, image):
+        out = self.transform(image=np.array(image))
+        return Image.fromarray(out['image'])
 
 
 def calculate_error(items):

@@ -1,13 +1,12 @@
-import argparse
-import math
 import time
+import albumentations
 import torch
 import torch.optim as optim
 from torchvision import transforms
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
 from igcn.models import IGCN
-from utils import ExperimentParser, calculate_error
+from utils import ExperimentParser, calculate_error, AlbumentationsWrapper
 
 
 SIZES = {
@@ -28,8 +27,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   relu_type='c', fc_type='cat', fc_block='lin',
                   fc_relu_type='c',
                   best_split=1, augment=False, nsplits=5, error_m=None,
-                  weight_decay=1e-7, lr=1e-4, lr_decay=1,
-                  translate=0, scale=0, shear=0,
+                  weight_decay=1e-7, lr=1e-4, lr_decay=1, best_acc=0,
+                  translate=0, scale=0, shear=0, softmax=False,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
@@ -54,7 +53,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            '\t' + str(weight_init)[:2] +
            '\t\t' + str(all_gp) +
            '\t' + str(bnorm) +
-           '\t\t' + "{:1.4f}".format(m['accuracy']) +
+           "\t\t" + str(softmax) +
+           '\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +
            "\t" + str(m['epoch']) +
@@ -64,7 +64,8 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t" + "{:1.2f}".format(scale) +
            "\t" + "{:2.2f}".format(shear) +
            "\t\t" + str(best_split) +
-           "\t\t" + str(nsplits) +
+           '\t\t' + "{:1.4f}".format(best_acc) +
+           "\t" + str(nsplits) +
            '\t\t' + "{:1.4f}".format(weight_decay) +
            '\t' + "{:1.4f}".format(lr) +
            '\t' + "{:1.4f}".format(lr_decay) +
@@ -92,11 +93,13 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         n_classes = 10
         transform = None
         if 'mnist' in net_args.dataset:
-            b_size = 2048 // (net_args.no_g // 8 * net_args.base_channels // 8)
+            # b_size = 2048 // (net_args.no_g * net_args.base_channels // 64)
+            b_size = 128
             if training_args.augment:
+                # transform = AlbumentationsWrapper(albumentations.ElasticTransform(alpha=8, sigma=3, alpha_affine=1))
                 transform = transforms.RandomAffine(0,
                                                     translate=(training_args.translate, training_args.translate),
-                                                    scale=(1 - training_args.scale, 1 - training_args.scale),
+                                                    scale=(1 - training_args.scale, 1 + training_args.scale),
                                                     shear=(-training_args.shear, training_args.shear))
             if net_args.cmplx:
                 b_size //= 2
@@ -129,6 +132,10 @@ def run_exp(net_args, training_args, device='0', **kwargs):
                      name=(ExperimentParser.args_to_str(net_args)),
                      **vars(net_args)).to(device)
 
+        if training_args.name is not None:
+            model.save_dir += 'mod/'
+            model.name = f'{training_args.name}_split_no={split_no}'
+
         print("Training {}".format(model.name))
 
         total_params = sum(p.numel()
@@ -144,7 +151,7 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         # scheduler = None
         start = time.time()
         # with torch.autograd.detect_anomaly():
-        m = train(model, [train_loader, test_loader], save_best=False,
+        m = train(model, [train_loader, test_loader], save_best=True,
                     epochs=training_args.epochs, opt=optimizer, device=device,
                     sch=scheduler)
 
@@ -182,6 +189,7 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         mins=mins,
         secs=secs,
         best_split=best_split,
+        best_acc=best_acc,
         error_m=error_m
     )
 
