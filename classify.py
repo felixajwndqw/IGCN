@@ -2,10 +2,11 @@ import time
 import albumentations
 import torch
 import torch.optim as optim
+import PIL
 from torchvision import transforms
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.data import mnist, cifar, mnistrot
-from igcn.models import IGCN
+from igcn.models import IGCN, SFC
 from utils import ExperimentParser, calculate_error, AlbumentationsWrapper
 
 
@@ -66,9 +67,9 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            "\t\t" + str(best_split) +
            '\t\t' + "{:1.4f}".format(best_acc) +
            "\t" + str(nsplits) +
-           '\t\t' + "{:1.4f}".format(weight_decay) +
-           '\t' + "{:1.4f}".format(lr) +
-           '\t' + "{:1.4f}".format(lr_decay) +
+           '\t\t' + "{:1.0e}".format(weight_decay) +
+           '\t' + "{:1.0e}".format(lr) +
+           '\t' + "{:1.0e}".format(lr_decay) +
            '\t' + "{:1.4f}".format(total_params) +
            '\t' + "{:3d}m{:2d}s".format(mins, secs))
     if error_m is not None:
@@ -96,11 +97,18 @@ def run_exp(net_args, training_args, device='0', **kwargs):
             # b_size = 2048 // (net_args.no_g * net_args.base_channels // 64)
             b_size = 128
             if training_args.augment:
+                pass
+                transform = transforms.Compose([
+                    # transforms.Pad((0, 0, 1, 1), fill=0),
+                    transforms.Resize(84),
+                    transforms.RandomRotation(180, resample=PIL.Image.BILINEAR, expand=False),
+                    transforms.Resize(28)
+                ])
                 # transform = AlbumentationsWrapper(albumentations.ElasticTransform(alpha=8, sigma=3, alpha_affine=1))
-                transform = transforms.RandomAffine(0,
-                                                    translate=(training_args.translate, training_args.translate),
-                                                    scale=(1 - training_args.scale, 1 + training_args.scale),
-                                                    shear=(-training_args.shear, training_args.shear))
+                # transform = transforms.RandomAffine(0,
+                #                                     translate=(training_args.translate, training_args.translate),
+                #                                     scale=(1 - training_args.scale, 1 + training_args.scale),
+                #                                     shear=(-training_args.shear, training_args.shear))
             if net_args.cmplx:
                 b_size //= 2
             if net_args.dataset == 'mnist':
@@ -113,7 +121,8 @@ def run_exp(net_args, training_args, device='0', **kwargs):
                                                      num_workers=4)
             if net_args.dataset == 'mnistrot':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
-                                                        num_workers=4, split=split)
+                                                        num_workers=4, split=split,
+                                                        transform=transform)
             if net_args.dataset == 'mnistrp':
                 train_loader, test_loader, _ = mnistrot(batch_size=b_size,
                                                         num_workers=4, split=split,
@@ -126,15 +135,20 @@ def run_exp(net_args, training_args, device='0', **kwargs):
             n_channels = 3
             n_classes = 100
 
-        model = IGCN(n_channels=n_channels,
-                     n_classes=n_classes,
-                     save_dir='models/'+net_args.dataset+'/',
-                     name=(ExperimentParser.args_to_str(net_args)),
-                     **vars(net_args)).to(device)
+        # model = IGCN(n_channels=n_channels,
+        #              n_classes=n_classes,
+        #              save_dir='models/'+net_args.dataset+'/',
+        #              name=(ExperimentParser.args_to_str(net_args)),
+        #              **vars(net_args)).to(device)
+        model = SFC(n_channels=n_channels,
+                    n_classes=n_classes,
+                    save_dir=f'models/{net_args.dataset}/',
+                    name=f'SFC{net_args.no_g}',
+                    **vars(net_args)).to(device)
 
         if training_args.name is not None:
             model.save_dir += 'mod/'
-            model.name = f'{training_args.name}_split_no={split_no}'
+        model.name = f'{model.name}_split_no={split_no+1}'
 
         print("Training {}".format(model.name))
 
@@ -149,11 +163,12 @@ def run_exp(net_args, training_args, device='0', **kwargs):
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         # scheduler = None
+
         start = time.time()
         # with torch.autograd.detect_anomaly():
         m = train(model, [train_loader, test_loader], save_best=True,
-                    epochs=training_args.epochs, opt=optimizer, device=device,
-                    sch=scheduler)
+                  epochs=training_args.epochs, opt=optimizer, device=device,
+                  sch=scheduler)
 
         time_taken = time.time() - start
         mins = int(time_taken // 60)

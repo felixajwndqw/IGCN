@@ -1,0 +1,9 @@
+model,no_g,,accuracy,precision,recall,best_epoch,total_epochs,training_time
+sequential,8,False,0.10,0.10,0.10,1,1,  0m41s
+sequential,8,False,0.10,0.10,0.10,1,1,  1m10s
+sequential,8,False,0.10,0.10,0.10,1,1,  1m26s
+sequential,8,False,0.11,0.11,0.10,119,250,168m 9s
+branched,8,False,0.72,0.72,0.72,246,250,181m55s
+modulated,8,False,0.92,0.91,0.91,244,250,179m48s
+parallel,8,False,0.93,0.93,0.93,171,250,203m18s
+parallelmore,8,False,0.97,0.97,0.97,246,250,321m44s

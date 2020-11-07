@@ -1,3 +1,7 @@
+python .\isbi.py --no_g 3 --kernel_size 3 --base_channels 12 --cmplx --epochs 50 --batch_size 2 --splits 3
+python .\isbi.py --no_g 5 --kernel_size 3 --base_channels 20 --cmplx --epochs 50 --batch_size 2 --splits 3
+python .\isbi.py --no_g 7 --kernel_size 3 --base_channels 28 --cmplx --epochs 50 --batch_size 2 --splits 3
+python .\isbi.py --no_g 9 --kernel_size 3 --base_channels 36 --cmplx --epochs 50 --batch_size 2 --splits 3
 
 
 

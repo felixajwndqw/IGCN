@@ -2,11 +2,12 @@ import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.cmplxmodels import UNetIGCNCmplx
+from igcn.seg.covariance.models import IGCNCovar
+from igcn.seg.covariance.loss import SegRegLoss
+from igcn.seg.covariance.metrics import SegRegMetric
 from quicktorch.utils import train, evaluate, imshow, get_splits
-from data import CirrusDataset
+from data import CirrusDataset, TensorList
 from utils import ExperimentParser, calculate_error
-from unet import UNetCmplx
 
 
 def write_results(**kwargs):
@@ -18,10 +19,21 @@ def write_results(**kwargs):
     f.close()
 
 
+def collate_segreg(data):
+    tensors = [
+        torch.Tensor(len(data), *t.size()) for t in data[0]
+    ]
+    for i, d in enumerate(data):
+        tensors[0][i] = d[0]
+        tensors[1][i] = d[1]
+        tensors[2][i] = d[2]
+    return torch.tensor(tensors[0]), TensorList((tensors[1], tensors[2]))
+
+
 def main():
     parser = ExperimentParser(description='Runs a segmentation model')
     parser.add_argument('--dir',
-                        default='data/cirrus300/constant', type=str,
+                        default='data/stars_bad_columns_ccd', type=str,
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--standard',
                         default=False, action='store_true',
@@ -47,39 +59,35 @@ def main():
             CirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[0],
-                denoise=args.denoise),
-            batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                angle=True),
+            batch_size=4, shuffle=True,
+            collate_fn=collate_segreg)
         val_loader = DataLoader(
             CirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[1],
-                denoise=args.denoise),
-            batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                angle=True),
+            batch_size=4, shuffle=True,
+            collate_fn=collate_segreg)
         test_loader = DataLoader(
             CirrusDataset(
                 os.path.join(data_dir, 'test'),
-                denoise=args.denoise),
-                batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                angle=True),
+            batch_size=4, shuffle=True)
 
         dataset = os.path.split(args.dir)[-1]
-        if args.standard:
-            model = UNetCmplx(
-                name=f'cnn_dataset={dataset}_denoise={args.denoise}',
-                n_channels=1,
-                base_channels=5,
-                n_classes=1,
-                pooling=args.pooling
-            ).to(device)
-        else:
-            model = UNetIGCNCmplx(
-                name=f'igcn_dataset={dataset}_denoise={args.denoise}',
-                n_channels=1,
-                base_channels=16,
-                no_g=8,
-                n_classes=1,
-                gp=None,
-                pooling=args.pooling
-            ).to(device)
+        model = IGCNCovar(
+            name=f'igcn_dataset={dataset}_denoise={args.denoise}',
+            n_channels=1,
+            base_channels=4,
+            no_g=8,
+            n_classes=1,
+            gp=None,
+            pooling=args.pooling
+        ).to(device)
 
         total_params = sum(p.numel()
                            for p in model.parameters() if p.requires_grad)
@@ -89,9 +97,13 @@ def main():
         optimizer = optim.Adam(model.parameters(),
                                lr=training_args.lr,
                                weight_decay=training_args.weight_decay)
+        criterion = SegRegLoss()
+        metrics = SegRegMetric()
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         m = train(model, [train_loader, val_loader], save_best=True,
                   epochs=training_args.epochs, opt=optimizer, device=device,
+                  criterion=criterion,
+                  metrics=metrics,
                   sch=scheduler)
 
         print('Evaluating')

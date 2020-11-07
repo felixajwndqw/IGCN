@@ -392,3 +392,174 @@ mnistrp	3		8		96		0.05	True	True	True	False	avg		2       0.9787	0.9785	0.9785	99
 mnistrp	3		8		96		0.03	True	True	True	False	avg		2       0.9791	0.9790	0.9790	93		100		2		5		0.6301	 20m49s	0.0004	0.0004	0.0004
 mnistrp	3		8		96		0.00	True	True	True	False	avg		2       0.9806	0.9804	0.9804	97		100		5		5		0.6301	 20m44s	0.0003	0.0003	0.0003
 mnistrp	3		8		96		0.00	True	True	True	False	avg		1	    0.9756	0.9755	0.9755	98		100		5		5		0.6208	 20m51s	0.0007	0.0007	0.0007
+
+mnistrp	3		8		96		0.00	True	True	True	False	avg		2	he	0.9802	0.9801	0.9800	88		100		1		3		0.6301	 37m35s	0.0005	0.0005	0.0005
+mnistrp	3		8		96		0.05	True	True	True	False	avg		2	he	0.9803	0.9802	0.9801	93		100		2		3		0.6301	 38m42s	0.0003	0.0003	0.0003
+mnistrp	3		8		96		0.10	True	True	True	False	avg		2	he	0.9805	0.9804	0.9804	94		100		1		3		0.6301	 37m56s	0.0004	0.0004	0.0004
+mnistrp	3		8		96		0.15	True	True	True	False	avg		2	he	0.9794	0.9792	0.9792	99		100		2		3		0.6301	 37m39s	0.0000	0.0001	0.0000
+mnistrp	3		8		96		0.20	True	True	True	False	avg		2	he	0.9788	0.9786	0.9786	98		100		1		3		0.6301	 38m25s	0.0002	0.0002	0.0002
+mnistrp	5		16		80		0.00	True	True	True	False	avg		3	he	0.9781	0.9779	0.9780	100		100		3		3		0.5712	 43m12s	0.0005	0.0005	0.0005
+mnistrp	5		16		80		0.00	True	True	True	False	avg		2	he	0.9773	0.9771	0.9771	100		100		1		3		0.5695	 39m 7s	0.0002	0.0002	0.0002
+mnistrp	5		8		96		0.00	True	True	True	False	avg		4	he	0.9802	0.9801	0.9800	96		100		1		3		1.7274	 46m35s	0.0001	0.0001	0.0001
+mnistrp	3		8		96		0.00	max		max		True	False	avg		3	he		False	0.9648	0.9646	0.9645	94		100		1		2		0.6362	 48m 6s	0.0008	0.0009	0.0008
+mnistrp	3		8		96		0.00	max		max		mod		True	False	avg		3	he		False	0.9717	0.9715	0.9714	28		30		1		1		0.6363	 13m59s
+mnistrp	3		8		96		0.00	mag		mag		mod		True	False	avg		3	he		False	0.9506	0.9504	0.9501	28		30		1		1		0.6363	 14m40s
+mnistrp	3		8		96		0.00	max		max		c		True	False	avg		3	he		False	0.9613	0.9612	0.9609	22		30		1		1		0.6362	 14m13s
+mnistrp	3		8		96		0.00	mag		mag		c		True	False	avg		3	he		False	0.9466	0.9464	0.9460	25		30		1		1		0.6362	 15m12s
+mnistrp	3		8		96		0.00	mag		mag		mod		True	False	avg		3	he		False	0.9511	0.9508	0.9506	27		30		1		1		0.6363	 15m16s
+mnistrp	3		8		96		0.00	max		max		mod		True	False	avg		3	he		False	0.9702	0.9700	0.9699	23		30		1		1		0.6363	 14m22s
+mnistrp	3		8		96		0.00	max		max		c		cat		True	False	avg		3	he		False	0.8379	0.8354	0.8342	21		30		3		5		0.6362	 13m46s	0.0251	0.0256	0.0262
+mnistrp	3		8		96		0.00	max		max		mod		cat		True	False	avg		3	he		False	0.9754	0.9752	0.9752	85		100		2		3		0.0000	0.0001	0.9000	0.6363	 49m10s	0.0008	0.0008	0.0008
+mnistrp	3		8		96		0.00	max		max		mod		cat		True	False	avg		3	he		False	0.3107	0.3204	0.2991	1		1		1		1		0.0000	0.0001	0.9000	0.6223	  0m32s
+mnistrp	3		8		96		0.00	max		max		mod		cat		True	False	avg		3	he		False	0.2855	0.2305	0.2727	1		1		1		1		0.0000	0.0001	0.9000	0.6223	  0m32s
+mnistrp	3		8		96		0.00	max		max		mod		mag		True	False	avg		3	he		False	0.2479	0.2558	0.2394	1		1		1		1		0.0000	0.0001	0.9000	0.6219	  0m31s
+mnistrp	3		8		96		0.00	max		max		mod		cat		True	False	avg		3	he		False	0.5017	0.5921	0.4891	1		1		1		1		0.0000	0.0001	0.9000	0.6362	  0m30s
+mnistrp	3		8		96		0.00	max		max		mod		mag		True	False	avg		3	he		False	0.4035	0.3824	0.3923	1		1		1		1		0.0000	0.0001	0.9000	0.6148	  0m29s
+mnistrp	3		8		96		0.00	sum		sum		mod		cat		cnv		True	False	max		3	he		False	0.9019	0.9008	0.9007	28		30		2		3		0.0000	0.0010	0.9000	0.6223	 15m 3s	0.0047	0.0049	0.0048
+mnistrp	3		8		96		0.00	max		max		mod		cat		cnv		True	False	max		3	he		False	0.9435	0.9430	0.9429	30		30		3		3		0.0000	0.0010	0.9000	0.6223	 14m23s	0.0049	0.0050	0.0050
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		cnv		True	False	max		3	he		False	0.9177	0.9167	0.9168	23		30		3		3		0.0000	0.0010	0.9000	0.6223	 14m52s	0.0007	0.0007	0.0006
+mnistrp	3		8		96		0.00	avg		avg		mod		cat		cnv		True	False	max		3	he		False	0.8874	0.8863	0.8858	30		30		1		3		0.0000	0.0010	0.9000	0.6223	 14m25s	0.0016	0.0016	0.0016
+mnistrp	3		8		96		0.00	sum		sum		mod		cat		cnv		True	False	mag		3	he		False	0.7860	0.7833	0.7823	30		30		3		3		0.0000	0.0010	0.9000	0.6223	 14m37s	0.0039	0.0040	0.0041
+mnistrp	3		8		96		0.00	max		max		mod		cat		cnv		True	False	mag		3	he		False	0.9470	0.9466	0.9464	29		30		3		3		0.0000	0.0010	0.9000	0.6223	 14m13s	0.0035	0.0036	0.0035
+mnistrp	3		8		96		0.00	max		max		mod		cat		cnv		True	False	max		3	he		False	0.1000	nan	0.1000	1		30		1		1		0.0000	0.0010	0.9500	0.6228	 17m 1s
+mnistrp	3		8		96		0.00	max		max		mod		cat		cnv		True	False	max		3	he		False	0.9363	0.9364	0.9357	28		30		True		1		1		0.0000	0.0010	0.9500	0.6228	 32m14s
+mnistrp	3		8		96		0.00	max		max		mod		cat		clin	True	False	max		3	he		False	0.9431	0.9434	0.9422	28		30		False		1		1		0.0000	0.0010	0.9500	0.6228	 32m43s
+mnistrp	3		8		96		0.00	mag		mag		z		mag		clin	True	False	mag		3	he		False	0.2323	nan	0.2202	23		30		False		1		5		0.0000	0.0010	0.9500	0.6226	 30m19s	0.0359	nan	0.0358
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		True	False	avg		3	he		False	new		0.9736	0.9734	0.9734	246		300		False		1		3		0.0000	0.0001	1.0000	0.6365	188m 1s	0.0005	0.0005	0.0005
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		True	False	avg		3	he		False	new		0.9302	0.9297	0.9295	29		30		True		5		5		0.0000	0.0010	0.9500	0.6365	 18m26s	0.0015	0.0015	0.0015
+mnistrp	3		8		96		0.00	max		max		mf		cat		lin		True	False	avg		3	he		False	new		0.9215	0.9204	0.9208	29		30		True		0.10	0.10	0.00		4		5		0.0000	0.0010	0.9500	0.6364	 18m39s	0.0022	0.0021	0.0022
+mnistrp	3		8		96		0.00	max		max		mod		cat		clin	True	False	avg		3	he		False	new		0.9010	0.9000	0.9000	29		30		True		0.10	0.10	0.00		4		5		0.0000	0.0010	0.9500	0.6228	 20m35s	0.0058	0.0057	0.0058
+mnistrp	3		8		96		0.00	max		max		mf		cat		clin	True	False	avg		3	he		False	new		0.9285	0.9271	0.9280	30		30		True		0.10	0.10	0.00		1		5		0.0000	0.0010	0.9500	0.6225	 29m22s	0.0040	0.0039	0.0040
+mnistrp	3		8		96		0.00	max		max		mod		cat		clin	mod		True	False	avg		3	he		False	old		0.9537	0.9534	0.9532	27		30		False		0.10	0.10	0.00		3		5		0.0000	0.0010	0.9500	0.6228	 20m40s	0.0018	0.0017	0.0018
+mnistrp	3		8		96		0.00	max		max		mod		cat		clin	mf		True	False	avg		3	he		False	old		0.9608	0.9606	0.9604	30		30		False		0.10	0.10	0.00		3		5		0.0000	0.0010	0.9500	0.6227	 18m53s	0.0016	0.0016	0.0016
+mnistrp	3		8		96		0.00	max		max		mod		cat		clin	c		True	False	avg		3	he		False	old		0.9628	0.9625	0.9625	27		30		False		0.10	0.10	0.00		3		5		0.0000	0.0010	0.9500	0.6227	 18m41s	0.0010	0.0010	0.0011
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		2	he		False	old		0.9619	0.9618	0.9615	50		50		True		0.10	0.10	0.00		4		5		0.0000	0.0010	1.0000	0.6272	 31m14s	0.0007	0.0007	0.0006
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	avg		2	he		False	old		0.9561	0.9560	0.9555	46		50		True		0.10	0.10	0.00		1		1		0.0000	0.0010	1.0000	0.6179	 32m45s
+
+No normalisation on mags and phases
+
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	avg		2	he		False	old		0.9024	0.9013	0.9012	15		30		False		0.10	0.10	0.00		1		3		0.0000	0.0010	1.0000	0.6179	 17m55s	0.0094	0.0095	0.0096
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	max		2	he		False	old		0.8976	0.8971	0.8961	23		30		False		0.10	0.10	0.00		3		3		0.0000	0.0010	1.0000	0.6179	 17m54s	0.0087	0.0090	0.0088
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	mag		2	he		False	old		0.8986	0.8984	0.8971	28		30		False		0.10	0.10	0.00		1		3		0.0000	0.0010	1.0000	0.6179	 17m55s	0.0114	0.0114	0.0116
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	avg		2	he		False	old		0.9028	0.9019	0.9012	28		30		False		0.10	0.10	0.00		3		3		0.0000	0.0010	1.0000	0.6179	 17m37s	0.0270	0.0275	0.0276
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	max		2	he		False	old		0.8774	0.8766	0.8756	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0010	1.0000	0.6179	 17m36s	0.0597	0.0602	0.0607
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	mag		2	he		False	old		0.9067	0.9057	0.9054	30		30		False		0.10	0.10	0.00		3		3		0.0000	0.0010	1.0000	0.6179	 17m41s	0.0059	0.0059	0.0061
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	avg		2	he		False	old		0.8203	0.8174	0.8172	14		30		False		0.10	0.10	0.00		2		3		0.0000	0.0010	1.0000	0.6178	 17m50s	0.0674	0.0698	0.0687
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	max		2	he		False	old		0.8486	0.8463	0.8465	18		30		False		0.10	0.10	0.00		1		3		0.0000	0.0010	1.0000	0.6178	 18m56s	0.0374	0.0383	0.0380
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	mag		2	he		False	old		0.8682	0.8679	0.8661	30		30		False		0.10	0.10	0.00		3		3		0.0000	0.0010	1.0000	0.6178	 18m18s	0.0175	0.0184	0.0178
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	avg		2	he		False	old		0.9317	0.9313	0.9308	19		30		False		0.10	0.10	0.00		2		3		0.0000	0.0010	1.0000	0.6178	 17m23s	0.0030	0.0030	0.0031
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	max		2	he		False	old		0.8090	0.8041	0.8050	12		30		False		0.10	0.10	0.00		3		3		0.0000	0.0010	1.0000	0.6178	 17m57s	0.0851	0.0902	0.0875
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	mag		2	he		False	old		0.8837	0.8825	0.8819	16		30		False		0.10	0.10	0.00		1		3		0.0000	0.0010	1.0000	0.6178	 17m27s	0.0276	0.0280	0.0282
+
+
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	avg		2	he		False	old		0.9485	0.9482	0.9480	29		30		False		0.10	0.10	0.00		3		3		0.0000	0.0001	1.0000	0.6179	 17m50s	0.0011	0.0012	0.0011
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	max		2	he		False	old		0.9429	0.9425	0.9424	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 18m12s	0.0012	0.0012	0.0012
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		bmp		c		True	False	mag		2	he		False	old		0.9289	0.9284	0.9281	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m54s	0.0026	0.0025	0.0026
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	avg		2	he		False	old		0.9684	0.9682	0.9681	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m56s	0.0009	0.0010	0.0009
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	max		2	he		False	old		0.9646	0.9644	0.9643	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m58s	0.0006	0.0007	0.0006
+mnistrp	3		8		96		0.00	max		max		mod		cat		bmp		c		True	False	mag		2	he		False	old		0.9630	0.9628	0.9627	28		30		False		0.10	0.10	0.00		3		3		0.0000	0.0001	1.0000	0.6179	 19m 3s	0.0004	0.0004	0.0004
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	avg		2	he		False	old		0.9456	0.9455	0.9450	26		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 19m30s	0.0014	0.0013	0.0015
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	max		2	he		False	old		0.9374	0.9367	0.9368	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6178	 18m16s	0.0010	0.0012	0.0011
+mnistrp	3		8		96		0.00	mag		mag		c		cat		bmp		c		True	False	mag		2	he		False	old		0.9196	0.9190	0.9186	28		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 17m26s	0.0025	0.0026	0.0025
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	avg		2	he		False	old		0.9683	0.9681	0.9680	25		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 17m 8s	0.0001	0.0001	0.0001
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	max		2	he		False	old		0.9627	0.9624	0.9624	30		30		False		0.10	0.10	0.00		3		3		0.0000	0.0001	1.0000	0.6178	 17m 7s	0.0015	0.0014	0.0015
+mnistrp	3		8		96		0.00	max		max		c		cat		bmp		c		True	False	mag		2	he		False	old		0.9599	0.9597	0.9595	30		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 17m 6s	0.0030	0.0031	0.0030
+
+Normalisation
+
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9510	0.9507	0.9504	29		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6179	 17m45s	0.0018	0.0018	0.0019
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		nmp		c		True	False	max		2	he		False	old		0.9444	0.9441	0.9439	25		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m44s	0.0001	0.0004	0.0001
+mnistrp	3		8		96		0.00	mag		mag		mod		cat		nmp		c		True	False	mag		2	he		False	old		0.9258	0.9253	0.9249	27		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6179	 17m46s	0.0009	0.0008	0.0009
+mnistrp	3		8		96		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9702	0.9701	0.9699	29		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m29s	0.0007	0.0007	0.0007
+mnistrp	3		8		96		0.00	max		max		mod		cat		nmp		c		True	False	max		2	he		False	old		0.9625	0.9622	0.9621	30		30		False		0.10	0.10	0.00		1		3		0.0000	0.0001	1.0000	0.6179	 17m27s	0.0022	0.0022	0.0022
+mnistrp	3		8		96		0.00	max		max		mod		cat		nmp		c		True	False	mag		2	he		False	old		0.9615	0.9612	0.9610	29		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6179	 18m55s	0.0007	0.0007	0.0007
+mnistrp	3		8		96		0.00	mag		mag		c		cat		nmp		c		True	False	avg		2	he		False	old		0.9472	0.9469	0.9465	29		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 18m50s	0.0013	0.0013	0.0012
+mnistrp	3		8		96		0.00	mag		mag		c		cat		nmp		c		True	False	max		2	he		False	old		0.9386	0.9381	0.9379	21		30		False		0.10	0.10	0.00		3		3		0.0000	0.0001	1.0000	0.6178	 18m42s	0.0022	0.0023	0.0023
+mnistrp	3		8		96		0.00	mag		mag		c		cat		nmp		c		True	False	mag		2	he		False	old		0.9187	0.9179	0.9178	29		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 18m 6s	0.0027	0.0028	0.0027
+mnistrp	3		8		96		0.00	max		max		c		cat		nmp		c		True	False	avg		2	he		False	old		0.9684	0.9683	0.9681	26		30		False		0.10	0.10	0.00		3		3		0.0000	0.0001	1.0000	0.6178	 17m19s	0.0002	0.0002	0.0002
+mnistrp	3		8		96		0.00	max		max		c		cat		nmp		c		True	False	max		2	he		False	old		0.9651	0.9650	0.9647	30		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 19m45s	0.0006	0.0006	0.0007
+mnistrp	3		8		96		0.00	max		max		c		cat		nmp		c		True	False	mag		2	he		False	old		0.9602	0.9600	0.9598	29		30		False		0.10	0.10	0.00		2		3		0.0000	0.0001	1.0000	0.6178	 18m55s	0.0006	0.0007	0.0007
+
+
+mnistrp	3		8		40		0.00	max		max		mod		cat		nmp		c		True	False	avg		3	he		False	old		0.7750	0.7741	0.7710	25		30		False		0.00	0.00	0.00		1		3		0.0000	0.0001	1.0000	0.1087	 10m20s	0.0109	0.0125	0.0118
+mnistrp	5		8		56		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9655	0.9652	0.9652	30		30		False		0.00	0.00	0.00		1		3		0.0000	0.0001	1.0000	0.5780	 14m 6s	0.0008	0.0008	0.0008
+mnistrp	7		8		40		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.4034	0.3645	0.3924	16		30		False		0.00	0.00	0.00		3		3		0.0000	0.0001	1.0000	0.5763	 13m 4s	0.0472	0.0458	0.0474
+mnistrp	3		12		96		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9603	0.9600	0.9599	26		30		False		0.00	0.00	0.00		1		3		0.0000	0.0001	1.0000	0.3996	 17m27s	0.0008	0.0008	0.0008
+mnistrp	3		8		96		0.00	max		max		mod		cat		nmp		c		True	False	avg		3	he		False	old		0.9818	0.9816	0.9816	246		300		True		0.00	0.00	2.50		2		3		0.0000	0.0001	1.0000	0.6227	178m 8s	0.0007	0.0007	0.0007
+mnistrp	3		4		60		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9705	0.9703	0.9703	27		30		False		0.00	0.00	0.00		3		3		0.0000	0.0001	1.0000	0.5274	  9m50s	0.0006	0.0007	0.0006
+mnistrp	5		4		40		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9658	0.9656	0.9655	30		30		False		0.00	0.00	0.00		3		3		0.0000	0.0001	1.0000	0.6385	  9m34s	0.0007	0.0007	0.0006
+mnistrp	7		4		32		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.3616	nan	0.3611	29		30		False		0.00	0.00	0.00		2		3		0.0000	0.0001	1.0000	0.7965	 12m 5s	0.2616	nan	0.2611
+mnistrp	3		6		96		0.00	max		max		mod		cat		nmp		c		True	False	avg		2	he		False	old		0.9704	0.9702	0.9702	29		30		False		0.00	0.00	0.00		2		3		0.0000	0.0001	1.0000	0.8487	 16m10s	0.0012	0.0012	0.0012
+mnistrp	3		8		96		0.00	max		max		mod		cat		nmp		c		True	False	avg		3	he		False	old		0.9813	0.9811	0.9810	237		300		True		0.00	0.00	2.50		1		3		0.0000	0.0001	1.0000	0.6227	180m36s	0.0004	0.0004	0.0004
+mnistrp	3		1		25		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.6223	0.6244	0.6115	1		1		False		0.00	0.00	0.00		2		0.6310	2		0.0000	0.0001	1.0000	0.6308	  0m35s	0.0087	0.0126	0.0092
+mnistrp	3		2		42		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.8301	0.8323	0.8271	1		1		False		0.00	0.00	0.00		1		0.8318	2		0.0000	0.0001	1.0000	0.6601	  0m36s	0.0017	0.0018	0.0021
+mnistrp	3		4		64		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.7861	0.7886	0.7829	1		1		False		0.00	0.00	0.00		1		0.8107	2		0.0000	0.0001	1.0000	0.6327	  0m38s	0.0246	0.0261	0.0251
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.7203	0.7236	0.7137	1		1		False		0.00	0.00	0.00		2		0.7762	2		0.0000	0.0001	1.0000	0.6365	  0m42s	0.0559	0.0553	0.0579
+mnistrp	3		16		144		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.5529	0.5831	0.5432	1		1		False		0.00	0.00	0.00		2		0.5677	2		0.0000	0.0001	1.0000	0.6735	  0m51s	0.0148	0.0226	0.0171
+mnistrp	3		1		25		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.9673	0.9671	0.9671	46		50		False		0.00	0.00	0.00		3		0.9684	3		0.0000	0.0001	1.0000	0.6308	 30m46s	0.0009	0.0009	0.0009
+mnistrp	3		2		42		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.9732	0.9730	0.9730	46		50		False		0.00	0.00	0.00		3		0.9747	3		0.0000	0.0001	1.0000	0.6601	 29m50s	0.0008	0.0008	0.0008
+mnistrp	3		4		64		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.9751	0.9750	0.9749	48		50		False		0.00	0.00	0.00		1		0.9764	3		0.0000	0.0001	1.0000	0.6327	 32m 0s	0.0013	0.0013	0.0013
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.9724	0.9721	0.9722	46		50		False		0.00	0.00	0.00		2		0.9740	3		0.0000	0.0001	1.0000	0.6365	 33m51s	0.0008	0.0009	0.0008
+mnistrp	3		16		144		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		0.9673	0.9672	0.9670	47		50		False		0.00	0.00	0.00		1		0.9686	3		0.0000	0.0001	1.0000	0.6735	 43m53s	0.0011	0.0011	0.0011
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9713	0.9712	0.9710	45		50		True		0.00	0.00	2.50		2		0.9724	3		0.0000	0.0001	1.0000	0.6365	 33m16s	0.0005	0.0006	0.0005
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9710	0.9708	0.9708	50		50		True		0.00	0.03	2.50		1		0.9727	3		0.0000	0.0001	1.0000	0.6365	 33m53s	0.0011	0.0011	0.0011
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9721	0.9720	0.9718	50		50		True		0.00	0.05	2.50		2		0.9735	3		0.0000	0.0001	1.0000	0.6365	 34m45s	0.0007	0.0007	0.0007
+mnistrp	3		1		26		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9656	0.9655	0.9654	44		50		False		0.00	0.00	0.00		1		0.9656	1		0.0000	0.0001	1.0000	0.6821	 30m13s
+mnistrp	3		2		42		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9726	0.9726	0.9722	38		50		False		0.00	0.00	0.00		1		0.9726	1		0.0000	0.0001	1.0000	0.6601	 33m51s
+mnistrp	3		4		64		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9740	0.9738	0.9737	45		50		False		0.00	0.00	0.00		1		0.9740	1		0.0000	0.0001	1.0000	0.6327	 33m41s
+mnistrp	3		8		96		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9711	0.9708	0.9709	39		50		False		0.00	0.00	0.00		1		0.9711	1		0.0000	0.0001	1.0000	0.6365	 36m 3s
+mnistrp	3		16		144		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9651	0.9649	0.9647	47		50		False		0.00	0.00	0.00		1		0.9651	1		0.0000	0.0001	1.0000	0.6735	 44m 9s
+mnistrp	3		1		26		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9711	0.9711	0.9708	49		50		False		0.00	0.00	0.00		1		0.9711	1		0.0000	0.0001	1.0000	0.6821	 30m56s
+mnistrp	3		1		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9677	0.9675	0.9674	49		50		False		0.00	0.00	0.00		3		0.9694	3		0.0000	0.0001	1.0000	0.4038	 17m 2s	0.0009	0.0009	0.0009
+mnistrp	3		2		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9624	0.9622	0.9621	49		50		False		0.00	0.00	0.00		3		0.9651	3		0.0000	0.0001	1.0000	0.4038	 20m18s	0.0014	0.0013	0.0014
+mnistrp	3		4		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9609	0.9607	0.9606	50		50		False		0.00	0.00	0.00		1		0.9614	3		0.0000	0.0001	1.0000	0.4038	 25m41s	0.0005	0.0005	0.0005
+mnistrp	3		1		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9673	0.9671	0.9669	48		50		False		0.00	0.00	0.00		2		0.9698	3		0.0000	0.0001	1.0000	0.4038	 16m28s	0.0016	0.0016	0.0016
+mnistrp	3		2		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9652	0.9649	0.9648	49		50		False		0.00	0.00	0.00		3		0.9678	3		0.0000	0.0001	1.0000	0.4038	 19m13s	0.0013	0.0013	0.0013
+mnistrp	3		4		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9578	0.9575	0.9574	49		50		False		0.00	0.00	0.00		3		0.9638	3		0.0000	0.0001	1.0000	0.4038	 31m26s	0.0031	0.0032	0.0031
+mnistrp	3		8		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9618	0.9616	0.9615	48		50		False		0.00	0.00	0.00		3		0.9632	3		0.0000	0.0001	1.0000	0.4039	 51m15s	0.0007	0.0007	0.0007
+mnistrp	3		16		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9424	0.9419	0.9419	50		50		False		0.00	0.00	0.00		2		0.9470	3		0.0000	0.0001	1.0000	0.4040	106m39s	0.0025	0.0026	0.0026
+mnistrp	3		2		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9663	0.9661	0.9660	47		50		False		0.00	0.00	0.00		2		0.9692	3		0.0000	0.0001	1.0000	0.4038	 18m52s	0.0014	0.0014	0.0015
+mnistrp	3		4		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9650	0.9648	0.9647	49		50		False		0.00	0.00	0.00		2		0.9658	3		0.0000	0.0001	1.0000	0.4038	 24m 3s	0.0006	0.0006	0.0006
+mnistrp	3		8		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9620	0.9618	0.9617	49		50		False		0.00	0.00	0.00		3		0.9638	3		0.0000	0.0001	1.0000	0.4039	 42m49s	0.0010	0.0010	0.0010
+mnistrp	3		16		20		0.00	max		max		mod		cat		lin		c		True	False	avg		3	he		False	old		False	0.9073	0.9056	0.9058	48		50		False		0.00	0.00	0.00		3		0.9595	3		0.0000	0.0001	1.0000	0.4040	107m32s	0.0500	0.0514	0.0511
+mnistr	3		1		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.1000	nan	0.1000	1		1		True		0.00	0.00	0.00		1		0.1000	1		1.00e-07	1.00e-04	1.00e+00	0.9294	  0m33s
+mnistr	3		1		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.1056	nan	0.1020	1		1		True		0.00	0.00	0.00		1		0.1056	1		1e-07	1e-04	1e+00	0.9294	  0m33s
+mnistr	3		1		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9741	0.9739	0.9739	49		50		True		0.00	0.00	0.00		1		0.9750	3		1e-07	1e-04	1e+00	0.9294	 16m32s	0.0006	0.0006	0.0006
+mnistr	3		2		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9757	0.9755	0.9754	45		50		True		0.00	0.00	0.00		2		0.9789	3		1e-07	1e-04	1e+00	0.9295	 19m50s	0.0016	0.0017	0.0016
+mnistr	3		4		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9726	0.9725	0.9724	49		50		True		0.00	0.00	0.00		3		0.9744	3		1e-07	1e-04	1e+00	0.9295	 38m34s	0.0009	0.0010	0.0009
+mnistr	3		6		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9682	0.9680	0.9679	44		50		True		0.00	0.00	0.00		2		0.9693	3		1e-07	1e-04	1e+00	0.9295	 53m17s	0.0008	0.0007	0.0007
+mnistr	3		1		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.8166	0.8268	0.8129	48		50		True		0.00	0.00	0.00		2		0.8661	3		1e-07	1e-04	1e+00	0.9294	 16m40s	0.0338	0.0285	0.0348
+mnistr	3		2		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.7303	0.7372	0.7267	48		50		True		0.00	0.00	0.00		1		0.7770	3		1e-07	1e-04	1e+00	0.9295	 20m54s	0.0401	0.0388	0.0409
+mnistr	3		8		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9684	0.9682	0.9681	48		50		True		0.00	0.00	0.00		3		0.9709	3		1e-07	1e-04	1e+00	0.9295	 68m22s	0.0015	0.0016	0.0015
+mnistr	3		4		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.6148	0.6098	0.6068	49		50		True		0.00	0.00	0.00		2		0.6653	3		1e-07	1e-04	1e+00	0.9295	 38m55s	0.0277	0.0293	0.0284
+mnistr	3		6		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.4433	0.4279	0.4344	40		50		True		0.00	0.00	0.00		3		0.4801	3		1e-07	1e-04	1e+00	0.9295	 51m12s	0.0278	0.0370	0.0275
+mnistr	3		8		16		0.30	None		None		c		cat		lin		c		False	False	mag		2	No		False	new		False	0.3822	0.3564	0.3732	22		50		True		0.00	0.00	0.00		2		0.4299	3		1e-07	1e-04	1e+00	0.9295	 78m19s	0.0243	0.0290	0.0237
+
+new batch norm implemented
+
+mnistr	3		1		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9693	0.9693	0.9688	42		50		True		0.00	0.00	0.00		3		0.9706	3		1e-07	1e-04	1e+00	0.9303	 28m44s	0.0012	0.0013	0.0012
+mnistr	3		2		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9688	0.9690	0.9684	40		50		True		0.00	0.00	0.00		2		0.9704	3		1e-07	1e-04	1e+00	0.9318	 28m26s	0.0011	0.0011	0.0011
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9642	0.9649	0.9635	49		50		True		0.00	0.00	0.00		3		0.9675	3		1e-07	1e-04	1e+00	0.9347	 44m47s	0.0018	0.0015	0.0019
+mnistr	3		6		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9624	0.9626	0.9617	49		50		True		0.00	0.00	0.00		2		0.9635	3		1e-07	1e-04	1e+00	0.9376	 57m 3s	0.0006	0.0006	0.0005
+mnistr	3		8		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9533	0.9542	0.9526	50		50		True		0.00	0.00	0.00		1		0.9603	3		1e-07	1e-04	1e+00	0.9405	 79m27s	0.0035	0.0033	0.0036
+
+mnistr	3		1		16		0.30	None		max		c		cat		lin		c		False	False	avg		2	No		False	old		False	0.9752	0.9750	0.9750	49		50		True		0.00	0.00	0.00		2		0.9763	3		1e-07	1e-04	1e+00	0.9303	 20m18s	0.0006	0.0006	0.0006
+mnistr	3		1		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9757	0.9755	0.9755	49		50		True		0.00	0.00	0.00		3		0.9784	3		1e-07	1e-04	1e+00	0.9303	 22m 6s	0.0020	0.0021	0.0021
+mnistr	3		1		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9766	0.9764	0.9763	45		50		True		0.00	0.00	0.00		3		0.9783	3		1e-07	1e-04	1e+00	0.9303	 22m22s	0.0013	0.0012	0.0013
+mnistr	3		2		16		0.30	None		max		c		cat		lin		c		False	False	avg		2	No		False	old		False	0.9749	0.9746	0.9746	41		50		True		0.00	0.00	0.00		1		0.9783	3		1e-07	1e-04	1e+00	0.9318	 22m18s	0.0017	0.0018	0.0017
+mnistr	3		2		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9766	0.9764	0.9763	47		50		True		0.00	0.00	0.00		2		0.9776	3		1e-07	1e-04	1e+00	0.9318	 23m38s	0.0006	0.0006	0.0006
+mnistr	3		2		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9750	0.9748	0.9747	46		50		True		0.00	0.00	0.00		1		0.9762	3		1e-07	1e-04	1e+00	0.9318	 22m49s	0.0010	0.0010	0.0010
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	avg		2	No		False	old		False	0.9719	0.9717	0.9717	46		50		True		0.00	0.00	0.00		3		0.9726	3		1e-07	1e-04	1e+00	0.9347	 37m24s	0.0006	0.0006	0.0006
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9722	0.9720	0.9719	46		50		True		0.00	0.00	0.00		3		0.9741	3		1e-07	1e-04	1e+00	0.9347	 37m19s	0.0015	0.0015	0.0015
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9718	0.9717	0.9716	50		50		True		0.00	0.00	0.00		1		0.9753	3		1e-07	1e-04	1e+00	0.9347	 38m 2s	0.0023	0.0023	0.0023
+mnistr	3		6		16		0.30	None		max		c		cat		lin		c		False	False	avg		2	No		False	old		False	0.9717	0.9715	0.9713	50		50		True		0.00	0.00	0.00		3		0.9728	3		1e-07	1e-04	1e+00	0.9376	 47m56s	0.0005	0.0005	0.0005
+mnistr	3		6		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9711	0.9708	0.9708	38		50		True		0.00	0.00	0.00		3		0.9735	3		1e-07	1e-04	1e+00	0.9376	 47m48s	0.0022	0.0022	0.0022
+mnistr	3		6		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9667	0.9663	0.9664	47		50		True		0.00	0.00	0.00		3		0.9684	3		1e-07	1e-04	1e+00	0.9376	 51m33s	0.0009	0.0009	0.0009
+mnistr	3		8		16		0.30	None		max		c		cat		lin		c		False	False	avg		2	No		False	old		False	0.9685	0.9683	0.9682	43		50		True		0.00	0.00	0.00		1		0.9696	3		1e-07	1e-04	1e+00	0.9405	 68m16s	0.0006	0.0006	0.0006
+mnistr	3		8		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9703	0.9699	0.9700	48		50		True		0.00	0.00	0.00		1		0.9713	3		1e-07	1e-04	1e+00	0.9405	 67m56s	0.0007	0.0006	0.0007
+mnistr	3		8		16		0.30	None		max		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9696	0.9694	0.9693	49		50		True		0.00	0.00	0.00		3		0.9716	3		1e-07	1e-04	1e+00	0.9405	 68m22s	0.0010	0.0010	0.0010
+mnistr	3		2		16		0.30	None		mag		c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9743	0.9741	0.9740	50		50		True		0.00	0.00	0.00		3		0.9755	3		1e-07	1e-04	1e+00	0.9318	 32m 9s	0.0006	0.0006	0.0006
+mnistr	3		2		16		0.30	None		None	c		cat		lin		c		False	False	mag		2	No		False	old		False	0.9831	0.9830	0.9829	174		300		True		0.00	0.00	0.00		1		0.9833	3		1e-07	1e-04	1e+00	0.9318	143m32s	0.0001	0.0001	0.0001
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9828	0.9826	0.9826	261		300		True		0.00	0.00	0.00		3		0.9834	3		1e-07	1e-04	1e+00	0.9347	225m39s	0.0003	0.0003	0.0003
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	old		False	0.9822	0.9821	0.9821	256		300		True		0.00	0.00	0.00		3		0.9830	3		1e-07	1e-04	1e+00	0.9347	229m56s	0.0006	0.0006	0.0006
+mnistr	3		4		16		0.30	None		max		c		cat		lin		c		False	False	max		2	No		False	new		False	0.9803	0.9802	0.9801	297		300		True		0.00	0.00	0.00		1		0.9813	3		1e-07	1e-04	1e+00	0.9347	283m23s	0.0006	0.0006	0.0006

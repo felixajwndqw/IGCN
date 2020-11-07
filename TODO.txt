@@ -1,0 +1,59 @@
+TODO
+
+MNIST
+x Change dropout value
+x Implement weight regularisation
+x Implement ability to run tests from cmd line
+x Add rotation augmentation to MNISTrot
+x Test augmentation params
+x Pick best models from MNIST+rotation and validate results
+x Select best model for MNISTRot and push for results
+x Try with rotation augmentation for results comparison
+x Grab results of other papers and organise by variation
+Swap order of bnorm/relu
+Add image pad>upsampling>rotation>downsampling and compare results
+Rotate by set thetas - see if gabor filters align and if accuracy improves with more gabor filtes
+Rotate by set thetas - make one orientation noisy and see if irregular number of filters align
+
+GENERAL SEGMENTATION
+Share gabor params along skip connections
+
+ISBI
+x Validation dataset
+Select default model
+Push for results
+Lifted multicut post processing
+
+BSD
+x Implement me
+x Treat GTs as probability maps and combine to form a weighted GT
+Select default model
+Push for results
+
+CIRRUS
+x Test hypothesis - Remove modulation and compare:
+x Segmentation accuracy
+Orientation regression accuracy
+
+CIFAR
+X Implement me
+
+GENERAL
+x Write methodology
+x Create functionality to grab and plot filters/activations
+x Implement complex weight initialisation
+x Implement infrastructure for model insight experiments:
+x Activation map stability to rotation transformations. 
+    SSIM
+    x Response Magnitude
+    x T-SNE
+Gabor parameters backprop
+Make graph with c on x-axis and seg/reg performance on y axis
+
+
+
+
+
+
+RANDOM
+redshift equivariance

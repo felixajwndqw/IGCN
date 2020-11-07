@@ -101,10 +101,11 @@ def relu_cmplx(x, inplace=False, **kwargs):
 def bnorm_cmplx_old(x, eps=1e-8):
     """Computes complex simple batch normalisation.
     """
-    means = torch.mean(x, (1, 3, 4), keepdim=True)
+    # print(x.size())
+    means = torch.mean(x, (1, 4, 5), keepdim=True)
     x = x - means
 
-    stds = torch.std(magnitude(x, eps=eps, sq=False), (0, 2, 3), keepdim=True)
+    stds = torch.std(magnitude(x, eps=eps, sq=False), (0, 3, 4), keepdim=True)
     x = x / torch.clamp(stds.unsqueeze(0), min=eps)
 
     return x
@@ -113,16 +114,35 @@ def bnorm_cmplx_old(x, eps=1e-8):
 def pool_cmplx(x, kernel_size, operator='max', **kwargs):
     """Computes complex pooling.
     """
+    xs = None
+    if x.dim() == 6:
+        xs = x.size()
+        x = x.view(
+            2,
+            xs[1] * xs[2],
+            *xs[3:]
+        )
+
     pool = F.max_pool2d
     if operator == 'avg' or operator == 'average':
         pool = F.avg_pool2d
-    if operator == 'mag':
-        return max_mag_pool(x, kernel_size, **kwargs)
 
-    return cmplx(
-        pool(x[0], kernel_size, **kwargs),
-        pool(x[1], kernel_size, **kwargs)
-    )
+    if operator == 'mag':
+        out = max_mag_pool(x, kernel_size, **kwargs)
+    else:
+        out = cmplx(
+            pool(x[0], kernel_size, **kwargs),
+            pool(x[1], kernel_size, **kwargs)
+        )
+
+    if xs is not None:
+        out = out.view(
+            *xs[:4],
+            out.size(-2),
+            out.size(-1)
+        )
+
+    return out
 
 
 def max_mag_pool(x, kernel_size, **kwargs):
@@ -153,23 +173,20 @@ def max_summed_mag_gabor_pool(x, **kwargs):
     return x.gather(dim=3, index=idxs).squeeze(3), idxs
 
 
-def init_weights(re, im, mode='he', polar=False):
+def init_weights(w, mode='he', polar=False):
     """Initialises conv. weights according to C. Trabelsi, Deep Complex Networks
     """
-    assert(re.size() == im.size())
-    fan_in, fan_out = init._calculate_fan_in_and_fan_out(re)
+    fan_in, fan_out = init._calculate_fan_in_and_fan_out(w[0])
     if mode == 'he':
         sigma = 1 / fan_in
     if mode == 'glorot':
         sigma = 1 / (fan_in + fan_out)
 
-    mag = re.new_tensor(np.random.rayleigh(scale=sigma, size=re.size()))
-    phase = re.new_tensor(np.random.uniform(low=-np.pi, high=np.pi, size=re.size()))
+    mag = w[0].new_tensor(np.random.rayleigh(scale=sigma, size=w[0].size()))
+    phase = w[0].new_tensor(np.random.uniform(low=-np.pi, high=np.pi, size=w[0].size()))
 
     with torch.no_grad():
         if polar:
-            re.data = mag
-            im.data = phase
+            w.data = cmplx(mag, phase)
         else:
-            re.data = mag * torch.cos(phase)
-            im.data = mag * torch.sin(phase)
+            w.data = cmplx(mag * torch.cos(phase), mag * torch.sin(phase))

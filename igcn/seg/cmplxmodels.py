@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn.seg.cmplxigcn_unet_parts import DownCmplx, UpCmplx, TripleIGConvCmplx
-from igcn.cmplx import new_cmplx
+from igcn.cmplx import new_cmplx, concatenate
 
 
 class UNetIGCNCmplx(Model):
@@ -48,6 +48,6 @@ class UNetIGCNCmplx(Model):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
-        x = torch.cat([x[0], x[1]], dim=1)
+        x = concatenate(x)
         mask = self.outc(x)
         return mask

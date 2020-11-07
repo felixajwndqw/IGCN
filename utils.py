@@ -117,6 +117,10 @@ class ExperimentParser(argparse.ArgumentParser):
             '--softmax',
             default=False, action='store_true',
             help='Whether to use softmax for final classification.')
+        self.n_parser.add_argument(
+            '--group',
+            default=False, action='store_true',
+            help='Whether to use group convolutions.')
 
         self.t_parser.add_argument(
             '--epochs',

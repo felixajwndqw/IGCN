@@ -75,8 +75,8 @@ def cartesian_coords(weight):
     h = weight.size(-2)
     w = weight.size(-1)
     y, x = torch.meshgrid([torch.arange(-h / 2, h / 2), torch.arange(-w / 2, w / 2)])
-    x = weight.new_tensor(x.clone().detach())
-    y = weight.new_tensor(y.clone().detach())
+    x = x.to(weight.device)
+    y = y.to(weight.device)
     return x, y
 
 
