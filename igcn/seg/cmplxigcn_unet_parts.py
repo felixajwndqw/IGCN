@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from igcn.cmplx import cmplx
 from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
+from igcn.utils import _compress_shape, _recover_shape
 
 
 class TripleIGConvCmplx(nn.Module):
@@ -13,7 +14,6 @@ class TripleIGConvCmplx(nn.Module):
         if first:
             first_conv = IGConvCmplx
         padding = kernel_size // 2
-        print(f'include_gparams={include_gparams}')
 
         self.conv1 = first_conv(
             in_channels, out_channels, no_g=no_g,
@@ -36,7 +36,7 @@ class TripleIGConvCmplx(nn.Module):
         self.conv3 = IGConvGroupCmplx(
             out_channels, out_channels, no_g=no_g,
             kernel_size=kernel_size,
-            padding=padding, gabor_pooling=None,
+            padding=padding, gabor_pooling=gp,
             include_gparams=include_gparams)
         self.bn_relu3 = nn.Sequential(
             BatchNormCmplx(out_channels, bnorm_type='old'),
@@ -51,7 +51,7 @@ class TripleIGConvCmplx(nn.Module):
 
     def extract_theta(self, x):
         x, t = self.conv3(x)
-        print(f'x.size()={x.size()}, self.include_gparams={self.include_gparams}')
+        # print(f'x.size()={x.size()}, t.type()={t.type()}, self.include_gparams={self.include_gparams}')
         return self.bn_relu3(x), t
 
     def normal_conv(self, x):
@@ -128,7 +128,7 @@ class UpCmplx(nn.Module):
             be used. Defaults to 'nearest'.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp='max'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None):
         super().__init__()
 
         if mode is not None:
@@ -139,24 +139,10 @@ class UpCmplx(nn.Module):
         self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp)
 
     def forward(self, x1, x2):
-        print(f'x1.size()={x1.size()}')
-        xs = None
-        if x1.dim() == 6:
-            xs = x1.size()
-            x1 = x1.view(
-                2,
-                xs[1] * xs[2],
-                *xs[3:]
-            )
+        x1, xs = _compress_shape(x1)
 
         x1 = cmplx(self.up(x1[0]), self.up(x1[1]))
 
-        if xs is not None:
-            x1 = x1.view(
-                *xs[:4],
-                x1.size(-2),
-                x1.size(-1)
-            )
+        x1 = _recover_shape(x1, xs)
 
-        print(f'x1.size()={x1.size()}', f'x2.size()={x2.size()}')
         return self.conv(x1 + x2)
