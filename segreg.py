@@ -27,13 +27,13 @@ def collate_segreg(data):
         tensors[0][i] = d[0]
         tensors[1][i] = d[1]
         tensors[2][i] = d[2]
-    return torch.tensor(tensors[0]), TensorList((tensors[1], tensors[2]))
+    return tensors[0], TensorList((tensors[1], tensors[2]))
 
 
 def main():
     parser = ExperimentParser(description='Runs a segmentation model')
     parser.add_argument('--dir',
-                        default='data/stars_bad_columns_ccd', type=str,
+                        default='../datasets/stars_bad_columns_ccd', type=str,
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--standard',
                         default=False, action='store_true',
@@ -78,14 +78,15 @@ def main():
                 angle=True),
             batch_size=4, shuffle=True)
 
-        dataset = os.path.split(args.dir)[-1]
+        dataset = os.path.split(data_dir)[-1]
         model = IGCNCovar(
             name=f'igcn_dataset={dataset}_denoise={args.denoise}',
             n_channels=1,
             base_channels=4,
             no_g=8,
             n_classes=1,
-            gp=None,
+            gp='max',
+            angle_method=3,
             pooling=args.pooling
         ).to(device)
 
