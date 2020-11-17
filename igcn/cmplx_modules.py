@@ -146,7 +146,7 @@ class IGConvCmplx(nn.Module):
 
     def forward(self, x):
         tw = self.gabor(self.weight)
-        print(f'x.size()={x.size()}, tw.size()={tw.size()}, self.weight.size()={self.weight.size()}')
+        # print(f'x.size()={x.size()}, tw.size()={tw.size()}, self.weight.size()={self.weight.size()}')
         if x.dim() == 6:
             x = x.view(
                 2,
@@ -159,9 +159,9 @@ class IGConvCmplx(nn.Module):
             tw.size(1) * self.no_g,
             *tw.size()[3:]
         )
-        print(f'x.size()={x.size()}, tw.size()={tw.size()}, self.weight.size()={self.weight.size()}')
+        # print(f'x.size()={x.size()}, tw.size()={tw.size()}, self.weight.size()={self.weight.size()}')
         out = self.conv(x, tw, **self.conv_kwargs)
-        print(f'out.size()={out.size()}')
+        # print(f'out.size()={out.size()}')
         out = out.view(
             2,
             out.size(1),
@@ -169,7 +169,7 @@ class IGConvCmplx(nn.Module):
             self.no_g,
             *out.size()[3:]
         )
-        print(f'out.size()={out.size()}')
+        # print(f'out.size()={out.size()}')
 
         if self.gabor_pooling is None:
             print(f'input.size()={x.size()}, '
@@ -226,7 +226,7 @@ class IGConvGroupCmplx(nn.Module):
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=cyclic)
         self.no_g = no_g
-        if gabor_pooling == 'max':
+        if gabor_pooling == 'max' or (gabor_pooling is None and include_gparams):
             gabor_pooling = torch.max
         elif gabor_pooling == 'avg':
             gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
@@ -271,12 +271,14 @@ class IGConvGroupCmplx(nn.Module):
         if self.gabor_pooling is None and self.include_gparams is False:
             return out
 
-        out, max_idxs = self.gabor_pooling(out, dim=3)
-        out = out.unsqueeze(3)
+        # pool_out, max_idxs = self.gabor_pooling(out, dim=3)
+        # pool_out = pool_out.unsqueeze(3)
         # print(f'pool_out={out.size()}')
+        pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         if self.include_gparams:
-            print(max_idxs.size())
-        return out
+            max_thetas = self.gabor.gabor_params[0, max_idxs]
+            return out, max_thetas[0]  # Just returns real thetas in complex
+        return pool_out#.unsqueeze(3)
 
 
 class Project(nn.Module):
@@ -402,14 +404,14 @@ class ReLUCmplx(nn.Module):
             self.relu = relu_cmplx_z
         elif relu_type == 'mod':
             assert channels is not None
-            self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1, 1))
+            self.b = nn.Parameter(data=torch.Tensor(1, channels, 1, 1))
             init.zeros_(self.b)
             self.register_parameter(name="b", param=self.b)
             self.relu_kwargs['b'] = self.b
             self.relu = relu_cmplx_mod
         elif relu_type == 'mf':
             assert channels is not None
-            self.b = nn.Parameter(data=torch.Tensor(channels, 1, 1, 1))
+            self.b = nn.Parameter(data=torch.Tensor(1, channels, 1, 1))
             init.zeros_(self.b)
             self.register_parameter(name="b", param=self.b)
             self.b.requires_grad = False
@@ -420,7 +422,16 @@ class ReLUCmplx(nn.Module):
         return self.relu(x, **self.relu_kwargs)
 
 
-class BatchNormCmplx(nn.BatchNorm2d):
+class BatchNormCmplx(nn.Module):
+    def __init__(self, eps=1e-8, **kwargs):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, x):
+        return bnorm_cmplx_old(x, self.eps)
+
+
+class BatchNormCmplxTrabelsi(nn.BatchNorm2d):
     """Implements complex batch normalisation.
     """
     def __init__(self, num_features, momentum=0.1, eps=1e-8, bnorm_type='new'):
@@ -447,9 +458,6 @@ class BatchNormCmplx(nn.BatchNorm2d):
     #     init.zeros_(self.bias)
 
     def forward(self, x):
-        if self.bnorm_type == 'old':
-            return bnorm_cmplx_old(x, self.eps)
-
         # print(f'x.size()={x.size()}')
         r = magnitude(x, eps=self.eps, sq=False)
         # print(f'r.size()={r.size()}')
@@ -479,6 +487,7 @@ class BatchNormCmplx(nn.BatchNorm2d):
             self.momentum,
             self.eps
         )
+
         # print(self.training)
 
         # print(f'self.running_mean={self.running_mean}, self.running_var={self.running_var}')
