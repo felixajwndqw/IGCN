@@ -46,7 +46,7 @@ class CirrusDataset(Dataset):
                 img for img in glob.glob(os.path.join(img_dir, 'target/*.png'))
             ]
         if angle:
-            self.angles = torch.tensor(np.load(os.path.join(img_dir, 'angles.npy')))
+            self.angles = torch.tensor(np.load(os.path.join(img_dir, 'angles.npy'))).unsqueeze(1)
 
         self.num_classes = 2
         self.transform = transform
