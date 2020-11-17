@@ -1,8 +1,8 @@
-import math
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn.init as init
+from igcn.utils import _compress_shape, _recover_shape
 
 
 def cmplx(real, imag):
@@ -10,7 +10,8 @@ def cmplx(real, imag):
 
     This functions more as a readability aid than a helper method.
     """
-    return torch.stack([real, imag], dim=0)
+    out = torch.stack([real, imag], dim=0)
+    return out
 
 
 def new_cmplx(real):
@@ -89,6 +90,8 @@ def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
     r = magnitude(x, sq=False)
     if r.dim() < b.dim():
         b = b.flatten(0)
+    elif r.dim() > b.dim():
+        b = b.unsqueeze(-1)
     return F.relu(r + b) * x / r
 
 
@@ -101,12 +104,15 @@ def relu_cmplx(x, inplace=False, **kwargs):
 def bnorm_cmplx_old(x, eps=1e-8):
     """Computes complex simple batch normalisation.
     """
-    # print(x.size())
-    means = torch.mean(x, (1, 4, 5), keepdim=True)
+    x, xs = _compress_shape(x)
+
+    means = torch.mean(x, (1, 3, 4), keepdim=True)
     x = x - means
 
-    stds = torch.std(magnitude(x, eps=eps, sq=False), (0, 3, 4), keepdim=True)
+    stds = torch.std(magnitude(x, eps=eps, sq=False), (0, 2, 3), keepdim=True)
     x = x / torch.clamp(stds.unsqueeze(0), min=eps)
+
+    x = _recover_shape(x, xs)
 
     return x
 
@@ -114,14 +120,7 @@ def bnorm_cmplx_old(x, eps=1e-8):
 def pool_cmplx(x, kernel_size, operator='max', **kwargs):
     """Computes complex pooling.
     """
-    xs = None
-    if x.dim() == 6:
-        xs = x.size()
-        x = x.view(
-            2,
-            xs[1] * xs[2],
-            *xs[3:]
-        )
+    x, xs = _compress_shape(x)
 
     pool = F.max_pool2d
     if operator == 'avg' or operator == 'average':
@@ -135,12 +134,7 @@ def pool_cmplx(x, kernel_size, operator='max', **kwargs):
             pool(x[1], kernel_size, **kwargs)
         )
 
-    if xs is not None:
-        out = out.view(
-            *xs[:4],
-            out.size(-2),
-            out.size(-1)
-        )
+    out = _recover_shape(out, xs)
 
     return out
 
