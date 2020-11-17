@@ -26,7 +26,9 @@ class SegRegMetric(MetricTracker):
         reg_out, reg_tar = output[1], target[1]
         mse = self.mse_fn(seg_out, seg_tar)
         pred = seg_out.detach().cpu().round().flatten().numpy()
+        pred = pred.clip(0, 1)
         lbl = seg_tar.detach().cpu().flatten().numpy()
+        print(f'pred.max()={pred.max()}, pred.min()={pred.min()}')
         rmse = torch.sqrt(self.mse_fn(reg_out, reg_tar))
         metrics = {
             'PSNR': (

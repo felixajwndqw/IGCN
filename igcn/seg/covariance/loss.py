@@ -21,5 +21,10 @@ class SegRegLoss(torch.nn.Module):
         self.comb_fn = comb_fn
 
     def forward(self, input, target):
-        return self.comb_fn(self.seg_opt(input, target),
-                            self.reg_opt(input, target))
+        seg = self.seg_opt(input[0], target[0])
+        reg = self.reg_opt(input[1], target[1])
+        # print(input[1])
+        print(input)
+        # print(f'seg_loss={seg}, reg_loss={reg}')
+        return self.comb_fn(seg,
+                            reg)
