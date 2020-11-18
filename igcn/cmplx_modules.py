@@ -47,11 +47,13 @@ class IGaborCmplx(nn.Module):
     """
     def __init__(self, no_g=4, layer=False, kernel_size=3, cyclic=False, **kwargs):
         super().__init__(**kwargs)
-        self.gabor_params = nn.Parameter(data=torch.Tensor(2, no_g))
-        self.gabor_params.data[0] = torch.arange(no_g) / (no_g) * math.pi
-        self.gabor_params.data[1].uniform_(-1 / math.sqrt(no_g),
-                                           1 / math.sqrt(no_g))
-        self.register_parameter(name="gabor", param=self.gabor_params)
+        self.theta = nn.Parameter(data=torch.Tensor(no_g))
+        self.theta.data = torch.arange(no_g) / (no_g) * math.pi
+        self.register_parameter(name="theta", param=self.theta)
+        self.l = nn.Parameter(data=torch.Tensor(no_g))
+        self.l.data.uniform_(-1 / math.sqrt(no_g),
+                             1 / math.sqrt(no_g))
+        self.register_parameter(name="lambda", param=self.l)
         self.no_g = no_g
         self.register_buffer("gabor_filters", torch.Tensor(2, self.no_g, 1, 1,
                                                            *kernel_size))
@@ -85,7 +87,13 @@ class IGaborCmplx(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
-        self.gabor_filters = gabor_cmplx(x, self.gabor_params).unsqueeze(1)
+        self.gabor_filters = gabor_cmplx(
+            x,
+            torch.stack((
+                self.theta,
+                self.l
+            ))
+        ).unsqueeze(1)
         self.calc_filters = False
 
     def set_filter_calc(self, *args):
@@ -276,7 +284,7 @@ class IGConvGroupCmplx(nn.Module):
         # print(f'pool_out={out.size()}')
         pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         if self.include_gparams:
-            max_thetas = self.gabor.gabor_params[0, max_idxs]
+            max_thetas = self.gabor.theta[max_idxs]
             return out, max_thetas[0]  # Just returns real thetas in complex
         return pool_out#.unsqueeze(3)
 
