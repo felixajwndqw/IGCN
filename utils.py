@@ -193,6 +193,8 @@ class AlbumentationsWrapper():
 
 def calculate_error(items):
     N = len(items)
+    if N <= 1:
+        return 0
     mean_items = sum(items) / N
     diff_sq_sum = sum((item - mean_items) ** 2 for item in items)
     return math.sqrt(diff_sq_sum / (N * (N - 1)))
