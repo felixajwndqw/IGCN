@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 from igcn.cmplx import cmplx
-from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
+from igcn.cmplx_bn import BatchNormCmplx
+from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, BatchNormCmplxOld
 from igcn.utils import _compress_shape, _recover_shape
 
 
@@ -20,7 +21,8 @@ class TripleIGConvCmplx(nn.Module):
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=None)
         self.bn_relu1 = nn.Sequential(
-            BatchNormCmplx(out_channels, bnorm_type='old'),
+            # BatchNormCmplx(out_channels * no_g, bnorm_type='new'),
+            BatchNormCmplxOld(),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
 
@@ -29,7 +31,8 @@ class TripleIGConvCmplx(nn.Module):
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=None)
         self.bn_relu2 = nn.Sequential(
-            BatchNormCmplx(out_channels, bnorm_type='old'),
+            # BatchNormCmplx(out_channels * no_g, bnorm_type='new'),
+            BatchNormCmplxOld(),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
 
@@ -39,23 +42,25 @@ class TripleIGConvCmplx(nn.Module):
             padding=padding, gabor_pooling=gp,
             include_gparams=include_gparams)
         self.bn_relu3 = nn.Sequential(
-            BatchNormCmplx(out_channels, bnorm_type='old'),
+            # BatchNormCmplx(out_channels * (no_g if gp is None else 1), bnorm_type='new'),
+            BatchNormCmplxOld(),
             ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
         )
 
         self.include_gparams = include_gparams
-        if include_gparams:
-            self.handle_last = self.extract_theta
-        else:
-            self.handle_last = self.normal_conv
 
-    def extract_theta(self, x):
-        x, t = self.conv3(x)
-        # print(f'x.size()={x.size()}, t.type()={t.type()}, self.include_gparams={self.include_gparams}')
-        return self.bn_relu3(x), t
+        # if include_gparams:
+        #     self.handle_last = self.extract_theta
+        # else:
+        #     self.handle_last = self.normal_conv
 
-    def normal_conv(self, x):
-        return self.bn_relu3(self.conv3(x))
+    # def extract_theta(self, x):
+    #     x, t = self.conv3(x)
+    #     # print(f'x.size()={x.size()}, t.type()={t.type()}, self.include_gparams={self.include_gparams}')
+    #     return self.bn_relu3(x), t
+
+    # def normal_conv(self, x):
+    #     return self.bn_relu3(self.conv3(x))
 
     def forward(self, x):
         # print(f'x.size()={x.size()}')
@@ -63,7 +68,8 @@ class TripleIGConvCmplx(nn.Module):
         # print(f'x1.size()={x1.size()}')
         x2 = self.bn_relu2(self.conv2(x1))
         # print(f'x2.size()={x2.size()}')
-        return self.handle_last(x1 + x2)
+        return self.bn_relu3(self.conv3(x2))
+        # return self.handle_last(x1 + x2)
 
 
     # def extract_theta(self):

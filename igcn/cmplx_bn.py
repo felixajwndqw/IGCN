@@ -33,7 +33,6 @@ class BatchNormCmplx(nn.Module):
         self.momentum = momentum
         self.affine = affine
         self.track_running_stats = track_running_stats
-        self.bnorm_type = bnorm_type
         if self.affine:
             self.weight = nn.Parameter(torch.Tensor(num_features, 3))
             self.bias = nn.Parameter(torch.Tensor(num_features, 2))
@@ -67,12 +66,10 @@ class BatchNormCmplx(nn.Module):
             init.zeros_(self.bias)
 
     def forward(self, x):
-        if self.bnorm_type == 'old':
-            return bnorm_cmplx_old(x, self.eps)
-
         exponential_average_factor = 0.0
         xsh = x.size()
-        x = x.view(2, xsh[1], xsh[2] * xsh[3], *xsh[4:])
+        if len(x.size()) > 5:
+            x = x.view(2, xsh[1], xsh[2] * xsh[3], *xsh[4:])
 
         if self.training and self.track_running_stats:
             if self.num_batches_tracked is not None:

@@ -1,4 +1,4 @@
-from .igabor import GaborFunction, gabor, gabor_gradient
+from .gabor import GaborFunction, gabor, gabor_gradient
 from .modules import IGConv, IGabor, IGBranched, IGParallel, MaxGabor
 from .models import IGCN
 

@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn.modules.conv import _ConvNd, Conv2d
-from .igabor import GaborFunction, gabor
+from .gabor import GaborFunction, gabor
 from .vis import FilterPlot
 from .rot_pool import RotMaxPool2d
 from .utils import _pair

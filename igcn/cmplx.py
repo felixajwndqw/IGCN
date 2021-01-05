@@ -53,8 +53,8 @@ def conv_cmplx(x, w, transpose=False, **kwargs):
         conv = F.conv_transpose2d
         w = w.transpose(1, 2)
 
-    real = conv(x[0, ...], w[0, ...], **kwargs) - conv(x[1, ...], w[1, ...], **kwargs)
-    imag = conv(x[0, ...], w[1, ...], **kwargs) + conv(x[1, ...], w[0, ...], **kwargs)
+    real = conv(x[0], w[0], **kwargs) - conv(x[1], w[1], **kwargs)
+    imag = conv(x[0], w[1], **kwargs) + conv(x[1], w[0], **kwargs)
 
     return cmplx(real, imag)
 
