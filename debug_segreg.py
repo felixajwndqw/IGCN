@@ -2,7 +2,7 @@ import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.covariance.models import IGCNCovar
+from igcn.seg.covariance.models import IGCNCovar, IGCNCovarTest, IGCNCovarTest2
 from igcn.seg.covariance.loss import SegRegLoss
 from igcn.seg.covariance.metrics import SegRegMetric
 from quicktorch.utils import perform_pass
@@ -39,16 +39,22 @@ def register_hooks(var):
     iter_graph(var.grad_fn, hook_cb)
 
     def is_bad_grad(grad_output):
+        if grad_output is None:
+            print("NONE")
+            return False
+        # print(grad_output.size())
         grad_output = grad_output.data
         return grad_output.ne(grad_output).any() or grad_output.gt(1e6).any()
 
     def make_dot():
-        node_attr = dict(style='filled',
-                        shape='box',
-                        align='left',
-                        fontsize='12',
-                        ranksep='0.1',
-                        height='0.2')
+        node_attr = dict(
+            style='filled',
+            shape='box',
+            align='left',
+            fontsize='12',
+            ranksep='0.1',
+            height='0.2'
+        )
         dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
 
         def size_to_str(size):
@@ -81,7 +87,7 @@ def register_hooks(var):
 def plot_grad_flow(named_parameters):
     '''Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems.
-    
+
     Usage: Plug this function in Trainer class after loss.backwards() as 
     "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow'''
     ave_grads = []
@@ -123,7 +129,8 @@ def collate_segreg(data):
         tensors[0][i] = d[0]
         tensors[1][i] = d[1]
         tensors[2][i] = d[2]
-    return tensors[0], TensorList((tensors[1], tensors[2]))
+    out2 = TensorList((tensors[1], tensors[2]))
+    return tensors[0], out2
 
 
 def main():
@@ -152,10 +159,10 @@ def main():
         collate_fn=collate_segreg)
 
     dataset = os.path.split(data_dir)[-1]
-    model = IGCNCovar(
+    model = IGCNCovarTest2(
         name=f'igcn_dataset={dataset}_denoise={denoise}',
         n_channels=1,
-        base_channels=1,
+        base_channels=2,
         no_g=4,
         n_classes=1,
         gp='max',
@@ -178,7 +185,7 @@ def main():
     batch = next(iter(train_loader))
     model.train()
     mask, angle = model(batch[0].to(device))
-    # loss = criterion(out, batch[1].to(device))
+    # loss = criterion((mask, angle), batch[1].to(device))
     seg_loss = torch.nn.MSELoss()(mask, batch[1][0].to(device))
     reg_loss = torch.nn.MSELoss()(angle, batch[1][1].to(device))
     loss = seg_loss + reg_loss
@@ -187,7 +194,9 @@ def main():
     loss.backward()
     # plot_grad_flow(model.named_parameters())
     # plt.show()
+
     dot = get_dot()
+    dot.render()
     # make_dot(mask, params=dict(model.named_parameters()))
 
 

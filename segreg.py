@@ -2,7 +2,7 @@ import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.covariance.models import IGCNCovar
+from igcn.seg.covariance.models import IGCNCovar, IGCNCovarTest2
 from igcn.seg.covariance.loss import SegRegLoss
 from igcn.seg.covariance.metrics import SegRegMetric
 from quicktorch.utils import train, evaluate, imshow, get_splits
@@ -79,11 +79,11 @@ def main():
             batch_size=4, shuffle=True)
 
         dataset = os.path.split(data_dir)[-1]
-        model = IGCNCovar(
+        model = IGCNCovarTest2(
             name=f'igcn_dataset={dataset}_denoise={args.denoise}',
             n_channels=1,
-            base_channels=4,
-            no_g=8,
+            base_channels=2,
+            no_g=4,
             n_classes=1,
             gp='max',
             angle_method=3,
