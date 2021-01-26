@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from quicktorch.models import Model
 from igcn.cmplx import new_cmplx, cmplx
-from igcn.cmplx_modules import ConvCmplx, ReLUCmplx, BatchNormCmplx, MaxPoolCmplx, AvgPoolCmplx
+from igcn.cmplx_modules import ConvCmplx, BatchNormCmplxOld, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx
+from igcn.cmplx_bn import BatchNormCmplx
 
 
 class UNetCmplx(Model):
