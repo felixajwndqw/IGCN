@@ -15,7 +15,7 @@ class UNetIGCNCmplx(Model):
         self.mode = mode
         self.kernel_size = kernel_size
 
-        self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, gp=gp)
+        self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, gp=gp, first=True)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, gp=gp, pooling=pooling)
         self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, gp=gp, pooling=pooling)
         self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, gp=gp, pooling=pooling)
