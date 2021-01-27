@@ -49,7 +49,7 @@ class IGaborCmplx(nn.Module):
     def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hada', **kwargs):
         super().__init__(**kwargs)
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
-        self.theta.data = torch.arange(no_g) / (no_g) * math.pi
+        self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
         self.register_parameter(name="theta", param=self.theta)
         self.l = nn.Parameter(data=torch.Tensor(no_g))
         self.l.data.uniform_(
