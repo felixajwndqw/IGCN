@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.modules.conv import Conv2d
-from .gabor import gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx
+from .gabor import gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
 from .utils import _pair
 from .cmplx import (
     cmplx,
@@ -46,7 +46,7 @@ class IGaborCmplx(nn.Module):
             modulation function.
         kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
     """
-    def __init__(self, no_g=4, kernel_size=3, cyclic=False, **kwargs):
+    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hada', **kwargs):
         super().__init__(**kwargs)
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
         self.theta.data = torch.arange(no_g) / (no_g) * math.pi
@@ -71,10 +71,16 @@ class IGaborCmplx(nn.Module):
         self.calc_filters = True  # Flag whether filter bank needs recalculating
         # self.register_backward_hook(self.set_filter_calc)
         self.cyclic = cyclic
-        if cyclic:
-            self.GaborFunction = GaborFunctionCyclicCmplx.apply
-        else:
-            self.GaborFunction = GaborFunctionCmplx.apply
+        if mod == "hada":
+            if cyclic:
+                self.GaborFunction = GaborFunctionCyclicCmplx.apply
+            else:
+                self.GaborFunction = GaborFunctionCmplx.apply
+        elif mod == "cmplx":
+            if cyclic:
+                self.GaborFunction = GaborFunctionCyclicCmplxMult.apply
+            else:
+                self.GaborFunction = GaborFunctionCmplxMult.apply
 
     def forward(self, x):
         # if self.calc_filters:
@@ -211,7 +217,7 @@ class IGConvCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, **conv_kwargs):
+                 weight_init=None, mod='hada', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -227,7 +233,7 @@ class IGConvCmplx(nn.Module):
             init_weights(self.weight, weight_init)
         self.conv = conv_cmplx
 
-        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod)
         self.no_g = no_g
         if gabor_pooling == 'max':
             gabor_pooling = torch.max
@@ -301,7 +307,7 @@ class IGConvGroupCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, cyclic=True, **conv_kwargs):
+                 weight_init=None, mod='hada', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -316,9 +322,8 @@ class IGConvGroupCmplx(nn.Module):
         if weight_init is not None:
             init_weights(self.weight, weight_init)
         self.conv = conv_cmplx
-        self.cyclic = cyclic
 
-        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=cyclic)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod)
         self.no_g = no_g
         if gabor_pooling == 'max' or (gabor_pooling is None and include_gparams):
             gabor_pooling = torch.max
@@ -335,9 +340,9 @@ class IGConvGroupCmplx(nn.Module):
 
     def forward(self, x):
         # print('conv', self.training)
-        print(f'self.weight.size()={self.weight.size()}')
+        # print(f'self.weight.size()={self.weight.size()}')
         tw = self.gabor(self.weight)
-        print(f'x.size()={x.size()}, tw.size()={tw.size()}')
+        # print(f'x.size()={x.size()}, tw.size()={tw.size()}')
         x = x.view(
             2,
             x.size(1),
@@ -350,7 +355,7 @@ class IGConvGroupCmplx(nn.Module):
             self.input_features * self.no_g,
             *tw.size()[5:]
         )
-        print(f'x.size()={x.size()}, tw.size()={tw.size()}')
+        # print(f'x.size()={x.size()}, tw.size()={tw.size()}')
         out = self.conv(x, tw, **self.conv_kwargs)
         # print(f'out.size()={out.size()}')
         out = out.view(
@@ -379,19 +384,17 @@ class IGConvGroupCmplx(nn.Module):
 class Project(nn.Module):
     """Projects a complex layer to real
     """
-    def __init__(self, projection):
+    def __init__(self, projection=None):
         super().__init__()
         self.projection = projection
-        if self.projection == 'mag':
+        if self.projection in ('cat', 'bmp', 'nmp'):
+            self.mult = 2
+        else:
             self.mult = 1
-        if self.projection == 'cat':
-            self.mult = 2
-        if self.projection == 'bmp':
-            self.mult = 2
-        if self.projection == 'nmp':
-            self.mult = 2
 
     def forward(self, x):
+        if self.projection is None:
+            return x
         if self.projection == 'mag':
             x = magnitude(x)
         if self.projection == 'cat':
@@ -448,18 +451,21 @@ class LinearCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, bias=True):
         super().__init__()
-        self.ReLinear = nn.Linear(input_features, output_features, bias=bias)
-        self.ImLinear = nn.Linear(input_features, output_features, bias=bias)
-        self.bias = bias
-        self.linear = linear_cmplx
+        self.weight = nn.Parameter(torch.Tensor(
+            2,
+            output_features,
+            input_features
+        ))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(
+                2,
+                output_features
+            ))
+        else:
+            self.bias = None
 
     def forward(self, x):
-        cmplx_weight = cmplx(self.ReLinear.weight, self.ImLinear.weight)
-        if self.bias:
-            cmplx_bias = cmplx(self.ReLinear.bias, self.ImLinear.bias)
-        else:
-            cmplx_bias = None
-        out = self.linear(x, cmplx_weight, cmplx_bias)
+        out = linear_cmplx(x, self.weight, self.bias)
         return out
 
 

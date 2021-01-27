@@ -2,7 +2,7 @@ import torch
 from torch.autograd import Function
 import numpy as np
 import math
-from .cmplx import cmplx
+from .cmplx import cmplx, cmplx_mult
 import logging
 
 
@@ -81,6 +81,95 @@ class GaborFunctionCmplx(Function):
 
 
 class GaborFunctionCyclicCmplx(Function):
+    """Extends autograd Function to create a Gabor filter with learnable theta.
+    """
+
+    @staticmethod
+    def forward(ctx, weight, gabor_params):
+        """Applies a Gabor filter to given weight. gabor_params contains thetas/sigmas.
+
+        Args:
+            weight (Tensor): data to apply filter to.
+            gabor_params (Tensor): theta and sigma parameters.
+                Must have gabor_params.size() = [N, 2]
+        """
+        gabor_filter = gabor_cmplx(weight, gabor_params)
+        cyclic_gabor_filter = cyclic_expand(gabor_filter.unsqueeze(1))
+        ctx.save_for_backward(weight, gabor_params, cyclic_gabor_filter)
+        # print(f'gabor_filter.size()={gabor_filter.size()}, cyclic_gabor_filter.size()={cyclic_gabor_filter.size()}, weight.size()={weight.unsqueeze(2).size()}')
+        o = weight.unsqueeze(2) * cyclic_gabor_filter
+        # print(f'gabor_out.size()={o.size()}')
+        return o
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Computes gradients for Gabor filter backprop.
+
+        Args:
+            grad_output (Tensor): gradient from graph.
+        """
+        weight, gabor_params, gabor_filter = ctx.saved_tensors
+        grad_gabor = gabor_gradient_cmplx(weight, gabor_params).unsqueeze(3)
+
+        # grad_gabor = grad_gabor.unsqueeze(2)
+        # print(f'grad_gabor.size()={grad_gabor.size()}, weight.size()={weight.size()}, grad_output.size()={grad_output.size()}')
+        # print(f'grad_gabor.size()={grad_gabor.size()}, weight.size()={match_shape(weight.unsqueeze(2), grad_gabor, False).size()}, grad_output.size()={match_shape(grad_output, grad_gabor, False).size()}')
+        # grad = (grad_gabor * match_shape(weight, grad_gabor, False) * match_shape(grad_output, grad_gabor, False))
+
+        cyclic_grad_gabor = cyclic_expand(grad_gabor).unsqueeze(2)
+        # print(f'cyclic_grad_gabor.size()={cyclic_grad_gabor.size()}, weight.size()={weight.size()}, grad_output.size()={grad_output.size()}')
+        # print(f'cyclic_grad_gabor.size()={cyclic_grad_gabor.size()}, weight.size()={match_shape(weight.unsqueeze(2), cyclic_grad_gabor, False).size()}, grad_output.size()={match_shape(grad_output, cyclic_grad_gabor, False).size()}')
+        grad = (cyclic_grad_gabor * match_shape(weight.unsqueeze(2), cyclic_grad_gabor, False) * match_shape(grad_output, cyclic_grad_gabor, False))
+        # print(f'grad.size()={grad.size()}')
+        # print(f'grad.size()={grad.size()}')
+        out1 = gabor_filter * grad_output
+        out1 = out1.view(out1.size(0), out1.size(1), out1.size(2) * out1.size(3), *out1.size()[4:])
+        # print(f'out1.size()={out1.size()}')
+        return (
+            out1,
+            grad.permute(0, 2, 4, 5, 6, 7, 1, 3)
+        )
+
+
+class GaborFunctionCmplxMult(Function):
+    """Extends autograd Function to create a Gabor filter with learnable theta.
+    """
+
+    @staticmethod
+    def forward(ctx, weight, gabor_params):
+        """Applies a Gabor filter to given weight. gabor_params contains thetas/sigmas.
+
+        Args:
+            weight (Tensor): data to apply filter to.
+            gabor_params (Tensor): theta and sigma parameters.
+                Must have gabor_params.size() = [N, 2]
+        """
+        gabor_filter = gabor_cmplx(weight, gabor_params).unsqueeze(1)
+        ctx.save_for_backward(weight, gabor_params, gabor_filter)
+        # print(f'gabor_filter.size()={gabor_filter.size()}, weight.size()={weight.size()}')
+        o = cmplx_mult(weight, gabor_filter)
+        # print(f'gabor_out.size()={o.size()}')
+        return o
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Computes gradients for Gabor filter backprop.
+
+        Args:
+            grad_output (Tensor): gradient from graph.
+        """
+        weight, gabor_params, gabor_filter = ctx.saved_tensors
+        grad_gabor = gabor_gradient_cmplx(weight, gabor_params).unsqueeze(3).unsqueeze(2)
+        # print(f'gabor_filter.size()={gabor_filter.size()}, grad_output.size()={grad_output.size()}')
+        # print(f'cyclic_grad_gabor.size()={cyclic_grad_gabor.size()}, weight.size()={match_shape(weight.unsqueeze(2), cyclic_grad_gabor, False).size()}, grad_output.size()={match_shape(grad_output, cyclic_grad_gabor, False).size()}')
+        grad = cmplx_mult(grad_gabor, match_shape(weight, grad_gabor, False), match_shape(grad_output, grad_gabor, False))
+        return (
+            cmplx_mult(gabor_filter, grad_output),
+            grad.permute(0, 2, 4, 5, 6, 1, 3),
+        )
+
+
+class GaborFunctionCyclicCmplxMult(Function):
     """Extends autograd Function to create a Gabor filter with learnable theta.
     """
 

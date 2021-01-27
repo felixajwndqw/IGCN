@@ -76,6 +76,22 @@ def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
     return cmplx(real, imag)
 
 
+def cmplx_mult(*args):
+    """Computes complex multiplication
+    """
+    def mult(x, y):
+        return torch.stack([
+            x[0] * y[0] - x[1] * y[1],
+            x[0] * y[1] + x[1] * y[0]
+        ])
+    if len(args) == 2:
+        return mult(args[0], args[1])
+    prod = args[0]
+    for item in args[1:]:
+        prod = mult(prod, item)
+    return prod
+
+
 def relu_cmplx_z(x, inplace=False, eps=1e-12, **kwargs):
     """Computes complex relu.
     """
