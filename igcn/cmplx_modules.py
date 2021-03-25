@@ -311,7 +311,7 @@ class IGConvCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, mod='hadam', **conv_kwargs):
+                 weight_init='he', mod='hadam', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -401,7 +401,7 @@ class IGConvGroupCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, mod='hadam', **conv_kwargs):
+                 weight_init='he', mod='hadam', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -516,7 +516,7 @@ class ConvCmplx(nn.Module):
             to convolution operator. E.g. stride, dilation, padding.
     """
     def __init__(self, input_features, output_features, kernel_size,
-                 weight_init=None, **conv_kwargs):
+                 weight_init='he', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         super().__init__()
         self.weight = nn.Parameter(torch.Tensor(
