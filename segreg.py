@@ -6,7 +6,7 @@ from igcn.seg.covariance.models import IGCNCovar, IGCNCovarTest2
 from igcn.seg.covariance.loss import SegRegLoss
 from igcn.seg.covariance.metrics import SegRegMetric
 from quicktorch.utils import train, evaluate, imshow, get_splits
-from data import CirrusDataset, TensorList
+from data import SynthCirrusDataset, TensorList
 from utils import ExperimentParser, calculate_error
 
 
@@ -56,7 +56,7 @@ def main():
     for split_no, split in zip(range(training_args.nsplits), splits):
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         train_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[0],
                 denoise=args.denoise,
@@ -64,7 +64,7 @@ def main():
             batch_size=4, shuffle=True,
             collate_fn=collate_segreg)
         val_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[1],
                 denoise=args.denoise,
@@ -72,7 +72,7 @@ def main():
             batch_size=4, shuffle=True,
             collate_fn=collate_segreg)
         test_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'test'),
                 denoise=args.denoise,
                 angle=True),

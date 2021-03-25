@@ -6,7 +6,7 @@ from igcn.seg.covariance.models import IGCNCovar, IGCNCovarTest, IGCNCovarTest2
 from igcn.seg.covariance.loss import SegRegLoss
 from igcn.seg.covariance.metrics import SegRegMetric
 from quicktorch.utils import perform_pass
-from data import CirrusDataset, TensorList
+from data import SynthCirrusDataset, TensorList
 from utils import ExperimentParser
 from torchviz import make_dot
 from graphviz import Digraph
@@ -150,7 +150,7 @@ def main():
     split = [range(150), range(150, 200)]
 
     train_loader = DataLoader(
-        CirrusDataset(
+        SynthCirrusDataset(
             os.path.join(data_dir, 'train'),
             indices=split[0],
             denoise=denoise,

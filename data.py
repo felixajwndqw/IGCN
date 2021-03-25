@@ -4,76 +4,10 @@ import os
 import PIL.Image as Image
 import imageio
 import numpy as np
-import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from quicktorch.utils import imshow
-import matplotlib.pyplot as plt
-
-
-class TensorList(list):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def to(self, device):
-        for i in range(len(self)):
-            self[i] = self[i].to(device)
-        return self
-
-
-class CirrusDataset(Dataset):
-    """Loads cirrus dataset from file.
-
-    Args:
-        img_dir (str): Path to dataset directory.
-        transform (Trasform, optional): Transform(s) to
-            be applied to the data.
-        target_transform (Trasform, optional): Transform(s) to
-            be applied to the targets.
-    """
-    def __init__(self, img_dir, indices=None, denoise=False, angle=False,
-                 transform=None, target_transform=None):
-        self.cirrus_paths = [
-            img for img in glob.glob(os.path.join(img_dir, 'input/*.png'))
-        ]
-        if denoise:
-            self.mask_paths = [
-                img for img in glob.glob(os.path.join(img_dir, 'clean/*.png'))
-            ]
-        else:
-            self.mask_paths = [
-                img for img in glob.glob(os.path.join(img_dir, 'target/*.png'))
-            ]
-        if angle:
-            self.angles = torch.tensor(np.load(os.path.join(img_dir, 'angles.npy'))).unsqueeze(1)
-
-        self.num_classes = 2
-        self.transform = transform
-        self.target_transform = target_transform
-        self.angle = angle
-
-        if indices is not None:
-            self.cirrus_paths = [self.cirrus_paths[i] for i in indices]
-            self.mask_paths = [self.mask_paths[i] for i in indices]
-
-    def __getitem__(self, i):
-        cirrus = transforms.ToTensor()(
-            Image.open(self.cirrus_paths[i])
-        )
-        mask = transforms.ToTensor()(
-            Image.open(self.mask_paths[i])
-        )
-        if self.transform is not None:
-            cirrus = self.transform(cirrus)
-        if self.target_transform is not None:
-            mask = self.target_transform(mask)
-        if self.angle:
-            return cirrus, mask, self.angles[i]
-        return cirrus, mask
-
-    def __len__(self):
-        return len(self.cirrus_paths)
 
 
 class EMDataset(Dataset):
@@ -210,7 +144,7 @@ if __name__ == '__main__':
         post_em_data(args.dir)
     elif args.demo:
         if args.data == 'cirrus':
-            data = DataLoader(CirrusDataset(
+            data = DataLoader(SynthCirrusDataset(
                     'data/halo1000/train'
                 ),
                 batch_size=1,

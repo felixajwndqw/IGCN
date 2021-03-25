@@ -26,7 +26,7 @@ def get_train_data(batch_size=8):
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(),
-                albumentations.PadIfNeeded(288, 288)
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=train_idxs
         ),
@@ -41,7 +41,7 @@ def get_train_data(batch_size=8):
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(),
-                albumentations.PadIfNeeded(288, 288)
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=valid_idxs
         ),
@@ -56,7 +56,7 @@ def get_test_data(batch_size=8):
         EMDataset(
             'data/isbi/test',
             albumentations.Compose([
-                albumentations.PadIfNeeded(288, 288)
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             aug_mult=1,
         ),

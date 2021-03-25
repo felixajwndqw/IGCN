@@ -4,15 +4,15 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from igcn.seg.cmplxmodels import UNetIGCNCmplx
 from quicktorch.utils import train, evaluate, imshow, get_splits
-from data import CirrusDataset
+from cirrus.data import SynthCirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
+import albumentations
 
 
 def write_results(**kwargs):
     sorted_keys = sorted([key for key in kwargs.keys()])
     result = '\n' + '\t'.join([str(kwargs[key]) for key in sorted_keys])
-
     f = open("cirrus_results.txt", "a+")
     f.write(result)
     f.close()
@@ -33,33 +33,57 @@ def main():
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
     data_dir = args.dir
-
+    N = 1200
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     metrics = []
+    save_paths = []
     if training_args.nsplits == 1:
         splits = [[None, None]]
     else:
-        splits = get_splits(200, max(6, training_args.nsplits))  # Divide into 6 or more blocks
+        splits = get_splits(N // 3 * 2, max(6, training_args.nsplits))  # Divide into 6 or more blocks
     for split_no, split in zip(range(training_args.nsplits), splits):
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         train_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[0],
-                denoise=args.denoise),
-            batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                transform=albumentations.Compose([
+                    albumentations.RandomCrop(256, 256),
+                    albumentations.Resize(256, 256),
+                    albumentations.Flip(),
+                    albumentations.RandomRotate90(),
+                    albumentations.PadIfNeeded(288, 288, border_mode=4)
+                ]),
+            ),
+            batch_size=training_args.batch_size, shuffle=True)
         val_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'train'),
                 indices=split[1],
-                denoise=args.denoise),
-            batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                transform=albumentations.Compose([
+                    albumentations.RandomCrop(256, 256),
+                    albumentations.Resize(256, 256),
+                    albumentations.Flip(),
+                    albumentations.RandomRotate90(),
+                    albumentations.PadIfNeeded(288, 288, border_mode=4)
+                ]),
+            ),
+            batch_size=training_args.batch_size, shuffle=True)
         test_loader = DataLoader(
-            CirrusDataset(
+            SynthCirrusDataset(
                 os.path.join(data_dir, 'test'),
-                denoise=args.denoise),
-                batch_size=4, shuffle=True)
+                denoise=args.denoise,
+                transform=albumentations.Compose([
+                    albumentations.RandomCrop(256, 256),
+                    albumentations.Resize(256, 256),
+                    albumentations.Flip(),
+                    albumentations.PadIfNeeded(288, 288, border_mode=4)
+                ]),
+            ),
+            batch_size=training_args.batch_size, shuffle=True)
 
         dataset = os.path.split(args.dir)[-1]
         if args.standard:
@@ -74,10 +98,9 @@ def main():
             model = UNetIGCNCmplx(
                 name=f'igcn_dataset={dataset}_denoise={args.denoise}',
                 n_channels=1,
-                base_channels=16,
-                no_g=8,
+                base_channels=net_args.base_channels,
+                no_g=net_args.no_g,
                 n_classes=1,
-                gp=None,
                 pooling=args.pooling
             ).to(device)
 
@@ -95,21 +118,21 @@ def main():
                   sch=scheduler)
 
         print('Evaluating')
-        temp_metrics = evaluate(model, test_loader, device=device, report_iou=not args.denoise)
-        m['accuracy'] = temp_metrics['accuracy']
-        m['precision'] = temp_metrics['precision']
-        m['recall'] = temp_metrics['recall']
-        m['iou'] = temp_metrics['iou']
+        temp_metrics = evaluate(model, test_loader, device=device)
+        m['PSNR'] = temp_metrics['PSNR']
+        m['IoU'] = temp_metrics['IoU']
         del(model)
+        save_paths.append(m.pop('save_path'))
         torch.cuda.empty_cache()
         metrics.append(m)
 
     mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
-    best_acc = max([mi['accuracy'] for mi in metrics])
-    best_split = [mi['accuracy'] for mi in metrics].index(best_acc) + 1
-    best_iou = metrics[[mi['accuracy'] for mi in metrics].index(best_acc)]['iou']
+    best_iou = max([mi['IoU'] for mi in metrics])
+    best_split = [mi['IoU'] for mi in metrics].index(best_iou) + 1
+    best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
     mean_m['epoch'] = metrics[best_split-1]['epoch']
-    error_m = {'accuracy': 0}
+
+    error_m = {'e_psnr': 0}
     if training_args.nsplits > 1:
         error_m = {key: calculate_error([mi[key] for mi in metrics])
                    for key in m.keys()}
@@ -117,9 +140,9 @@ def main():
         **{
             'params': total_params,
             'standard': args.standard,
-            'psnr': mean_m['accuracy'],
-            'psnr_error': error_m['accuracy'],
-            'best_acc': best_acc,
+            'psnr': mean_m['PSNR'],
+            'psnr_error': error_m['PSNR'],
+            'best_psnr': best_psnr,
             'best_iou': best_iou,
             'best_split': best_split,
             'dataset': dataset,
