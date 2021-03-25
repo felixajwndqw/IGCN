@@ -10,6 +10,7 @@ from .gabor import gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCycl
 from .utils import _pair
 from .cmplx import (
     cmplx,
+    cmplx_mult,
     conv_cmplx,
     linear_cmplx,
     pool_cmplx,
@@ -27,7 +28,7 @@ from .cmplx import (
 from igcn.utils import _compress_shape, _recover_shape
 
 
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
 
 
 def cyclic_expand(t):
@@ -37,7 +38,7 @@ def cyclic_expand(t):
     return ct
 
 
-class IGaborCmplx(nn.Module):
+class IGaborCmplxManual(nn.Module):
     """Wraps the complex Gabor implementation into a NN layer w/o convolution.
 
     Args:
@@ -46,10 +47,10 @@ class IGaborCmplx(nn.Module):
             modulation function.
         kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
     """
-    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hada', **kwargs):
+    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hadam', **kwargs):
         super().__init__(**kwargs)
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
-        self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
+        self.theta.data = torch.arange(no_g) / (no_g) * math.pi
         self.register_parameter(name="theta", param=self.theta)
         self.l = nn.Parameter(data=torch.Tensor(no_g))
         self.l.data.uniform_(
@@ -71,7 +72,7 @@ class IGaborCmplx(nn.Module):
         self.calc_filters = True  # Flag whether filter bank needs recalculating
         # self.register_backward_hook(self.set_filter_calc)
         self.cyclic = cyclic
-        if mod == "hada":
+        if mod == "hadam":
             if cyclic:
                 self.GaborFunction = GaborFunctionCyclicCmplx.apply
             else:
@@ -122,6 +123,99 @@ class IGaborCmplx(nn.Module):
                 self.l
             ))
         ).unsqueeze(1)
+        self.calc_filters = False
+
+    def set_filter_calc(self, *args):
+        """Called in backward hook so that filter bank will be regenerated.
+        """
+        self.calc_filters = True
+
+
+class IGaborCmplx(nn.Module):
+    """Wraps the complex Gabor implementation into a NN layer w/o convolution.
+
+    Args:
+        no_g (int, optional): The number of desired Gabor filters.
+        layer (boolean, optional): Whether this is used as a layer or a
+            modulation function.
+        kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
+    """
+    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hadam', **kwargs):
+        super().__init__(**kwargs)
+        self.theta = nn.Parameter(data=torch.Tensor(no_g))
+        self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
+        self.register_parameter(name="theta", param=self.theta)
+        self.l = nn.Parameter(data=torch.Tensor(no_g))
+        self.l.data.uniform_(
+            -1 / math.sqrt(no_g),
+            1 / math.sqrt(no_g)
+        )
+        self.register_parameter(name="lambda", param=self.l)
+        self.no_g = no_g
+
+        if cyclic:
+            self.register_buffer(
+                "gabor_filters",
+                torch.Tensor(
+                    2,
+                    1,
+                    self.no_g,
+                    self.no_g,
+                    1,
+                    *kernel_size
+                )
+            )
+        else:
+            self.register_buffer(
+                "gabor_filters",
+                torch.Tensor(
+                    2,
+                    1,
+                    self.no_g,
+                    1,
+                    *kernel_size
+                )
+            )
+
+        self.calc_filters = True  # Flag whether filter bank needs recalculating
+        self.register_backward_hook(self.set_filter_calc)
+        self.cyclic = cyclic
+        if mod == "hadam":
+            self.modulate = torch.multiply
+        elif mod == "cmplx":
+            self.modulate = cmplx_mult
+
+    def forward(self, x):
+        if self.calc_filters:
+            self.generate_gabor_filters(x)
+        # print(f'x.size()={x.size()}, '
+        #       f'x.unsqueeze(2).size()={x.unsqueeze(2).size()}, '
+        #       f'gabor.size()={self.gabor_filters.size()}')
+
+        if self.cyclic:
+            x = x.unsqueeze(2)
+        out = self.modulate(self.gabor_filters, x.unsqueeze(2))
+
+        # print(f'self.gabor_filters.size()={self.gabor_filters.size()}, x.unsqueeze(2).size()={x.unsqueeze(2).size()}')
+        # print(f'x.unsqueeze(2).size()={x.unsqueeze(2).size()}')
+
+        # out = out.view(2, -1 , *out.size()[3:])
+        # print(f'gabor_out.size()={out.size()}')
+        return out
+
+    def generate_gabor_filters(self, x):
+        """Generates the gabor filter bank
+        """
+        filt = gabor_cmplx(
+            x,
+            torch.stack((
+                self.theta,
+                self.l
+            ))
+        ).unsqueeze(1)
+        if self.cyclic:
+            filt = cyclic_expand(filt)
+        self.gabor_filters = filt
         self.calc_filters = False
 
     def set_filter_calc(self, *args):
@@ -217,7 +311,7 @@ class IGConvCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, mod='hada', **conv_kwargs):
+                 weight_init=None, mod='hadam', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -255,7 +349,7 @@ class IGConvCmplx(nn.Module):
             x = x.view(
                 2,
                 x.size(1),
-                self.input_features * self.no_g,
+                x.size(2) * x.size(3),
                 *x.size()[4:]
             )
         tw = tw.view(
@@ -280,11 +374,11 @@ class IGConvCmplx(nn.Module):
 
         # pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         # pool_out = pool_out.unsqueeze(3)
-        # print(f'pool_out={out.size()}')
         pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         if self.include_gparams:
             max_thetas = self.gabor.theta[max_idxs]
             return out, max_thetas[0]  # Just returns real thetas in complex
+        # print(f'pool_out={pool_out.unsqueeze(3).size()}')
         return pool_out.unsqueeze(3)
 
 
@@ -307,7 +401,7 @@ class IGConvGroupCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init=None, mod='hada', **conv_kwargs):
+                 weight_init=None, mod='hadam', **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -449,18 +543,21 @@ class LinearCmplx(nn.Module):
         output_features (torch.Tensor): Feature channels out.
         bias (bool, optional): Whether to use biases. Defaults to True.
     """
-    def __init__(self, input_features, output_features, bias=True):
+    def __init__(self, input_features, output_features, bias=True,
+                 weight_init='he'):
         super().__init__()
         self.weight = nn.Parameter(torch.Tensor(
             2,
             output_features,
             input_features
         ))
+        init_weights(self.weight, weight_init)
         if bias:
             self.bias = nn.Parameter(torch.Tensor(
                 2,
                 output_features
             ))
+            init.zeros_(self.bias)
         else:
             self.bias = None
 
@@ -648,8 +745,9 @@ class AvgPoolCmplx(nn.Module):
 class GaborPool(nn.Module):
     """Implements pooling over Gabor axis.
     """
-    def __init__(self, pool_type='max', **pool_kwargs):
+    def __init__(self, pool_type='max', no_g=None, **pool_kwargs):
         super().__init__()
+        self.no_g = no_g
         if pool_type == 'max':
             self.pooling = torch.max
         elif pool_type == 'avg':
@@ -660,5 +758,14 @@ class GaborPool(nn.Module):
             self.pooling = max_summed_mag_gabor_pool
 
     def forward(self, x):
+        if self.no_g is not None:
+            x = x.view(
+                x.size(0),
+                x.size(1),
+                x.size(2) // self.no_g,
+                self.no_g,
+                x.size(3),
+                x.size(4)
+            )
         out, _ = self.pooling(x, dim=3)
         return out
