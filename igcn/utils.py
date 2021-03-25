@@ -1,8 +1,9 @@
 import torch
+import numpy as np
 
 
 def _pair(x):
-    if type(x) is int:
+    if np.issubdtype(type(x), np.integer) and np.isscalar(x):
         return (x, x)
     return x
 
