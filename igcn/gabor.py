@@ -6,7 +6,7 @@ from .cmplx import cmplx, cmplx_mult
 import logging
 
 
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
 
 
 class GaborFunction(Function):
@@ -343,8 +343,10 @@ def gabor_cmplx(weight, params):
 
     real = f * s_h(x_p, l)
     imag = f * s_h_imag(x_p, l)
-
-    return norm(cmplx(real, imag)).unsqueeze(2)
+    out = cmplx(real, imag)
+    # out = norm(out)
+    # print(f'g.max()={g.max()}, g.min()={g.min()}, out.max()={out.max()}, out.min()={out.min()}, ')
+    return out.unsqueeze(2)
 
 
 def gabor_gradient(weight, params):
