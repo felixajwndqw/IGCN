@@ -178,7 +178,7 @@ class IGaborCmplx(nn.Module):
             )
 
         self.calc_filters = True  # Flag whether filter bank needs recalculating
-        self.register_backward_hook(self.set_filter_calc)
+        self.register_full_backward_hook(self.set_filter_calc)
         self.cyclic = cyclic
         if mod == "hadam":
             self.modulate = torch.multiply
