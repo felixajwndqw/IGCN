@@ -9,6 +9,7 @@ from igcn.utils import _compress_shape, _recover_shape
 class TripleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, include_gparams=False, last=False, gp='max',
+                 relu_type='mod',
                  first=False):
         super().__init__()
         first_conv = IGConvGroupCmplx
@@ -21,9 +22,9 @@ class TripleIGConvCmplx(nn.Module):
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=None)
         self.bn_relu1 = nn.Sequential(
-            # BatchNormCmplx(out_channels * no_g, bnorm_type='new'),
+            # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),
-            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
+            ReLUCmplx(relu_type=relu_type, channels=out_channels, inplace=True)
         )
 
         self.conv2 = IGConvGroupCmplx(
@@ -31,9 +32,9 @@ class TripleIGConvCmplx(nn.Module):
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=None)
         self.bn_relu2 = nn.Sequential(
-            # BatchNormCmplx(out_channels * no_g, bnorm_type='new'),
+            # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),
-            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
+            ReLUCmplx(relu_type=relu_type, channels=out_channels, inplace=True)
         )
 
         self.conv3 = IGConvGroupCmplx(
@@ -42,9 +43,9 @@ class TripleIGConvCmplx(nn.Module):
             padding=padding, gabor_pooling=gp,
             include_gparams=include_gparams)
         self.bn_relu3 = nn.Sequential(
-            # BatchNormCmplx(out_channels * (no_g if gp is None else 1), bnorm_type='new'),
+            # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),
-            ReLUCmplx(relu_type='mod', channels=out_channels, inplace=True)
+            ReLUCmplx(relu_type=relu_type, channels=out_channels, inplace=True)
         )
 
         self.include_gparams = include_gparams
@@ -68,7 +69,7 @@ class TripleIGConvCmplx(nn.Module):
         # print(f'x1.size()={x1.size()}')
         x2 = self.bn_relu2(self.conv2(x1))
         # print(f'x2.size()={x2.size()}')
-        return self.bn_relu3(self.conv3(x2))
+        return self.bn_relu3(self.conv3(x2 + x1))
         # return self.handle_last(x1 + x2)
 
 
@@ -87,7 +88,7 @@ class TripleIGConvCmplx(nn.Module):
 class DownCmplx(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max', relu_type='mod'):
         super().__init__()
         if pooling == 'avg':
             Pool = AvgPoolCmplx(2)
@@ -97,7 +98,7 @@ class DownCmplx(nn.Module):
             Pool = MaxPoolCmplx(2)
         self.pool_conv = nn.Sequential(
             Pool,
-            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp)
+            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type)
         )
 
     def forward(self, x):
@@ -107,7 +108,7 @@ class DownCmplx(nn.Module):
 class DownCmplxAngle(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max', relu_type='mod'):
         super().__init__()
         if pooling == 'avg':
             Pool = AvgPoolCmplx(2)
@@ -117,7 +118,7 @@ class DownCmplxAngle(nn.Module):
             Pool = MaxPoolCmplx(2)
         self.pool_conv = nn.Sequential(
             Pool,
-            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp, include_gparams=True)
+            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp, include_gparams=True, relu_type=relu_type)
         )
 
     def forward(self, x):
@@ -134,7 +135,7 @@ class UpCmplx(nn.Module):
             be used. Defaults to 'nearest'.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None, relu_type='mod'):
         super().__init__()
 
         if mode is not None:
@@ -142,7 +143,7 @@ class UpCmplx(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
 
-        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp)
+        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp, relu_type=relu_type)
 
     def forward(self, x1, x2):
         x1, xs = _compress_shape(x1)

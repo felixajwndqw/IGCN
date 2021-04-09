@@ -92,7 +92,7 @@ def main():
                 n_channels=1,
                 base_channels=5,
                 n_classes=1,
-                pooling=args.pooling
+                pooling=net_args.pooling
             ).to(device)
         else:
             model = UNetIGCNCmplx(
@@ -101,7 +101,10 @@ def main():
                 base_channels=net_args.base_channels,
                 no_g=net_args.no_g,
                 n_classes=1,
-                pooling=args.pooling
+                pooling=net_args.pooling,
+                gp=net_args.final_gp,
+                relu_type=net_args.relu_type,
+                mode=net_args.upsample_mode,
             ).to(device)
 
         total_params = sum(p.numel()
