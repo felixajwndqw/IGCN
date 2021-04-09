@@ -138,7 +138,7 @@ class UpCmplx(nn.Module):
         super().__init__()
 
         if mode is not None:
-            self.up = nn.Upsample(scale_factor=2, mode='nearest')
+            self.up = nn.Upsample(scale_factor=2, mode=mode)
         else:
             self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
 
@@ -152,3 +152,33 @@ class UpCmplx(nn.Module):
         x1 = _recover_shape(x1, xs)
 
         return self.conv(x1 + x2)
+
+
+class UpSimpleCmplx(nn.Module):
+    """Upscaling then double conv
+
+    Args:
+        in_channels:
+        out_channels
+        mode (str, optional): Upsampling method. If None ConvTranspose2d will
+            be used. Defaults to 'nearest'.
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None):
+        super().__init__()
+
+        if mode is not None:
+            self.up = nn.Upsample(scale_factor=2, mode=mode)
+        else:
+            self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
+
+        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp)
+
+    def forward(self, x1):
+        x1, xs = _compress_shape(x1)
+
+        x1 = cmplx(self.up(x1[0]), self.up(x1[1]))
+
+        x1 = _recover_shape(x1, xs)
+
+        return self.conv(x1)

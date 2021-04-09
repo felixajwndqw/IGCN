@@ -3,11 +3,19 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from igcn.seg.cmplxmodels import UNetIGCNCmplx
+from igcn.seg.attention.models import DAFStackSmall
+from igcn.seg.attention.metrics import DAFMetric
 from quicktorch.utils import train, evaluate, imshow, get_splits
 from cirrus.data import SynthCirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
 import albumentations
+
+
+SIZES = {
+    'stars_bad_columns_ccd': 300,
+    'stars_bad_columns_ccd_saturation': 1200
+}
 
 
 def write_results(**kwargs):
@@ -21,11 +29,12 @@ def write_results(**kwargs):
 def main():
     parser = ExperimentParser(description='Runs a segmentation model')
     parser.add_argument('--dir',
-                        default='data/cirrus300/constant', type=str,
+                        default='../data/stars_bad_columns_ccd', type=str,
                         help='Path to data directory. (default: %(default)s)')
-    parser.add_argument('--standard',
-                        default=False, action='store_true',
-                        help='Uses a standard UNet')
+    parser.add_argument('--model_variant',
+                        default="SFC", type=str,
+                        choices=['SFC', 'Standard', 'DAF'],
+                        help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--denoise',
                         default=False, action='store_true',
                         help='Attempts to denoise the image')
@@ -33,7 +42,7 @@ def main():
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
     data_dir = args.dir
-    N = 1200
+    N = SIZES[os.path.split(args.dir)[-1]]
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     metrics = []
@@ -86,7 +95,7 @@ def main():
             batch_size=training_args.batch_size, shuffle=True)
 
         dataset = os.path.split(args.dir)[-1]
-        if args.standard:
+        if args.model_variant == 'Standard':
             model = UNetCmplx(
                 name=f'cnn_dataset={dataset}_denoise={args.denoise}',
                 n_channels=1,
@@ -94,6 +103,15 @@ def main():
                 n_classes=1,
                 pooling=args.pooling
             ).to(device)
+        elif args.model_variant == 'DAF':
+            model = DAFStackSmall(
+                name=f'DAFSmall_dataset={dataset}_denoise={args.denoise}',
+                n_channels=1,
+                base_channels=net_args.base_channels,
+                no_g=net_args.no_g,
+                n_classes=1,
+                pooling=args.pooling
+            )
         else:
             model = UNetIGCNCmplx(
                 name=f'igcn_dataset={dataset}_denoise={args.denoise}',
@@ -104,6 +122,10 @@ def main():
                 pooling=args.pooling
             ).to(device)
 
+        if args.model_variant == 'DAF':
+            MetricsClass = DAFMetric
+        else:
+            MetricsClass = None
         total_params = sum(p.numel()
                            for p in model.parameters() if p.requires_grad)
         total_params = total_params/1000000
@@ -115,7 +137,7 @@ def main():
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         m = train(model, [train_loader, val_loader], save_best=True,
                   epochs=training_args.epochs, opt=optimizer, device=device,
-                  sch=scheduler)
+                  sch=scheduler, metrics=MetricsClass)
 
         print('Evaluating')
         temp_metrics = evaluate(model, test_loader, device=device)
@@ -139,7 +161,7 @@ def main():
     write_results(
         **{
             'params': total_params,
-            'standard': args.standard,
+            'standard': args.model_variant,
             'psnr': mean_m['PSNR'],
             'psnr_error': error_m['PSNR'],
             'best_psnr': best_psnr,
