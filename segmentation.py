@@ -8,6 +8,7 @@ from igcn.seg.cmplxmodels import UNetIGCNCmplx
 from igcn.seg.attention.models import DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from quicktorch.utils import train, evaluate, imshow, get_splits
+from quicktorch.metrics import DenoisingTracker, SegmentationTracker
 from cirrus.data import SynthCirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
@@ -26,6 +27,19 @@ def write_results(**kwargs):
     f = open("cirrus_results.txt", "a+")
     f.write(result)
     f.close()
+
+
+def get_metrics_criterion(variant, denoise=False):
+    if variant == 'DAF':
+        MetricsClass = DAFMetric()
+        criterion = DAFLoss()
+    else:
+        if denoise:
+            MetricsClass = DenoisingTracker()
+        else:
+            MetricsClass = SegmentationTracker()
+        criterion = nn.BCEWithLogitsLoss()
+    return MetricsClass, criterion
 
 
 def main():
@@ -124,12 +138,7 @@ def main():
                 mode=net_args.upsample_mode,
             ).to(device)
 
-        if args.model_variant == 'DAF':
-            MetricsClass = DAFMetric()
-            criterion = DAFLoss()
-        else:
-            MetricsClass = None
-            criterion = nn.CrossEntropyLoss()
+        metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise)
 
         total_params = sum(p.numel()
                            for p in model.parameters() if p.requires_grad)
