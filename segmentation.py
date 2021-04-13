@@ -1,5 +1,7 @@
+from igcn.seg.attention.loss import DAFLoss
 import os
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from igcn.seg.cmplxmodels import UNetIGCNCmplx
@@ -60,7 +62,6 @@ def main():
                 denoise=args.denoise,
                 transform=albumentations.Compose([
                     albumentations.RandomCrop(256, 256),
-                    albumentations.Resize(256, 256),
                     albumentations.Flip(),
                     albumentations.RandomRotate90(),
                     albumentations.PadIfNeeded(288, 288, border_mode=4)
@@ -74,7 +75,6 @@ def main():
                 denoise=args.denoise,
                 transform=albumentations.Compose([
                     albumentations.RandomCrop(256, 256),
-                    albumentations.Resize(256, 256),
                     albumentations.Flip(),
                     albumentations.RandomRotate90(),
                     albumentations.PadIfNeeded(288, 288, border_mode=4)
@@ -87,7 +87,6 @@ def main():
                 denoise=args.denoise,
                 transform=albumentations.Compose([
                     albumentations.RandomCrop(256, 256),
-                    albumentations.Resize(256, 256),
                     albumentations.Flip(),
                     albumentations.PadIfNeeded(288, 288, border_mode=4)
                 ]),
@@ -111,7 +110,7 @@ def main():
                 no_g=net_args.no_g,
                 n_classes=1,
                 pooling=args.pooling
-            )
+            ).to(device)
         else:
             model = UNetIGCNCmplx(
                 name=f'igcn_dataset={dataset}_denoise={args.denoise}',
@@ -126,9 +125,12 @@ def main():
             ).to(device)
 
         if args.model_variant == 'DAF':
-            MetricsClass = DAFMetric
+            MetricsClass = DAFMetric()
+            criterion = DAFLoss()
         else:
             MetricsClass = None
+            criterion = nn.CrossEntropyLoss()
+
         total_params = sum(p.numel()
                            for p in model.parameters() if p.requires_grad)
         total_params = total_params/1000000
@@ -140,7 +142,7 @@ def main():
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         m = train(model, [train_loader, val_loader], save_best=True,
                   epochs=training_args.epochs, opt=optimizer, device=device,
-                  sch=scheduler, metrics=MetricsClass)
+                  sch=scheduler, metrics=MetricsClass, criterion=criterion)
 
         print('Evaluating')
         temp_metrics = evaluate(model, test_loader, device=device)
