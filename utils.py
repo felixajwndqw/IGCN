@@ -121,6 +121,13 @@ class ExperimentParser(argparse.ArgumentParser):
             '--group',
             default=False, action='store_true',
             help='Whether to use group convolutions.')
+        self.n_parser.add_argument(
+            '--upsample_mode',
+            default='nearest',
+            type=parse_none,
+            choices=[None, 'nearest', 'bilinear'],
+            help=('Decoder upsampling method. Choices: %(choices)s '
+                  '(default: %(default)s.)'))
 
         self.t_parser.add_argument(
             '--epochs',
@@ -167,6 +174,10 @@ class ExperimentParser(argparse.ArgumentParser):
             default=None,
             type=parse_none,
             help='Name to save model under.')
+        self.t_parser.add_argument(
+            '--eval_best',
+            default=False, action='store_true',
+            help='Evaluates only model from best split/.')
 
     def parse_group_args(self):
         args = self.parse_args()
