@@ -10,8 +10,7 @@ def cmplx(real, imag):
 
     This functions more as a readability aid than a helper method.
     """
-    out = torch.stack([real, imag], dim=0)
-    return out
+    return torch.stack([real, imag], dim=0)
 
 
 def new_cmplx(real):
@@ -25,10 +24,10 @@ def magnitude(x, eps=1e-8, sq=False, **kwargs):
 
     Must return nonzero as grad(0)=inf
     """
-    mag2 = x.pow(2).sum(dim=0)
+    x = x.pow(2).sum(dim=0)
     if sq:
-        return mag2
-    return torch.sqrt(torch.clamp(mag2, min=eps))
+        return x
+    return torch.sqrt(torch.clamp(x, min=eps))
 
 
 def phase(x, eps=1e-8, **kwargs):
@@ -53,10 +52,12 @@ def conv_cmplx(x, w, transpose=False, **kwargs):
         conv = F.conv_transpose2d
         w = w.transpose(1, 2)
 
-    real = conv(x[0], w[0], **kwargs) - conv(x[1], w[1], **kwargs)
-    imag = conv(x[0], w[1], **kwargs) + conv(x[1], w[0], **kwargs)
+    x = cmplx(
+        conv(x[0], w[0], **kwargs) - conv(x[1], w[1], **kwargs),
+        conv(x[0], w[1], **kwargs) + conv(x[1], w[0], **kwargs)
+    )
 
-    return cmplx(real, imag)
+    return x
 
 
 def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
@@ -66,14 +67,15 @@ def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
     if transpose:
         pass
 
-    real = linear(x[0, ...], w[0, ...]) - linear(x[1, ...], w[1, ...])
-    imag = linear(x[0, ...], w[1, ...]) + linear(x[1, ...], w[0, ...])
+    x = cmplx(
+        linear(x[0, ...], w[0, ...]) - linear(x[1, ...], w[1, ...]),
+        linear(x[0, ...], w[1, ...]) + linear(x[1, ...], w[0, ...])
+    )
 
     if b is not None:
-        real = real - b[0]
-        imag = imag - b[1]
+        x = x - b
 
-    return cmplx(real, imag)
+    return x
 
 
 def cmplx_mult(*args):
@@ -143,16 +145,16 @@ def pool_cmplx(x, kernel_size, operator='max', **kwargs):
         pool = F.avg_pool2d
 
     if operator == 'mag':
-        out = max_mag_pool(x, kernel_size, **kwargs)
+        x = max_mag_pool(x, kernel_size, **kwargs)
     else:
-        out = cmplx(
+        x = cmplx(
             pool(x[0], kernel_size, **kwargs),
             pool(x[1], kernel_size, **kwargs)
         )
 
-    out = _recover_shape(out, xs)
+    x = _recover_shape(x, xs)
 
-    return out
+    return x
 
 
 def max_mag_pool(x, kernel_size, **kwargs):
@@ -200,3 +202,30 @@ def init_weights(w, mode='he', polar=False):
             w.data = cmplx(mag, phase)
         else:
             w.data = cmplx(mag * torch.cos(phase), mag * torch.sin(phase))
+
+
+def exp_cmplx(x):
+    """Complex exponential
+    """
+    return torch.exp(x[0]) * cmplx(torch.cos(x[1]), torch.sin(x[1]))
+
+
+def softmax_cmplx(x, dim=None):
+    """Implementation of softmax on complex space using complex exponential
+    """
+    return F.softmax(magnitude(x, sq=True), dim=dim)
+
+
+def upsample_cmplx(x, size, mode='nearest'):
+    """Upsamples complex tensor by upsampling real/imag parts separately
+    """
+    x, xs = _compress_shape(x)
+
+    x = cmplx(
+        F.interpolate(x[0], size=size, mode=mode, align_corners=True),
+        F.interpolate(x[1], size=size, mode=mode, align_corners=True)
+    )
+
+    x = _recover_shape(x, xs)
+
+    return x
