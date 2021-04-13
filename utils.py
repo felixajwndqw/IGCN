@@ -27,6 +27,12 @@ class ExperimentParser(argparse.ArgumentParser):
             choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus'],
             help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
+            '--model_type',
+            default='SFC', type=str,
+            choices=['SFC', 'IGCN', 'SFCNC', 'SFCResNet'],
+            help='Model architecture to use. '
+                 'Choices: %(choices)s (default: %(default)s)')
+        self.n_parser.add_argument(
             '--kernel_size',
             default=3, type=int,
             help='Kernel size')
@@ -85,8 +91,14 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Type of relu layer for FC layers.'
                  'Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
+            '--mod',
+            default='hadam', type=str,
+            choices=['hadam', 'cmplx'],
+            help='How to apply modulation to filters (hadamard or complex multiplication).'
+                 'Choices: %(choices)s (default: %(default)s)')
+        self.n_parser.add_argument(
             '--cmplx',
-            default=False, action='store_true',
+            default=True, action='store_false',
             help='Whether to use a complex architecture.')
         self.n_parser.add_argument(
             '--single',
@@ -94,7 +106,7 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Whether to use a single gconv layer between each pooling layer.')
         self.n_parser.add_argument(
             '--pooling',
-            default='mag', type=str,
+            default='max', type=str,
             choices=['max', 'mag', 'avg'],
             help='Type of pooling. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
@@ -108,7 +120,7 @@ class ExperimentParser(argparse.ArgumentParser):
             help='New = proper bnorm /w momentum. Old = plain normalisation.')
         self.n_parser.add_argument(
             '--weight_init',
-            default=None,
+            default='he',
             type=parse_none,
             choices=[None, 'he', 'glorot'],
             help=('Type of weight initialisation. Choices: %(choices)s '
@@ -167,6 +179,10 @@ class ExperimentParser(argparse.ArgumentParser):
             default=None,
             type=parse_none,
             help='Name to save model under.')
+        self.t_parser.add_argument(
+            '--debug',
+            default=False, action='store_true',
+            help='Runs a single split with no metric writing.')
 
     def parse_group_args(self):
         args = self.parse_args()
