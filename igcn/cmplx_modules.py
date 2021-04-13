@@ -140,7 +140,7 @@ class IGaborCmplx(nn.Module):
             modulation function.
         kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
     """
-    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='hadam', **kwargs):
+    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='cmplx', **kwargs):
         super().__init__(**kwargs)
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
         self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
@@ -265,10 +265,10 @@ class IGaborCmplx2(nn.Module):
         #       f'gabor.size()={self.gabor_filters.size()}')
         if self.cyclic:
             cyclic_gabor = cyclic_expand(self.gabor_filters)
-            print(f'x.size()={x.size()}, '
-                  f'x.unsqueeze(2).unsqueeze(2).size()={x.unsqueeze(2).unsqueeze(2).size()}, '
-                #   f'gabor.unsqueeze(4).size()={cyclic_gabor.size()}, '
-                  f'gabor.size()={cyclic_gabor.size()}')
+            # print(f'x.size()={x.size()}, '
+            #       f'x.unsqueeze(2).unsqueeze(2).size()={x.unsqueeze(2).unsqueeze(2).size()}, '
+            #       f'gabor.unsqueeze(4).size()={cyclic_gabor.size()}, '
+            #       f'gabor.size()={cyclic_gabor.size()}')
             out = cyclic_gabor * x.unsqueeze(2).unsqueeze(2)
         else:
             out = self.gabor_filters * x.unsqueeze(2)
