@@ -216,7 +216,7 @@ def softmax_cmplx(x, dim=None):
     return F.softmax(magnitude(x, sq=True), dim=dim)
 
 
-def upsample_cmplx(x, size, mode='nearest'):
+def resample_cmplx(x, size, mode='bilinear'):
     """Upsamples complex tensor by upsampling real/imag parts separately
     """
     x, xs = _compress_shape(x)
