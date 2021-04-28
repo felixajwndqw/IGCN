@@ -3,13 +3,19 @@ import time
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.cmplxmodels import UNetIGCNCmplx, CirrusIGCN
+from igcn.seg.cmplxmodels import UNetIGCNCmplx
+from igcn.seg.attention.models import DAFStackSmall
 from quicktorch.utils import train, evaluate, get_splits
-from quicktorch.metrics import MetricTracker
+from quicktorch.metrics import MetricTracker, SegmentationTracker
 from quicktorch.writers import LabScribeWriter
 from cirrus.data import CirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
+from segmentation import get_metrics_criterion
+
+
+IMG_SIZE = 256
+PAD = 32
 
 
 def get_N(survey_dir, mask_dir, bands):
@@ -22,7 +28,7 @@ def get_N(survey_dir, mask_dir, bands):
     #     return 108
     # Cirrus only 
     if set(bands) == set(['g', 'r']):
-        return 48
+        return 58
     # Cirrus + HB
     # if set(bands) == set('g'):
     #     return 184
@@ -38,12 +44,12 @@ def get_train_data(training_args, args, split):
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                albumentations.RandomCrop(256 * args.downscale, 256 * args.downscale),
-                albumentations.Resize(256, 256),
-                albumentations.RandomBrightnessContrast(),
+                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                # albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=split[0],
             bands=args.bands,
@@ -59,16 +65,16 @@ def get_train_data(training_args, args, split):
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                albumentations.RandomCrop(256 * args.downscale, 256 * args.downscale),
-                albumentations.Resize(256, 256),
-                albumentations.RandomBrightnessContrast(),
+                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                # albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=split[1],
             bands=args.bands,
-            aug_mult=4,
+            aug_mult=8,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -78,12 +84,38 @@ def get_train_data(training_args, args, split):
     return trainloader, validloader
 
 
-def create_model(save_dir, args, variant="SFC", n_channels=1, n_classes=2, bands=['g'], downscale=1, model_path=''):
+def get_test_data(training_args, args, test_idxs):
+    return DataLoader(
+        CirrusDataset(
+            survey_dir=args.survey_dir,
+            mask_dir=args.mask_dir,
+            transform=albumentations.Compose([
+                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                # albumentations.PadIfNeeded(288, 288, border_mode=4)
+            ]),
+            indices=test_idxs,
+            bands=args.bands,
+            aug_mult=6
+        ),
+        batch_size=training_args.batch_size,
+        shuffle=True
+    )
+
+
+def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
+                 bands=['g'], downscale=1, model_path='', pretrain=True,
+                 **params):
     model_fn = UNetIGCNCmplx
-    if variant == "SFCT":
-        model_fn = CirrusIGCN
-    if variant == "Standard":
+    scale = False
+    if variant[-1] == "T":
+        scale = True
+    if variant[-1] == "P":
+        scale = 'parallel'
+    if "Standard" in variant:
         model_fn = UNetCmplx
+    if "DAF" in variant:
+        model_fn = DAFStackSmall
     model = model_fn(
         n_channels=n_channels,
         n_classes=n_classes,
@@ -91,16 +123,22 @@ def create_model(save_dir, args, variant="SFC", n_channels=1, n_classes=2, bands
         name=f'{variant}-cirrus'
              f'_bands={bands}'
              f'-pre={bool(model_path)}'
-             f'-kernel_size={args.kernel_size}'
-             f'-no_g={args.no_g}'
-             f'-base_channels={args.base_channels}'
-             f'-downscale={downscale}',
-        no_g=args.no_g,
-        kernel_size=args.kernel_size,
-        base_channels=args.base_channels
+             f'-kernel_size={params["kernel_size"]}'
+             f'-no_g={params["no_g"]}'
+             f'-base_channels={params["base_channels"]}'
+             f'-downscale={downscale}'
+             f'-gp={params["final_gp"]}'
+             f'-relu={params["relu_type"]}',
+        no_g=params["no_g"],
+        kernel_size=params["kernel_size"],
+        base_channels=params["base_channels"],
+        scale=scale,
+        gp=params["final_gp"],
+        relu_type=params["relu_type"],
+        upsample_mode=params["upsample_mode"]
     )
     if model_path:
-        load(model, model_path)
+        load(model, model_path, False, pretrain=pretrain)
     return model
 
 
@@ -113,13 +151,21 @@ def write_results(**kwargs):
     f.close()
 
 
-def load(model, save_path):
+def load(model, save_path, legacy=False, pretrain=True):
     checkpoint = torch.load(save_path)
 
-    weight = checkpoint['model_state_dict']['inc.conv1.weight']
-    checkpoint['model_state_dict']['inc.conv1.weight'] = weight.repeat(1, 1, 2, 1, 1)
+    if pretrain:
+        weight = checkpoint['model_state_dict']['inc.conv1.weight']
+        out_c = 1
+        if model.preprocess is not None:
+            out_c = model.preprocess.n_scaling
+        checkpoint['model_state_dict']['inc.conv1.weight'] = weight.repeat(1, 1, 2 * out_c, 1, 1)
+    if legacy:
+        for key in checkpoint['model_state_dict']:
+            if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
+                checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].unsqueeze(1)
 
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
 
 def run_cirrus_split(net_args, training_args, args, writer=None,
@@ -133,13 +179,13 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
     # dataset = os.path.split(args.dir)[-1]
     model = create_model(
         args.save_dir,
-        net_args,
         variant=args.model_variant,
         n_channels=len(args.bands),
         n_classes=args.n_classes,
         bands=args.bands,
         downscale=args.downscale,
         model_path=args.model_path,
+        **vars(net_args)
     ).to(device)
 
     total_params = sum(p.numel()
@@ -156,19 +202,22 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         optimizer,
         training_args.lr_decay
     )
-    metrics_class = MetricTracker.detect_metrics(train_data)
+    metrics_class, criterion = get_metrics_criterion(args.model_variant)
     metrics_class.Writer = writer
 
     start = time.time()
     m = train(
         model,
         [train_data, valid_data],
+        criterion=criterion,
         save_best=True,
+        save_last=True,
         epochs=training_args.epochs,
         opt=optimizer,
         device=device,
         sch=scheduler,
-        metrics=metrics_class
+        metrics=metrics_class,
+        val_epochs=5
     )
 
     time_taken = time.time() - start
@@ -188,37 +237,23 @@ def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
                          device='cuda:0'):
     eval_model = create_model(
         args.save_dir,
-        net_args,
         variant=args.model_variant,
         n_channels=len(args.bands),
         n_classes=args.n_classes,
         bands=args.bands,
-        downscale=args.downscale
+        downscale=args.downscale,
+        **vars(net_args),
     ).to(device)
     eval_model.load(save_path=model_path)
 
-    test_data = DataLoader(
-        CirrusDataset(
-            survey_dir=args.survey_dir,
-            mask_dir=args.mask_dir,
-            transform=albumentations.Compose([
-                albumentations.RandomCrop(256 * args.downscale, 256 * args.downscale),
-                albumentations.Resize(256, 256),
-                albumentations.Flip(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
-            ]),
-            indices=test_idxs,
-            bands=args.bands,
-            aug_mult=3
-        ),
-        batch_size=training_args.batch_size,
-        shuffle=True
-    )
+    test_data = get_test_data(training_args, args, test_idxs)
 
+    metrics_class = SegmentationTracker(full_metrics=True)
     eval_m = evaluate(
         eval_model,
         test_data,
-        device=device
+        device=device,
+        metrics=metrics_class
     )
 
     return eval_m
@@ -249,7 +284,7 @@ def main():
                         help='Path to model, enabling pretraining. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default='SFC', type=str,
-                        choices=['SFC', 'SFCT', 'Standard'],
+                        choices=['SFC', 'SFCT', 'SFCP', 'Standard', 'DAF', 'DAFT', 'DAFP'],
                         help='Model variant. (default: %(default)s)')
     parser.add_argument('--n_classes',
                         default=1, type=int,
@@ -297,6 +332,8 @@ def main():
         f'-no_g={net_args.no_g}'
         f'-bands={args.bands}'
         f'-downscale={args.downscale}'
+        f'-gp={args.final_gp}'
+        f'-relu={args.relu_type}'
     )
     writer = LabScribeWriter(
         'Results',
@@ -317,6 +354,17 @@ def main():
             split=split
         )
         save_paths.append(m.pop('save_path'))
+
+        if not training_args.eval_best:
+            m = run_evaluation_split(
+                net_args,
+                training_args,
+                args,
+                save_paths[-1],
+                test_idxs,
+                device='cuda:0',
+            )
+
         metrics.append(m)
         writer.upload_split({k: m[k] for k in ('IoU', 'PSNR', 'loss')})
 
@@ -324,21 +372,24 @@ def main():
     best_iou = max([mi['IoU'] for mi in metrics])
     best_split = [mi['IoU'] for mi in metrics].index(best_iou) + 1
     best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
-    mean_m['epoch'] = metrics[best_split-1]['epoch']
+    # mean_m['epoch'] = metrics[best_split-1]['epoch']
 
     error_m = {'e_psnr': 0}
     if training_args.nsplits > 1:
         error_m = {f'e_{key}': calculate_error([mi[key] for mi in metrics])
                    for key in m.keys()}
 
-    eval_m = run_evaluation_split(
-        net_args,
-        training_args,
-        args,
-        save_paths[best_split-1],
-        test_idxs,
-        device='cuda:0',
-    )
+    if training_args.eval_best:
+        eval_m = run_evaluation_split(
+            net_args,
+            training_args,
+            args,
+            save_paths[best_split-1],
+            test_idxs,
+            device='cuda:0',
+        )
+    else:
+        eval_m = metrics[best_split-1]
 
     total_params = stats['total_params']
     mins = stats['mins']
