@@ -12,7 +12,7 @@ from igcn.seg.attention.attention import (
 )
 
 from igcn.seg.cmplxigcn_unet_parts import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
-from igcn.seg.scale import Scale
+from igcn.seg.scale import Scale, ScaleParallel
 from igcn.cmplx_modules import ReLUCmplx, IGConvGroupCmplx, Project, GaborPool
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import new_cmplx, upsample_cmplx
@@ -34,7 +34,10 @@ class DAFStackSmall(Model):
                  pooling='max', gp='avg', attention_gp='avg', scale=False, **kwargs):
         super().__init__(**kwargs)
 
-        if scale:
+        if scale == 'parallel':
+            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
+            n_channels *= 2
+        elif scale:
             self.preprocess = Scale(n_channels, method='arcsinh')
         else:
             self.preprocess = None
