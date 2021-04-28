@@ -1,11 +1,14 @@
+import math
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from igcn.seg.cmplxigcn_unet_parts import DownCmplx, UpSimpleCmplx
-from igcn.cmplx_modules import ReLUCmplx, IGConvGroupCmplx
+from igcn.cmplx_modules import GaborPool, ReLUCmplx, IGConvGroupCmplx
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import magnitude, cmplx
+from igcn.utils import _compress_shape, _recover_shape
 
 
 __all__ = ['PAM_Module', 'CAM_Module', 'GAM_Module', 'semanticModule']
@@ -37,7 +40,7 @@ class SoftmaxCmplxTorch(nn.Module):
         )
 
 
-class semanticModule(nn.Module):
+class SemanticModule(nn.Module):
     """
     Semantic attention module
     """
@@ -159,10 +162,14 @@ class PAM_Module(nn.Module):
 
 class CAM_Module(nn.Module):
     """ Channel attention module"""
-    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, **kwargs):
+    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, gp='avg'):
         super().__init__()
         self.gamma = nn.Parameter(torch.zeros(1))
         self.align = Alignment(dim=-1)
+        if gp is not None:
+            self.gp = GaborPool(gp)
+        else:
+            self.gp = None
 
     def forward(self, x):
         """
@@ -176,6 +183,9 @@ class CAM_Module(nn.Module):
         """
         x = torch.complex(x[0], x[1])
         m_batchsize, C, G, height, width = x.size()
+        proj_value = x.view(m_batchsize, C, -1)
+        if self.gp is not None:
+            x = self.gp(x)
         proj_query = x.view(m_batchsize, C, -1)
         proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
 
@@ -193,7 +203,6 @@ class CAM_Module(nn.Module):
             attention,
             torch.zeros_like(attention, dtype=torch.float)
         )
-        proj_value = x.view(m_batchsize, C, -1)
 
         out = torch.bmm(attention, proj_value)
         out = out.view(m_batchsize, C, G, height, width)
@@ -354,3 +363,103 @@ class MultiConv(nn.Module):
 
     def forward(self, x):
         return self.fuse_attn(x)
+
+
+class Disassemble(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        x, xs = compress(x)
+        x = disassemble(x)
+        x = recover(x, xs)
+        return x
+
+
+class Reassemble(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        x, xs = compress(x)
+        xs = [xs[0] // 4, *xs[1:]]
+        x = reassemble(x)
+        x = recover(x, xs)
+        return x
+
+
+class DisassembleCmplx(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        x, xs = _compress_shape(x)
+        # print(x.size(), xs)
+        xs = [2, 4 * xs[1], *xs[2:]]
+        x = cmplx(
+            disassemble(x[0]),
+            disassemble(x[1])
+        )
+        # print(x.size(), xs)
+        x = _recover_shape(x, xs)
+        # print(x.size(), xs)
+        return x
+
+
+class ReassembleCmplx(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        x, xs = _compress_shape(x)
+        xs = [2, xs[1] // 4, *xs[2:]]
+        x = cmplx(
+            reassemble(x[0]),
+            reassemble(x[1])
+        )
+        x = _recover_shape(x, xs)
+        return x
+
+
+def disassemble(x):
+    _, c, w, h = x.size()
+    x = x.unfold(2, w // 2, w // 2)
+    x = x.unfold(3, h // 2, h // 2)
+    x = x.permute(0, 2, 3, 1, 4, 5)
+    x = x.reshape(-1, c, w // 2, h // 2)
+    return x
+
+
+def reassemble(x):
+    b, c, w, h = x.size()
+    x = x.view(b // 4, 4, c, w, h)
+    x = x.permute(0, 2, 3, 4, 1)
+    x = x.reshape(b // 4, c * w * h, 4)
+    x = F.fold(x, (w * 2, h * 2), (w, h), (1, 1), stride=(w, h))
+    return x
+
+
+def compress(x):
+    xs = None
+    if x.dim() == 5:
+        xs = x.size()
+        x = x.view(
+            xs[0],
+            xs[1] * xs[2],
+            *xs[3:]
+        )
+
+    return x, xs
+
+
+def recover(x, xs):
+    if xs is not None:
+        # x = x.view(xs)
+        x = x.view(
+            -1,
+            *xs[1:3],
+            x.size(-2),
+            x.size(-1)
+        )
+
+    return x

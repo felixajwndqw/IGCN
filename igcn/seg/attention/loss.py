@@ -27,7 +27,6 @@ class DAFLoss(torch.nn.Module):
             self.vec_criterion(in_enc, out_enc)
             for in_enc, out_enc in zip(attention_in_encodings, attention_out_encodings)
         ]
-        # print([[seg.min().item(), seg.max().item()] for seg in segmentations], [target.min().item(), target.max().item()])
         seg_losses = [
             self.seg_criterion(seg, target)
             for seg in segmentations
