@@ -16,7 +16,6 @@ class DAFMetric(MetricTracker):
         }
         self.best_metrics = self.metrics.copy()
         self.mse_fn = torch.nn.MSELoss()
-        self.softmax = torch.nn.Softmax(dim=-1)
         self.reset()
 
     def calculate(self, output, target):
