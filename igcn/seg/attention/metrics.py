@@ -28,11 +28,11 @@ class DAFMetric(MetricTracker):
         else:
             seg_pred = output
 
-        target = target.detach().cpu().numpy()
         seg_pred = seg_pred.detach()
-        seg_pred = torch.sigmoid(seg_pred).round()
+        seg_pred = torch.sigmoid(seg_pred)
         mse = self.mse_fn(seg_pred, target)
-        seg_pred = seg_pred.cpu().numpy()
+        seg_pred = seg_pred.round().cpu().numpy()
+        target = target.detach().cpu().numpy()
         self.metrics['PSNR'] = self.batch_average(10 * math.log10(1 / mse.item()), 'PSNR')
         self.metrics['IoU'] = self.batch_average(iou(seg_pred, target), 'IoU')
         self.metrics['Dice'] = self.batch_average(dice(seg_pred, target), 'Dice')
