@@ -17,6 +17,7 @@ from igcn.seg.attention.attention import (
 
 from igcn.seg.cmplxigcn_unet_parts import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
 from igcn.cmplx_modules import MaxPoolCmplx, ReLUCmplx, IGConvGroupCmplx, Project, GaborPool, IGConvCmplx
+from igcn.seg.scale import Scale
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import new_cmplx, resample_cmplx
 from igcn.utils import _compress_shape
@@ -34,8 +35,14 @@ class ReshapeGabor(nn.Module):
 
 class DAFStackSmall(Model):
     def __init__(self, n_channels=1, base_channels=64, no_g=1, n_classes=1,
-                 pooling='max', gp='avg', attention_gp='avg', **kwargs):
+                 pooling='max', gp='avg', attention_gp='avg', scale=False, **kwargs):
         super().__init__(**kwargs)
+
+        if scale:
+            self.preprocess = Scale(n_channels, method='arcsinh')
+        else:
+            self.preprocess = None
+
         self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size=3, no_g=no_g, gp=None, first=True)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size=3, no_g=no_g, gp=None, pooling=pooling)
         self.down2 = DownCmplx(base_channels * 2, base_channels * 2 ** 2, kernel_size=3, no_g=no_g, gp=None, pooling=pooling)
@@ -114,6 +121,8 @@ class DAFStackSmall(Model):
         )
 
     def forward(self, down1):
+        if self.preprocess is not None:
+            down1 = self.preprocess(down1)
         output_size = down1.size()
         down1 = new_cmplx(down1)
         down1 = self.inc(down1)
