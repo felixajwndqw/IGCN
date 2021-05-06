@@ -71,8 +71,8 @@ class CirrusDataset(Dataset):
     }
 
     def __init__(self, survey_dir, mask_dir, indices=None, num_classes=1,
-                 transform=None, target_transform=None, crop_deg=.5,
-                 aug_mult=2, bands='g'):
+                 transform=None, target_transform=None, crop_deg=1.,
+                 aug_mult=2, bands='g', repeat_bands=False):
         self.all_mask_paths = [
             array for array in glob.glob(os.path.join(mask_dir, '*.npz'))
         ]
@@ -91,8 +91,15 @@ class CirrusDataset(Dataset):
                 galaxy,
                 band
             ) for band in bands]
-            if all(os.path.isdir(path) for path in fits_dirs):
+            valid_fits_paths = [os.path.isdir(path) for path in fits_dirs]
+            fits_paths = []
+            if all(valid_fits_paths):
                 fits_paths = [glob.glob(path + '/*.fits')[0] for path in fits_dirs]
+            elif any(valid_fits_paths) and repeat_bands:
+                for path, valid in zip(fits_dirs, valid_fits_paths):
+                    if valid:
+                        fits_paths.append(glob.glob(path + '/*.fits')[0])
+            if fits_paths:
                 self.galaxies.append(galaxy)
                 self.cirrus_paths.append(fits_paths)
                 self.mask_paths.append(mask_path)
@@ -139,6 +146,8 @@ class CirrusDataset(Dataset):
             t = self.transform(image=cirrus, mask=mask)
             cirrus = t['image']
             mask = t['mask']
+        if cirrus.shape[-1] < len(self.bands):
+            cirrus = cirrus.repeat(2, 2)
         return (
             # self.norm_transform(transforms.ToTensor()(cirrus)),
             transforms.ToTensor()(cirrus),
