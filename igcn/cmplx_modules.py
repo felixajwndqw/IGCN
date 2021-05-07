@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.modules.conv import Conv2d
-from .gabor import gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
+from .gabor import gabor, gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
 from .utils import _pair
 from .cmplx import (
     cmplx,
@@ -152,6 +152,12 @@ class IGaborCmplx(nn.Module):
         )
         self.register_parameter(name="lambda", param=self.l)
         self.no_g = no_g
+        self.data_dim = '2d'
+
+        if type(kernel_size) is tuple:
+            if len(kernel_size) == 3:
+                self.data_dim = '3d'
+                kernel_size = kernel_size[1:]
 
         if cyclic:
             self.register_buffer(
@@ -215,6 +221,8 @@ class IGaborCmplx(nn.Module):
         ).unsqueeze(1)
         if self.cyclic:
             filt = cyclic_expand(filt)
+        if self.data_dim == '3d':
+            filt = filt.unsqueeze(-3)
         self.gabor_filters = filt
         self.calc_filters = False
 
@@ -326,6 +334,7 @@ class IGConvCmplx(nn.Module):
         if weight_init is not None:
             init_weights(self.weight, weight_init)
         self.conv = conv_cmplx
+        self.dim = len(kernel_size)
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod)
         self.no_g = no_g
@@ -345,7 +354,7 @@ class IGConvCmplx(nn.Module):
     def forward(self, x):
         tw = self.gabor(self.weight)
         # print(f'x.size()={x.size()}, tw.size()={tw.size()}, self.weight.size()={self.weight.size()}')
-        if x.dim() == 6:
+        if x.dim() == 4 + self.dim:
             x = x.view(
                 2,
                 x.size(1),
@@ -416,24 +425,26 @@ class IGConvGroupCmplx(nn.Module):
         if weight_init is not None:
             init_weights(self.weight, weight_init)
         self.conv = conv_cmplx
+        self.dim = len(kernel_size)
+        conv_kwargs['data_dim'] = f'{self.dim}d'
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod)
         self.no_g = no_g
-        if gabor_pooling == 'max' or (gabor_pooling is None and include_gparams):
-            gabor_pooling = torch.max
-        elif gabor_pooling == 'avg':
-            gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
-        elif gabor_pooling == 'mag':
-            gabor_pooling = max_mag_gabor_pool
-        elif gabor_pooling == 'sum':
-            gabor_pooling = max_summed_mag_gabor_pool
+        self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
+        # if gabor_pooling == 'max' or (gabor_pooling is None and include_gparams):
+        #     gabor_pooling = torch.max
+        # elif gabor_pooling == 'avg':
+        #     gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
+        # elif gabor_pooling == 'mag':
+        #     gabor_pooling = max_mag_gabor_pool
+        # elif gabor_pooling == 'sum':
+        #     gabor_pooling = max_summed_mag_gabor_pool
 
-        self.gabor_pooling = gabor_pooling
+        # self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
 
     def forward(self, x):
-        # print('conv', self.training)
         # print(f'self.weight.size()={self.weight.size()}')
         tw = self.gabor(self.weight)
         # print(f'x.size()={x.size()}, tw.size()={tw.size()}')
@@ -467,7 +478,8 @@ class IGConvGroupCmplx(nn.Module):
         # pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         # pool_out = pool_out.unsqueeze(3)
         # print(f'pool_out={out.size()}')
-        pool_out, max_idxs = self.gabor_pooling(out, dim=3)
+        # pool_out, max_idxs = self.gabor_pooling(out, dim=3)
+        pool_out = self.gabor_pooling(out)
         if self.include_gparams:
             max_thetas = self.gabor.theta[max_idxs]
             return out, max_thetas[0]  # Just returns real thetas in complex
@@ -630,80 +642,17 @@ class BatchNormCmplxOld(nn.Module):
 
     def forward(self, x):
         x, xs = _compress_shape(x)
+        spatial_dims = torch.tensor(range(x.dim())[3:])
 
-        means = torch.mean(x, (1, 3, 4), keepdim=True)
+        means = torch.mean(x, (1, *spatial_dims), keepdim=True)
         x = x - means
 
-        stds = torch.std(magnitude(x, eps=self.eps, sq=False), (0, 2, 3), keepdim=True)
+        stds = torch.std(magnitude(x, eps=self.eps, sq=False), (0, *spatial_dims - 1), keepdim=True)
         x = x / torch.clamp(stds.unsqueeze(0), min=self.eps)
 
         x = _recover_shape(x, xs)
 
         return x
-
-
-class BatchNormCmplxTrabelsi(nn.BatchNorm2d):
-    """Implements complex batch normalisation.
-    """
-    def __init__(self, num_features, momentum=0.1, eps=1e-8, bnorm_type='new'):
-        super().__init__(
-            num_features, eps, momentum, True, True)
-        # super().__init__()
-        # self.num_features = num_features
-        # self.momentum = momentum
-        # self.eps = eps
-        # self.register_buffer('running_mean', torch.zeros(num_features))
-        # self.register_buffer('running_var', torch.ones(num_features))
-        # self.weight = nn.Parameter(torch.Tensor(num_features))
-        # self.bias = nn.Parameter(torch.Tensor(num_features))
-        self.bnorm_type = bnorm_type
-        # self.reset_parameters()
-
-    # def reset_running_stats(self):
-    #     self.running_mean.zero_()
-    #     self.running_var.fill_(1)
-
-    # def reset_parameters(self):
-    #     self.reset_running_stats()
-    #     init.ones_(self.weight)
-    #     init.zeros_(self.bias)
-
-    def forward(self, x):
-        # print(f'x.size()={x.size()}')
-        r = magnitude(x, eps=self.eps, sq=False)
-        # print(f'r.size()={r.size()}')
-        # if self.training:
-        #     mean = r.mean((0, 3, 4), keepdim=True)
-        #     var = r.var((0, 3, 4), keepdim=True)
-
-        #     self.running_mean = self.momentum * mean + (1.0 - self.momentum) * self.running_mean
-        #     self.running_var = self.momentum * var + (1.0 - self.momentum) * self.running_var
-        # else:
-        #     mean = self.running_mean
-        #     var = self.running_var
-
-        # print(f'r.size()={r.size()}, mean.size()={mean.size()}, var.size()={var.size()}')
-
-
-        # r_bn = self.weight * (r - mean) / torch.sqrt(var + self.eps) + self.bias
-        # print(f'r_bn.size()={r_bn.size()}')
-
-        r_bn = F.batch_norm(
-            r,
-            self.running_mean,
-            self.running_var,
-            self.weight,
-            self.bias,
-            self.training,
-            self.momentum,
-            self.eps
-        )
-
-        # print(self.training)
-
-        # print(f'self.running_mean={self.running_mean}, self.running_var={self.running_var}')
-        # print(f'r_bn.size()={r_bn.size()}')
-        return r_bn * x / (r + self.eps)
 
 
 class MaxMagPoolCmplx(nn.Module):
@@ -767,5 +716,5 @@ class GaborPool(nn.Module):
                 x.size(3),
                 x.size(4)
             )
-        out, _ = self.pooling(x, dim=3)
-        return out
+        x, _ = self.pooling(x, dim=3)
+        return x

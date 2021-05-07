@@ -8,9 +8,17 @@ def _pair(x):
     return x
 
 
+def _trio(x):
+    if np.issubdtype(type(x), np.integer) and np.isscalar(x):
+        return (x, x, x)
+    return x
+
+
 def _compress_shape(x):
+    """Compresses gabor and feature channels into one axis
+    """
     xs = None
-    if x.dim() == 6:
+    if x.dim() > 5:
         xs = x.size()
         x = x.view(
             2,
@@ -23,11 +31,12 @@ def _compress_shape(x):
 
 
 def _recover_shape(x, xs):
+    """Recovers gabor axis from original shape, while retaining spatial dims
+    """
     if xs is not None:
         x = x.view(
             *xs[:4],
-            x.size(-2),
-            x.size(-1)
+            *x.size()[3:]
         )
 
     return x
