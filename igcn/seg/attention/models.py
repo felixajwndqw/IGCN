@@ -15,7 +15,7 @@ from igcn.seg.attention.attention import (
     GAM_Module,
 )
 
-from igcn.seg.cmplxigcn_unet_parts import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
+from igcn.seg.cmplx_modules import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
 from igcn.cmplx_modules import MaxPoolCmplx, ReLUCmplx, IGConvGroupCmplx, Project, GaborPool, IGConvCmplx
 from igcn.seg.scale import Scale, ScaleParallel
 from igcn.cmplx_bn import BatchNormCmplx
