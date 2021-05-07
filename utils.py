@@ -24,7 +24,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--dataset',
             default='mnistrot', type=str,
-            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus'],
+            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus', 'synth'],
             help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--model_type',
@@ -46,7 +46,7 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Number of Gabor filters.')
         self.n_parser.add_argument(
             '--dropout',
-            default=0.3, type=float,
+            default=0., type=float,
             help='Probability of dropout layer(s).')
         self.n_parser.add_argument(
             '--inter_gp',
@@ -135,7 +135,7 @@ class ExperimentParser(argparse.ArgumentParser):
             help='Whether to use group convolutions.')
         self.n_parser.add_argument(
             '--upsample_mode',
-            default='nearest',
+            default='bilinear',
             type=parse_none,
             choices=[None, 'nearest', 'bilinear'],
             help=('Decoder upsampling method. Choices: %(choices)s '

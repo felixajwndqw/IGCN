@@ -8,6 +8,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from quicktorch.utils import imshow
+from cirrus.data import SynthCirrusDataset
 
 
 class EMDataset(Dataset):
@@ -21,7 +22,7 @@ class EMDataset(Dataset):
             be applied to the targets.
     """
     def __init__(self, img_dir,
-                 transform=None, target_transform=None, aug_mult=4, indices=None):
+                 transform=None, target_transform=None, aug_mult=4, indices=None, padding=None):
         self.em_paths = [
             img for img in glob.glob(os.path.join(img_dir, 'volume/*.png'))
         ]
@@ -40,6 +41,8 @@ class EMDataset(Dataset):
             if not self.test:
                 self.mask_paths = [self.mask_paths[i] for i in indices]
 
+        self.padding = padding
+
     def __getitem__(self, i):
         i = i // self.aug_mult
         em = np.array(Image.open(self.em_paths[i]))
@@ -54,13 +57,19 @@ class EMDataset(Dataset):
             mask = t['mask']
         em = np.expand_dims(em, axis=2)
         mask = np.expand_dims(mask, axis=2)
-        return (
-            transforms.ToTensor()(em),
-            transforms.ToTensor()(mask)
-        )
+        em = transforms.ToTensor()(em)
+        mask = transforms.ToTensor()(mask)
+        # albumentations workaround
+        if self.padding is not None:
+            mask = remove_padding(mask, self.padding)
+        return (em, mask)
 
     def __len__(self):
         return len(self.em_paths) * self.aug_mult
+
+
+def remove_padding(t, p):
+    return t[..., p//2:-p//2, p//2:-p//2]
 
 
 def prepare_em_data(dir):
@@ -104,12 +113,14 @@ def post_em_data(dir):
     mask_paths = [
         img for img in glob.glob(os.path.join(dir, '*.png'))
     ]
+    print(mask_paths)
     mask = None
     for i, path in enumerate(mask_paths):
         if i == 0:
             mask = np.expand_dims(np.array(Image.open(path)), 0)
         else:
             mask = np.concatenate((mask, np.expand_dims(np.array(Image.open(path)), 0)), axis=0)
+    print(mask.shape)
     mask = np.reshape(mask, (30, 4, 256, 256))
     mask = np.concatenate((mask[:, :2], mask[:, 2:]), axis=2)
     mask = np.concatenate((mask[:, :1], mask[:, 1:]), axis=3)

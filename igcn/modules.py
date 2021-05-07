@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn.modules.conv import _ConvNd, Conv2d
 from .gabor import GaborFunction, gabor
-from .vis import FilterPlot
+# from .vis import FilterPlot
 from .rot_pool import RotMaxPool2d
 from .utils import _pair
 
@@ -102,10 +102,10 @@ class IGConv(Conv2d):
         self.bn = nn.BatchNorm2d(output_features * no_g)
         self.include_gparams = include_gparams
 
-        if plot:
-            self.plot = FilterPlot(no_g, kernel_size[0], output_features)
-        else:
-            self.plot = None
+        # if plot:
+        #     self.plot = FilterPlot(no_g, kernel_size[0], output_features)
+        # else:
+        self.plot = None
 
     def forward(self, x):
         enhanced_weight = self.gabor(self.weight)

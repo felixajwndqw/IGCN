@@ -1,6 +1,6 @@
 import torch, torch.nn as nn
 from quicktorch.models import Model
-from igcn.seg.cmplxigcn_unet_parts import DownCmplx, DownCmplxAngle, UpCmplx, TripleIGConvCmplx
+from igcn.seg.cmplx_modules import DownCmplx, DownCmplxAngle, UpCmplx, TripleIGConvCmplx
 from igcn.cmplx import new_cmplx, concatenate
 from igcn.cmplx_modules import IGConvGroupCmplx, ReLUCmplx, MaxPoolCmplx
 

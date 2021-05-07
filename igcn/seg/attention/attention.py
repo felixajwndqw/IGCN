@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from igcn.seg.cmplxigcn_unet_parts import DownCmplx, UpSimpleCmplx
+from igcn.seg.cmplx_modules import DownCmplx, UpSimpleCmplx
 from igcn.cmplx_modules import GaborPool, ReLUCmplx, IGConvGroupCmplx
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import magnitude, cmplx

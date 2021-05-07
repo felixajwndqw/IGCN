@@ -3,8 +3,7 @@ import time
 import torch
 import torch.optim as optim
 import albumentations
-from igcn.seg.models import UNetIGCN
-from igcn.seg.cmplxmodels import UNetIGCNCmplx
+from igcn.seg.models import UNetIGCN, UNetIGCNCmplx
 from quicktorch.utils import train, evaluate, imshow, get_splits
 from quicktorch.data import bsd
 from utils import ExperimentParser

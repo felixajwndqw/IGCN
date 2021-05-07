@@ -10,17 +10,21 @@ class TripleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, include_gparams=False, last=False, gp='max',
                  relu_type='mod',
-                 first=False):
+                 first=False, **kwargs):
         super().__init__()
         first_conv = IGConvGroupCmplx
         if first:
             first_conv = IGConvCmplx
-        padding = kernel_size // 2
+        if type(kernel_size) is tuple:
+            padding = kernel_size[-1] // 2
+        else:
+            padding = kernel_size // 2
 
         self.conv1 = first_conv(
             in_channels, out_channels, no_g=no_g,
-            kernel_size=kernel_size,
-            padding=padding, gabor_pooling=None)
+            kernel_size=kernel_size if not first else 11,
+            padding=padding if not first else 5,
+            gabor_pooling=None, **kwargs)
         self.bn_relu1 = nn.Sequential(
             # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),
@@ -30,7 +34,7 @@ class TripleIGConvCmplx(nn.Module):
         self.conv2 = IGConvGroupCmplx(
             out_channels, out_channels, no_g=no_g,
             kernel_size=kernel_size,
-            padding=padding, gabor_pooling=None)
+            padding=padding, gabor_pooling=None, **kwargs)
         self.bn_relu2 = nn.Sequential(
             # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),
@@ -41,7 +45,7 @@ class TripleIGConvCmplx(nn.Module):
             out_channels, out_channels, no_g=no_g,
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=gp,
-            include_gparams=include_gparams)
+            include_gparams=include_gparams, **kwargs)
         self.bn_relu3 = nn.Sequential(
             # BatchNormCmplx(out_channels),
             BatchNormCmplxOld(),

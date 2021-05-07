@@ -44,12 +44,11 @@ def concatenate(x, **kwargs):
     return torch.cat([x[0], x[1]], dim=1)
 
 
-def conv_cmplx(x, w, transpose=False, **kwargs):
+def conv_cmplx(x, w, transpose=False, data_dim='2d', **kwargs):
     """Computes complex convolution.
     """
-    conv = F.conv2d
+    conv = CONV_OPS[data_dim][transpose]
     if transpose:
-        conv = F.conv_transpose2d
         w = w.transpose(1, 2)
 
     x = cmplx(
@@ -60,6 +59,18 @@ def conv_cmplx(x, w, transpose=False, **kwargs):
     return x
 
 
+CONV_OPS = {
+    '2d': {
+        False: F.conv2d,
+        True: F.conv_transpose2d,
+    },
+    '3d': {
+        False: F.conv3d,
+        True: F.conv_transpose3d,
+    },
+}
+
+
 def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
     """Computes complex linear transformation
     """
@@ -68,8 +79,8 @@ def linear_cmplx(x, w, b=None, transpose=False, **kwargs):
         pass
 
     x = cmplx(
-        linear(x[0, ...], w[0, ...]) - linear(x[1, ...], w[1, ...]),
-        linear(x[0, ...], w[1, ...]) + linear(x[1, ...], w[0, ...])
+        linear(x[0], w[0]) - linear(x[1], w[1]),
+        linear(x[0], w[1]) + linear(x[1], w[0])
     )
 
     if b is not None:
@@ -135,17 +146,15 @@ def bnorm_cmplx_old(x, eps=1e-8):
     return x
 
 
-def pool_cmplx(x, kernel_size, operator='max', **kwargs):
+def pool_cmplx(x, kernel_size, operator='max', data_dim='2d', **kwargs):
     """Computes complex pooling.
     """
     x, xs = _compress_shape(x)
 
-    pool = F.max_pool2d
-    if operator == 'avg' or operator == 'average':
-        pool = F.avg_pool2d
+    pool = POOL_OPS[data_dim][operator]
 
     if operator == 'mag':
-        x = max_mag_pool(x, kernel_size, **kwargs)
+        x = pool(x, kernel_size, **kwargs)
     else:
         x = cmplx(
             pool(x[0], kernel_size, **kwargs),
@@ -165,6 +174,20 @@ def max_mag_pool(x, kernel_size, **kwargs):
     cmplx_idxs = cmplx(idxs, idxs)
     max_by_mags = x.flatten(start_dim=3).gather(dim=3, index=cmplx_idxs.flatten(start_dim=3))
     return max_by_mags.view_as(cmplx_idxs)
+
+
+POOL_OPS = {
+    '2d': {
+        'max': F.max_pool2d,
+        'avg': F.avg_pool2d,
+        'mag': max_mag_pool,
+    },
+    '3d': {
+        'max': F.max_pool3d,
+        'avg': F.avg_pool3d,
+        'mag': None,
+    }
+}
 
 
 def max_mag_gabor_pool(x, **kwargs):
