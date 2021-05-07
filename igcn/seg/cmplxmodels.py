@@ -3,7 +3,7 @@ import torch.nn as nn
 from quicktorch.models import Model
 from igcn.seg.cmplxigcn_unet_parts import DownCmplx, UpCmplx, TripleIGConvCmplx
 from igcn.cmplx import new_cmplx, concatenate
-from igcn.seg.scale import Scale
+from igcn.seg.scale import Scale, ScaleParallel
 
 
 class UNetIGCNCmplx(Model):
@@ -16,12 +16,17 @@ class UNetIGCNCmplx(Model):
         self.n_classes = n_classes
         self.mode = mode
         self.kernel_size = kernel_size
+        in_channels_conv = n_channels
 
+        if scale == 'parallel':
+            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
+            in_channels_conv = n_channels * 2
         if scale:
-            self.preprocess = Scale(n_channels, method='arcsinh')
+            in_channels_conv = n_channels * 1
+            self.preprocess = Scale(n_channels, in_channels_conv, method='arcsinh')
         else:
             self.preprocess = None
-        self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, first=True)
+        self.inc = TripleIGConvCmplx(in_channels_conv, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, first=True)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
         self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
         self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)

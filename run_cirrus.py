@@ -28,7 +28,7 @@ def get_N(survey_dir, mask_dir, bands):
     #     return 108
     # Cirrus only 
     if set(bands) == set(['g', 'r']):
-        return 58
+        return 48
     # Cirrus + HB
     # if set(bands) == set('g'):
     #     return 184
@@ -44,12 +44,14 @@ def get_train_data(training_args, args, split):
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
+                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                # albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=split[0],
             bands=args.bands,
@@ -65,12 +67,14 @@ def get_train_data(training_args, args, split):
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
+                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                # albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=split[1],
             bands=args.bands,
@@ -90,13 +94,15 @@ def get_test_data(training_args, args, test_idxs):
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
-                # albumentations.PadIfNeeded(288, 288, border_mode=4)
+                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
+                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
+                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
+                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
+                albumentations.PadIfNeeded(288, 288, border_mode=4)
             ]),
             indices=test_idxs,
             bands=args.bands,
-            aug_mult=6
+            aug_mult=6,
         ),
         batch_size=training_args.batch_size,
         shuffle=True

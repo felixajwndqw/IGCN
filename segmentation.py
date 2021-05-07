@@ -30,7 +30,7 @@ def write_results(**kwargs):
 
 
 def get_metrics_criterion(variant, denoise=False):
-    if variant == 'DAF':
+    if 'DAF' in variant:
         MetricsClass = DAFMetric()
         criterion = DAFLoss()
     else:
@@ -151,7 +151,7 @@ def main():
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, training_args.lr_decay)
         m = train(model, [train_loader, val_loader], save_best=True,
                   epochs=training_args.epochs, opt=optimizer, device=device,
-                  sch=scheduler, metrics=MetricsClass, criterion=criterion)
+                  sch=scheduler, metrics=metrics_class, criterion=criterion)
 
         print('Evaluating')
         temp_metrics = evaluate(model, test_loader, device=device)

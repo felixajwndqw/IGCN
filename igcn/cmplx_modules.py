@@ -599,6 +599,7 @@ class ReLUCmplx(nn.Module):
     def __init__(self, inplace=False, relu_type='c', channels=None):
         super().__init__()
         self.relu_kwargs = {'inplace': inplace}
+        self.relu_type = relu_type
         if relu_type == 'c':
             self.relu = relu_cmplx
         elif relu_type == 'z':

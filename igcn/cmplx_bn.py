@@ -125,7 +125,8 @@ class BatchNormCmplx(nn.Module):
 
         x = cmplx(
             Rrr[None, :, None, None] * x[0] + Rri[None, :, None, None] * x[1],
-            Rii[None, :, None, None] * x[1] + Rri[None, :, None, None] * x[0])
+            Rii[None, :, None, None] * x[1] + Rri[None, :, None, None] * x[0]
+        )
 
         if self.affine:
             x = cmplx(
