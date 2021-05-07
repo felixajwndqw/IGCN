@@ -3,15 +3,15 @@ import time
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.cmplxmodels import UNetIGCNCmplx
-from igcn.seg.attention.models import DAFStackSmall
+from igcn.seg.models import UNetIGCNCmplx
+from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.metrics import MetricTracker, SegmentationTracker
 from quicktorch.writers import LabScribeWriter
 from cirrus.data import CirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
-from segmentation import get_metrics_criterion
+from segmentation import get_metrics_criterion, create_model
 
 
 IMG_SIZE = 256
@@ -103,45 +103,6 @@ def get_test_data(training_args, args, test_idxs):
     )
 
 
-def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
-                 bands=['g'], downscale=1, model_path='', pretrain=True,
-                 **params):
-    model_fn = UNetIGCNCmplx
-    scale = False
-    if variant[-1] == "T":
-        scale = True
-    if variant[-1] == "P":
-        scale = 'parallel'
-    if "Standard" in variant:
-        model_fn = UNetCmplx
-    if "DAF" in variant:
-        model_fn = DAFStackSmall
-    model = model_fn(
-        n_channels=n_channels,
-        n_classes=n_classes,
-        save_dir=save_dir,
-        name=f'{variant}-cirrus'
-             f'_bands={bands}'
-             f'-pre={bool(model_path)}'
-             f'-kernel_size={params["kernel_size"]}'
-             f'-no_g={params["no_g"]}'
-             f'-base_channels={params["base_channels"]}'
-             f'-downscale={downscale}'
-             f'-gp={params["final_gp"]}'
-             f'-relu={params["relu_type"]}',
-        no_g=params["no_g"],
-        kernel_size=params["kernel_size"],
-        base_channels=params["base_channels"],
-        scale=scale,
-        gp=params["final_gp"],
-        relu_type=params["relu_type"],
-        upsample_mode=params["upsample_mode"]
-    )
-    if model_path:
-        load(model, model_path, False, pretrain=pretrain)
-    return model
-
-
 def write_results(**kwargs):
     sorted_keys = sorted([key for key in kwargs.keys()])
     result = '\n' + '\t'.join([str(kwargs[key]) for key in sorted_keys])
@@ -149,23 +110,6 @@ def write_results(**kwargs):
     f = open("cirrus_results.txt", "a+")
     f.write(result)
     f.close()
-
-
-def load(model, save_path, legacy=False, pretrain=True):
-    checkpoint = torch.load(save_path)
-
-    if pretrain:
-        weight = checkpoint['model_state_dict']['inc.conv1.weight']
-        out_c = 1
-        if model.preprocess is not None:
-            out_c = model.preprocess.n_scaling
-        checkpoint['model_state_dict']['inc.conv1.weight'] = weight.repeat(1, 1, 2 * out_c, 1, 1)
-    if legacy:
-        for key in checkpoint['model_state_dict']:
-            if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
-                checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].unsqueeze(1)
-
-    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
 
 def run_cirrus_split(net_args, training_args, args, writer=None,
@@ -281,7 +225,7 @@ def main():
                         help='Directory to save models to. (default: %(default)s)')
     parser.add_argument('--model_path',
                         default='', type=str,
-                        help='Path to model, enabling pretraining. (default: %(default)s)')
+                        help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default='SFC', type=str,
                         choices=['SFC', 'SFCT', 'SFCP', 'Standard', 'DAF', 'DAFT', 'DAFP'],
