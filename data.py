@@ -22,7 +22,7 @@ class EMDataset(Dataset):
             be applied to the targets.
     """
     def __init__(self, img_dir,
-                 transform=None, target_transform=None, aug_mult=4, indices=None, padding=None):
+                 transform=None, target_transform=None, aug_mult=4, indices=None, padding=0):
         self.em_paths = [
             img for img in glob.glob(os.path.join(img_dir, 'volume/*.png'))
         ]
@@ -60,7 +60,7 @@ class EMDataset(Dataset):
         em = transforms.ToTensor()(em)
         mask = transforms.ToTensor()(mask)
         # albumentations workaround
-        if self.padding is not None:
+        if self.padding > 0:
             mask = remove_padding(mask, self.padding)
         return (em, mask)
 

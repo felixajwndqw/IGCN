@@ -71,8 +71,8 @@ class CirrusDataset(Dataset):
     }
 
     def __init__(self, survey_dir, mask_dir, indices=None, num_classes=1,
-                 transform=None, target_transform=None, crop_deg=1.,
-                 aug_mult=2, bands='g', repeat_bands=False):
+                 transform=None, target_transform=None, crop_deg=.5,
+                 aug_mult=2, bands='g', repeat_bands=False, padding=0):
         self.all_mask_paths = [
             array for array in glob.glob(os.path.join(mask_dir, '*.npz'))
         ]
@@ -119,6 +119,8 @@ class CirrusDataset(Dataset):
             self.cirrus_paths = [self.cirrus_paths[i] for i in indices]
             self.mask_paths = [self.mask_paths[i] for i in indices]
 
+        self.padding = padding
+
     def __getitem__(self, i):
         i = i // self.aug_mult
         cirrus = [fits.open(path)[0] for path in self.cirrus_paths[i]]
@@ -148,10 +150,15 @@ class CirrusDataset(Dataset):
             mask = t['mask']
         if cirrus.shape[-1] < len(self.bands):
             cirrus = cirrus.repeat(2, 2)
+        cirrus = transforms.ToTensor()(cirrus)
+        mask = transforms.ToTensor()(mask)
+        # albumentations workaround
+        if self.padding > 0:
+            mask = remove_padding(mask, self.padding)
         return (
+            cirrus,
+            mask
             # self.norm_transform(transforms.ToTensor()(cirrus)),
-            transforms.ToTensor()(cirrus),
-            transforms.ToTensor()(mask)
         )
 
     def __len__(self):
@@ -212,7 +219,7 @@ class SynthCirrusDataset(Dataset):
             be applied to the targets.
     """
     def __init__(self, img_dir, indices=None, denoise=False, angle=False,
-                 transform=None, target_transform=None):
+                 transform=None, target_transform=None, padding=0):
         self.cirrus_paths = [
             img for img in glob.glob(os.path.join(img_dir, 'input/*.png'))
         ]
@@ -236,6 +243,8 @@ class SynthCirrusDataset(Dataset):
             self.cirrus_paths = [self.cirrus_paths[i] for i in indices]
             self.mask_paths = [self.mask_paths[i] for i in indices]
 
+        self.padding = padding
+
     def __getitem__(self, i):
         cirrus = np.array(Image.open(self.cirrus_paths[i]))
         mask = np.array(Image.open(self.mask_paths[i]))
@@ -245,9 +254,16 @@ class SynthCirrusDataset(Dataset):
             mask = t['mask']
         cirrus = transforms.ToTensor()(cirrus)
         mask = transforms.ToTensor()(mask)
+        # albumentations workaround
+        if self.padding > 0:
+            mask = remove_padding(mask, self.padding)
         if self.angle:
             return cirrus, mask, self.angles[i]
         return cirrus, mask
 
     def __len__(self):
         return len(self.cirrus_paths)
+
+
+def remove_padding(t, p):
+    return t[..., p//2:-p//2, p//2:-p//2]
