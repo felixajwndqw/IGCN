@@ -8,6 +8,7 @@ from igcn.seg.models import UNetIGCNCmplx
 from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from igcn.seg.attention.loss import DAFLoss
+from attention.models import DAFMSPlain
 from quicktorch.utils import train, evaluate, imshow, get_splits
 from quicktorch.metrics import DenoisingTracker, SegmentationTracker
 from quicktorch.writers import LabScribeWriter
@@ -113,6 +114,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         model_fn = DAFStackSmall
     if "DAFMS" in variant:
         model_fn = DAFMS
+    if "DAFMSPlain" in variant:
+        model_fn = DAFMSPlain
     model_name = f'{variant}-{dataset}'
     if dataset == 'cirrus':
         model_name += (
@@ -332,7 +335,7 @@ def main():
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default="SFC", type=str,
-                        choices=['SFC', 'Standard', 'DAF', 'DAFMS'],
+                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain'],
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--denoise',
                         default=False, action='store_true',
