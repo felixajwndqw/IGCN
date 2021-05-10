@@ -15,7 +15,6 @@ from utils import ExperimentParser
 
 
 def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None, **kwargs):
-    padding = 64
     if split is not None:
         if split[0] is None:
             split[0] = list(range(30))
@@ -29,7 +28,7 @@ def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None
                 albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(alpha=2),
                 albumentations.GaussNoise(p=1., var_limit=(0.05 * 255, 0.15 * 255)),
-                albumentations.PadIfNeeded(256 + padding, 256 + padding, border_mode=4)
+                albumentations.PadIfNeeded(256 + args.padding, 256 + args.padding, border_mode=4)
             ]),
             indices=split[0],
             padding=padding
@@ -46,7 +45,7 @@ def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None
                 albumentations.RandomRotate90(),
                 albumentations.ElasticTransform(alpha=2),
                 albumentations.GaussNoise(p=1., var_limit=(0.05 * 255, 0.15 * 255)),
-                albumentations.PadIfNeeded(256 + padding, 256 + padding, border_mode=4)
+                albumentations.PadIfNeeded(256 + args.padding, 256 + args.padding, border_mode=4)
             ]),
             indices=split[1],
             padding=padding

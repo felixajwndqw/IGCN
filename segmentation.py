@@ -57,8 +57,9 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
                 albumentations.Resize(1024, 1024),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
             ]),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size, shuffle=True)
     val_loader = DataLoader(
@@ -71,8 +72,9 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
                 albumentations.Resize(1024, 1024),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
             ]),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size, shuffle=True)
     return train_loader, val_loader
@@ -87,8 +89,9 @@ def get_synth_cirrus_test_data(args, training_args, data_dir):
                 albumentations.RandomCrop(256, 256),
                 albumentations.Resize(1024, 1024),
                 albumentations.Flip(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
             ]),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size, shuffle=True)
     return test_loader
@@ -96,7 +99,8 @@ def get_synth_cirrus_test_data(args, training_args, data_dir):
 
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
-                 dataset='cirrus', **params):
+                 dataset='cirrus', padding=0, **params):
+    print(f'{padding=}')
     model_fn = UNetIGCNCmplx
     scale = False
     if variant[-1] == "T":
@@ -135,7 +139,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         gp=params["final_gp"],
         relu_type=params["relu_type"],
         upsample_mode=params["upsample_mode"],
-        dropout=params["dropout"]
+        dropout=params["dropout"],
+        pad_to_remove=padding
     )
     if model_path:
         load(model, model_path, False, pretrain=pretrain)
@@ -187,6 +192,7 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
         n_channels=1,
         n_classes=1,
         model_path=args.model_path,
+        padding=args.padding,
         **vars(net_args),
     ).to(device)
 
@@ -337,12 +343,16 @@ def main():
     parser.add_argument('--val_size',
                         default=1, type=int,
                         help='Number of images used for validation dataset (only ISBI).')
+    parser.add_argument('--padding',
+                        default=32, type=int,
+                        help='Number of images used for validation dataset (only ISBI).')
     parser.add_argument('--model_path',
                         default='', type=str,
                         help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
+    print(args.padding)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     run_seg_exp(net_args, training_args, device=device, args=args)
