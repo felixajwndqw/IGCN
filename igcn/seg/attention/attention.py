@@ -382,7 +382,8 @@ class Reassemble(nn.Module):
 
     def forward(self, x):
         x, xs = compress(x)
-        xs = [xs[0] // 4, *xs[1:]]
+        if xs is not None:
+            xs = [xs[0] // 4, *xs[1:]]
         x = reassemble(x)
         x = recover(x, xs)
         return x
@@ -412,7 +413,8 @@ class ReassembleCmplx(nn.Module):
 
     def forward(self, x):
         x, xs = _compress_shape(x)
-        xs = [2, xs[1] // 4, *xs[2:]]
+        if xs is not None:
+            xs = [2, xs[1] // 4, *xs[2:]]
         x = cmplx(
             reassemble(x[0]),
             reassemble(x[1])
