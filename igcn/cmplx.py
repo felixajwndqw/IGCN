@@ -113,7 +113,7 @@ def relu_cmplx_z(x, inplace=False, eps=1e-12, **kwargs):
     return x
 
 
-def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
+def relu_cmplx_mod(x, b=1e-8, inplace=False, eps=1e-8, **kwargs):
     """Computes complex relu.
     """
     r = magnitude(x, sq=False)
@@ -121,7 +121,7 @@ def relu_cmplx_mod(x, b=1e-8, inplace=False, **kwargs):
         b = b.flatten(0)
     elif r.dim() > b.dim():
         b = b.unsqueeze(-1)
-    return F.relu(r + b) * x / r
+    return F.relu(r + b) * x / (r + eps)
 
 
 def relu_cmplx(x, inplace=False, **kwargs):
@@ -206,6 +206,10 @@ def max_summed_mag_gabor_pool(x, **kwargs):
     _, idxs = torch.max(r_summed, dim=2, keepdim=True)
     idxs = idxs.unsqueeze(0).repeat(2, 1, 1, 1, x.size(-2), x.size(-1))
     return x.gather(dim=3, index=idxs).squeeze(3), idxs
+
+
+def avg_gabor_pool(x, dim=3, **kwargs):
+    return torch.mean(x, dim=dim), None
 
 
 def init_weights(w, mode='he', polar=False):

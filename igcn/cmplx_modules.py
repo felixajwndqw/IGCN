@@ -15,6 +15,7 @@ from .cmplx import (
     linear_cmplx,
     pool_cmplx,
     init_weights,
+    avg_gabor_pool,
     max_mag_gabor_pool,
     max_summed_mag_gabor_pool,
     relu_cmplx,
@@ -338,16 +339,8 @@ class IGConvCmplx(nn.Module):
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod)
         self.no_g = no_g
-        if gabor_pooling == 'max':
-            gabor_pooling = torch.max
-        elif gabor_pooling == 'avg':
-            gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
-        elif gabor_pooling == 'mag':
-            gabor_pooling = max_mag_gabor_pool
-        elif gabor_pooling == 'sum':
-            gabor_pooling = max_summed_mag_gabor_pool
+        self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
 
-        self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
 
@@ -431,16 +424,7 @@ class IGConvGroupCmplx(nn.Module):
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod)
         self.no_g = no_g
         self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
-        # if gabor_pooling == 'max' or (gabor_pooling is None and include_gparams):
-        #     gabor_pooling = torch.max
-        # elif gabor_pooling == 'avg':
-        #     gabor_pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
-        # elif gabor_pooling == 'mag':
-        #     gabor_pooling = max_mag_gabor_pool
-        # elif gabor_pooling == 'sum':
-        #     gabor_pooling = max_summed_mag_gabor_pool
 
-        # self.gabor_pooling = gabor_pooling
         self.include_gparams = include_gparams
         self.conv_kwargs = conv_kwargs
 
@@ -637,11 +621,14 @@ class ReLUCmplx(nn.Module):
 
 
 class BatchNormCmplxOld(nn.Module):
-    def __init__(self, eps=1e-8, **kwargs):
+    def __init__(self, eps=1e-5, **kwargs):
         super().__init__()
         self.eps = eps
 
     def forward(self, x):
+        if x.size(1):
+            return x
+
         x, xs = _compress_shape(x)
         spatial_dims = torch.tensor(range(x.dim())[3:])
 
@@ -652,7 +639,6 @@ class BatchNormCmplxOld(nn.Module):
         x = x / torch.clamp(stds.unsqueeze(0), min=self.eps)
 
         x = _recover_shape(x, xs)
-
         return x
 
 
@@ -701,7 +687,7 @@ class GaborPool(nn.Module):
         if pool_type == 'max':
             self.pooling = torch.max
         elif pool_type == 'avg':
-            self.pooling = lambda x, dim: (torch.mean(x, dim=dim), None)
+            self.pooling = avg_gabor_pool
         elif pool_type == 'mag':
             self.pooling = max_mag_gabor_pool
         elif pool_type == 'sum':
