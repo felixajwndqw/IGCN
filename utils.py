@@ -2,6 +2,11 @@ import argparse
 import math
 import numpy as np
 import PIL.Image as Image
+import cv2
+import random
+import albumentations
+import albumentations.augmentations.functional as F
+from albumentations.core.transforms_interface import DualTransform, to_tuple
 
 
 def parse_none(x):
@@ -220,6 +225,120 @@ class AlbumentationsWrapper():
     def __call__(self, image):
         out = self.transform(image=np.array(image))
         return Image.fromarray(out['image'])
+
+
+class RotateAndCrop(DualTransform):
+    """Rotate the input by an angle selected randomly from the uniform distribution.
+    Args:
+        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+            an angle is picked from (-limit, limit). Default: (-90, 90)
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image, mask, bboxes, keypoints
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        height,
+        width,
+        limit=90,
+        interpolation=cv2.INTER_LINEAR,
+        border_mode=cv2.BORDER_REFLECT_101,
+        value=None,
+        mask_value=None,
+        always_apply=False,
+        p=1.,
+    ):
+        super().__init__(always_apply, p)
+        self.height = height
+        self.width = width
+        self.limit = to_tuple(limit)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
+        self.value = value
+        self.mask_value = mask_value
+
+    def apply(self, img, angle=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+        img = F.rotate(img, angle, interpolation, self.border_mode, self.value)
+        img = self._remove_rotation_padding(img, angle)
+        img = F.random_crop(img, self.height, self.width, h_start, w_start)
+        return img
+
+    def apply_to_mask(self, img, angle=0, h_start=0, w_start=0, **params):
+        img = F.rotate(img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        img = self._remove_rotation_padding(img, angle)
+        return F.random_crop(img, self.height, self.width, h_start, w_start)
+
+    def _remove_rotation_padding(self, img, angle):
+        h, w = img.shape[0], img.shape[1]
+        crop_w, crop_h = _largest_rotated_rect(w, h, np.deg2rad(angle))
+        return img[
+            (h - crop_h) // 2:(h - crop_h) // 2 + crop_h,
+            (w - crop_w) // 2:(w - crop_w) // 2 + crop_w
+        ]
+
+    def get_params(self):
+        return {
+            "angle": random.choice([i * 180 / 8 - 180 for i in range(16)]),
+            "h_start": random.random(),
+            "w_start": random.random()
+        }
+
+    def apply_to_bbox(self, bbox, angle=0, **params):
+        return F.bbox_rotate(bbox, angle, params["rows"], params["cols"])
+
+    def apply_to_keypoint(self, keypoint, angle=0, **params):
+        return F.keypoint_rotate(keypoint, angle, **params)
+
+    def get_transform_init_args_names(self):
+        return ("limit", "interpolation", "border_mode", "value", "mask_value")
+
+
+def _largest_rotated_rect(w, h, angle):
+    """
+    Given a rectangle of size wxh that has been rotated by 'angle' (in
+    radians), computes the width and height of the largest possible
+    axis-aligned rectangle within the rotated rectangle.
+    Original JS code by 'Andri' and Magnus Hoff from Stack Overflow
+    Converted to Python by Aaron Snoswell
+    Source: http://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+    """
+
+    quadrant = int(math.floor(angle / (math.pi / 2))) & 3
+    sign_alpha = angle if ((quadrant & 1) == 0) else math.pi - angle
+    alpha = (sign_alpha % math.pi + math.pi) % math.pi
+
+    bb_w = w * math.cos(alpha) + h * math.sin(alpha)
+    bb_h = w * math.sin(alpha) + h * math.cos(alpha)
+
+    gamma = math.atan2(bb_w, bb_w) if (w < h) else math.atan2(bb_w, bb_w)
+
+    delta = math.pi - alpha - gamma
+
+    length = h if (w < h) else w
+
+    d = length * math.cos(alpha)
+    a = d * math.sin(alpha) / math.sin(delta)
+
+    y = a * math.cos(gamma)
+    x = y * math.tan(gamma)
+
+    return (
+        int(bb_w - 2 * x),
+        int(bb_h - 2 * y)
+    )
 
 
 def calculate_error(items):

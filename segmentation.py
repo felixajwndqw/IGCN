@@ -1,10 +1,13 @@
 from math import exp
 import os
+from albumentations.augmentations.transforms import Rotate
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.models import UNetIGCNCmplx
+from igcn.seg.models import UNetIGCNCmplx, RCF
+from igcn.seg.metrics import RCFMetric
+from igcn.seg.loss import RCFLoss
 from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from igcn.seg.attention.loss import DAFLoss
@@ -12,8 +15,9 @@ from attention.models import DAFMSPlain
 from quicktorch.utils import train, evaluate, imshow, get_splits
 from quicktorch.metrics import DenoisingTracker, SegmentationTracker
 from quicktorch.writers import LabScribeWriter
+from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
-from utils import ExperimentParser, calculate_error
+from utils import ExperimentParser, calculate_error, RotateAndCrop
 from unet import UNetCmplx
 import albumentations
 from isbi import get_isbi_train_data, get_isbi_test_data
@@ -23,6 +27,7 @@ SIZES = {
     'stars_bad_columns_ccd': 300,
     'stars_bad_columns_ccd_saturation': 1200,
     'isbi': 30,
+    'bsd': 300,
 }
 
 
@@ -38,6 +43,9 @@ def get_metrics_criterion(variant, denoise=False):
     if 'DAF' in variant:
         MetricsClass = DAFMetric()
         criterion = DAFLoss()
+    if 'RCF' in variant:
+        MetricsClass = RCFMetric()
+        criterion = RCFLoss()
     else:
         if denoise:
             MetricsClass = DenoisingTracker()
@@ -48,6 +56,7 @@ def get_metrics_criterion(variant, denoise=False):
 
 
 def get_synth_cirrus_train_data(args, training_args, data_dir, split):
+    size = 256
     train_loader = DataLoader(
         SynthCirrusDataset(
             os.path.join(data_dir, 'train'),
@@ -55,10 +64,10 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
             denoise=args.denoise,
             transform=albumentations.Compose([
                 albumentations.RandomCrop(256, 256),
-                albumentations.Resize(1024, 1024),
+                albumentations.Resize(size, size),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
             ]),
             padding=args.padding,
         ),
@@ -70,10 +79,10 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
             denoise=args.denoise,
             transform=albumentations.Compose([
                 albumentations.RandomCrop(256, 256),
-                albumentations.Resize(1024, 1024),
+                albumentations.Resize(size, size),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
             ]),
             padding=args.padding,
         ),
@@ -82,15 +91,16 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
 
 
 def get_synth_cirrus_test_data(args, training_args, data_dir):
+    size = 256
     test_loader = DataLoader(
         SynthCirrusDataset(
             os.path.join(data_dir, 'test'),
             denoise=args.denoise,
             transform=albumentations.Compose([
                 albumentations.RandomCrop(256, 256),
-                albumentations.Resize(1024, 1024),
+                albumentations.Resize(size, size),
                 albumentations.Flip(),
-                albumentations.PadIfNeeded(1024 + args.padding, 1024 + args.padding, border_mode=4)
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
             ]),
             padding=args.padding,
         ),
@@ -98,10 +108,42 @@ def get_synth_cirrus_test_data(args, training_args, data_dir):
     return test_loader
 
 
+def get_bsd_train_data(args, training_args, data_dir, split):
+    size = 272
+    train_loader, val_loader = bsd(
+        transform=albumentations.Compose([
+            albumentations.Resize(400, 400),
+            RotateAndCrop(size, size, limit=180),
+            albumentations.Flip(),
+            albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+        ]),
+        split=split,
+        num_workers=4,
+        batch_size=training_args.batch_size,
+        dir=data_dir,
+        padding=args.padding,
+    )
+    return train_loader, val_loader
+
+
+def get_bsd_test_data(args, training_args, data_dir):
+    size = 272
+    test_loader = bsd(
+        transform=albumentations.Compose([
+            albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+        ]),
+        num_workers=4,
+        batch_size=training_args.batch_size,
+        dir=data_dir,
+        test=True,
+        padding=args.padding,
+    )
+    return test_loader
+
+
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
                  dataset='cirrus', padding=0, **params):
-    print(f'{padding=}')
     model_fn = UNetIGCNCmplx
     scale = False
     if variant[-1] == "T":
@@ -116,6 +158,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         model_fn = DAFMS
     if "DAFMSPlain" in variant:
         model_fn = DAFMSPlain
+    if "RCF" in variant:
+        model_fn = RCF
     model_name = f'{variant}-{dataset}'
     if dataset == 'cirrus':
         model_name += (
@@ -169,11 +213,17 @@ def load(model, save_path, legacy=False, pretrain=True):
 
 def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0', split=None, split_no=0, args=None):
     if net_args.dataset == 'synth':
+        n_channels = 1
         get_train = get_synth_cirrus_train_data
         get_test = get_synth_cirrus_test_data
     elif net_args.dataset == 'isbi':
+        n_channels = 1
         get_train = get_isbi_train_data
         get_test = get_isbi_test_data
+    elif net_args.dataset == 'bsd':
+        n_channels = 3
+        get_train = get_bsd_train_data
+        get_test = get_bsd_test_data
     else:
         raise NotImplementedError()
 
@@ -192,7 +242,7 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
     model = create_model(
         'models/seg/' + net_args.dataset,
         variant=args.model_variant,
-        n_channels=1,
+        n_channels=n_channels,
         n_classes=1,
         model_path=args.model_path,
         padding=args.padding,
@@ -248,6 +298,8 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             splits = get_splits(N // 3 * 2, max(6, training_args.nsplits))  # Divide into 6 or more blocks
         elif net_args.dataset == 'isbi':
             splits = get_splits(N, N // args.val_size)
+        if net_args.dataset == 'bsd':
+            splits = get_splits(N, max(3, training_args.nsplits))  # Divide into 6 or more blocks
 
     if exp_name is None:
         exp_name = (
@@ -265,7 +317,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             exp_worksheet_name += 'Den'
         else:
             exp_worksheet_name += 'Seg'
-    elif net_args.dataset == 'isbi':
+    else:
         exp_worksheet_name = exp_worksheet_name.upper()
     writer = LabScribeWriter(
         'Results',
@@ -335,7 +387,7 @@ def main():
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default="SFC", type=str,
-                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain'],
+                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain', 'RCF'],
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--denoise',
                         default=False, action='store_true',
