@@ -108,9 +108,11 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         scale = True
     if variant[-1] == "P":
         scale = 'parallel'
+    attention = False
     if "Standard" in variant:
         model_fn = UNetCmplx
     if "DAF" in variant:
+        attention = True
         model_fn = DAFStackSmall
     if "DAFMS" in variant:
         model_fn = DAFMS
@@ -146,19 +148,25 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         pad_to_remove=padding
     )
     if model_path:
-        load(model, model_path, False, pretrain=pretrain)
+        load(model, model_path, False, pretrain=pretrain, att=attention)
     return model
 
 
-def load(model, save_path, legacy=False, pretrain=True):
+def load(model, save_path, legacy=False, pretrain=True, att=False):
     checkpoint = torch.load(save_path)
 
     if pretrain:
-        weight = checkpoint['model_state_dict']['inc.conv1.weight']
+        if att:
+            scal_key = 'down1.0.weight'
+        else:
+            scal_key = 'inc.conv1.weight'
+        weight = checkpoint['model_state_dict'][scal_key]
         out_c = 1
         if model.preprocess is not None:
             out_c = model.preprocess.n_scaling
-        checkpoint['model_state_dict']['inc.conv1.weight'] = weight.repeat(1, 1, 2 * out_c, 1, 1)
+        checkpoint['model_state_dict'][scal_key] = weight.repeat(1, 1, 2 * out_c, 1, 1)
+        if att:
+            checkpoint['model_state_dict'][scal_key].squeeze_(0)
     if legacy:
         for key in checkpoint['model_state_dict']:
             if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
