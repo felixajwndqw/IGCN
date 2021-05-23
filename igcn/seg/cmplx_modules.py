@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
+from torch.nn.modules.container import Sequential
 from igcn.cmplx import cmplx
 from igcn.cmplx_bn import BatchNormCmplx
-from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, BatchNormCmplxOld
+from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, Project, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, BatchNormCmplxOld, ReshapeGabor
 from igcn.utils import _compress_shape, _recover_shape
 
 
@@ -22,8 +23,8 @@ class TripleIGConvCmplx(nn.Module):
 
         self.conv1 = first_conv(
             in_channels, out_channels, no_g=no_g,
-            kernel_size=kernel_size if not first else 11,
-            padding=padding if not first else 5,
+            kernel_size=kernel_size,# if not first else 11,
+            padding=padding,# if not first else 5,
             gabor_pooling=None, **kwargs)
         self.bn_relu1 = nn.Sequential(
             # BatchNormCmplx(out_channels),
@@ -73,7 +74,8 @@ class TripleIGConvCmplx(nn.Module):
         # print(f'x1.size()={x1.size()}')
         x2 = self.bn_relu2(self.conv2(x1))
         # print(f'x2.size()={x2.size()}')
-        return self.bn_relu3(self.conv3(x2 + x1))
+        out = self.bn_relu3(self.conv3(x2 + x1))
+        return out
         # return self.handle_last(x1 + x2)
 
 
@@ -187,3 +189,42 @@ class UpSimpleCmplx(nn.Module):
         x1 = _recover_shape(x1, xs)
 
         return self.conv(x1)
+
+
+class RCFBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, no_g=4,
+                 layers=2, gp=None, relu_type='mod', **kwargs):
+        super().__init__()
+        self.convs = nn.ModuleList([
+            nn.Sequential(
+                IGConvGroupCmplx(inc, outc, kernel_size, no_g=no_g, padding=1),
+                ReLUCmplx(inplace=True, relu_type=relu_type, channels=outc)
+            )
+            for inc, outc
+            in (
+                (in_channels, out_channels),
+                *((out_channels, out_channels),) * (layers - 1)
+            )
+        ])
+        self.refines = nn.ModuleList([
+            IGConvGroupCmplx(out_channels, 21, 1, no_g=no_g)
+            for _ in range(layers)
+        ])
+
+        self.one_by = nn.Sequential(
+            IGConvGroupCmplx(21, 1, 1, no_g=no_g, gabor_pooling=gp),
+            ReshapeGabor(),
+            Project('cat'),
+            nn.Conv2d(2 * (1 if gp is None else no_g), 1, 1)
+        )
+
+    def forward(self, x):
+        side = torch.zeros(2, x.size(1), 21, *x.size()[3:], device=x.device)
+
+        for conv, refine in zip(self.convs, self.refines):
+            x = conv(x)
+            side = side + refine(x)
+
+        side = self.one_by(side)
+
+        return x, side

@@ -687,7 +687,7 @@ class GaborPool(nn.Module):
         if pool_type == 'max':
             self.pooling = torch.max
         elif pool_type == 'avg':
-            self.pooling = avg_gabor_pool
+            self.pooling = torch.mean
         elif pool_type == 'mag':
             self.pooling = max_mag_gabor_pool
         elif pool_type == 'sum':
@@ -704,4 +704,14 @@ class GaborPool(nn.Module):
                 x.size(4)
             )
         x, _ = self.pooling(x, dim=3)
+        return x
+
+
+class ReshapeGabor(nn.Module):
+    def __init__(self, gabor_dim=2):
+        super().__init__()
+        self.gabor_dim = gabor_dim
+
+    def forward(self, x):
+        x, _ = _compress_shape(x)
         return x
