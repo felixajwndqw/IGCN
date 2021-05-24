@@ -31,7 +31,7 @@ def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None
                 albumentations.PadIfNeeded(256 + args.padding, 256 + args.padding, border_mode=4)
             ]),
             indices=split[0],
-            padding=padding
+            padding=args.padding
         ),
         batch_size=training_args.batch_size,
         shuffle=True
@@ -48,7 +48,7 @@ def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None
                 albumentations.PadIfNeeded(256 + args.padding, 256 + args.padding, border_mode=4)
             ]),
             indices=split[1],
-            padding=padding
+            padding=args.padding
         ),
         batch_size=training_args.batch_size,
         shuffle=True
@@ -65,7 +65,7 @@ def get_isbi_test_data(args, training_args, data_dir='../data/isbi', **kwargs):
                 albumentations.PadIfNeeded(256 + padding, 256 + padding, border_mode=4)
             ]),
             aug_mult=1,
-            padding=padding
+            padding=args.padding
         ),
         batch_size=training_args.batch_size
     )

@@ -1,4 +1,4 @@
-from math import exp
+#!/usr/bin/python -u
 import os
 import torch
 import torch.nn as nn
@@ -101,7 +101,6 @@ def get_synth_cirrus_test_data(args, training_args, data_dir):
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
                  dataset='cirrus', padding=0, **params):
-    print(f'{padding=}')
     model_fn = UNetIGCNCmplx
     scale = False
     if variant[-1] == "T":
@@ -147,6 +146,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
     )
     if model_path:
         load(model, model_path, False, pretrain=pretrain)
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
     return model
 
 
@@ -355,9 +356,8 @@ def main():
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
-    print(args.padding)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     run_seg_exp(net_args, training_args, device=device, args=args)
 
 
