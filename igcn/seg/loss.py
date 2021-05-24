@@ -18,22 +18,21 @@ class RCFLoss(nn.Module):
         self.seg_loss = nn.BCEWithLogitsLoss(reduction='none')
 
     def forward(self, output, target):
+        target[target >= self.eta] = 1.
+        weight = self.loss_weight(target)
+
         if not (type(output) == tuple or type(output) == list):
-            return self.seg_loss(output, target).mean()
+            return (self.seg_loss(output, target) * weight).mean()
         seg_losses = [
-            self.seg_loss(seg, target)
+            (self.seg_loss(seg, target) * weight).mean()
             for seg in output
-        ]
-        seg_losses = [
-            (self.loss_weight(target) * seg_loss).mean()
-            for seg_loss in seg_losses
         ]
         return sum(seg_losses)
 
     def loss_weight(self, target):
-        p = torch.sum(target > self.eta)
+        p = torch.sum(target >= self.eta)
         n = torch.sum(target == 0)
         weight = torch.zeros_like(target)
-        weight[target > self.eta] = p / (p + n)
-        weight[target == 0] = self.lambd * n / (p + n)
+        weight[target >= self.eta] = n / (p + n)
+        weight[target == 0] = self.lambd * p / (p + n)
         return weight

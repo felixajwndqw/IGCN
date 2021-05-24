@@ -118,7 +118,6 @@ def get_bsd_train_data(args, training_args, data_dir, split):
             albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
         ]),
         split=split,
-        num_workers=4,
         batch_size=training_args.batch_size,
         dir=data_dir,
         padding=args.padding,
@@ -132,7 +131,6 @@ def get_bsd_test_data(args, training_args, data_dir):
         transform=albumentations.Compose([
             albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
         ]),
-        num_workers=4,
         batch_size=training_args.batch_size,
         dir=data_dir,
         test=True,
