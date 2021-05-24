@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn.modules.container import Sequential
 from igcn.cmplx import cmplx
 from igcn.cmplx_bn import BatchNormCmplx
-from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, Project, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, BatchNormCmplxOld, ReshapeGabor
+from igcn.cmplx_modules import IGConvCmplx, IGConvGroupCmplx, Project, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, BatchNormCmplxOld, ReshapeGabor, GaborPool
 from igcn.utils import _compress_shape, _recover_shape
 
 
@@ -212,10 +212,11 @@ class RCFBlock(nn.Module):
         ])
 
         self.one_by = nn.Sequential(
-            IGConvGroupCmplx(21, 1, 1, no_g=no_g, gabor_pooling=gp),
+            IGConvGroupCmplx(21, 1, 1, no_g=no_g),
+            GaborPool(gp),
             ReshapeGabor(),
             Project('cat'),
-            nn.Conv2d(2 * (1 if gp is None else no_g), 1, 1)
+            nn.Conv2d(2 * (1 if gp is not None else no_g), 1, 1)
         )
 
     def forward(self, x):

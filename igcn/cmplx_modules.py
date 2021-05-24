@@ -692,6 +692,8 @@ class GaborPool(nn.Module):
             self.pooling = max_mag_gabor_pool
         elif pool_type == 'sum':
             self.pooling = max_summed_mag_gabor_pool
+        elif pool_type is None:
+            self.pooling = nn.Identity()
 
     def forward(self, x):
         if self.no_g is not None:
