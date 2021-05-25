@@ -167,6 +167,6 @@ class RCF(Model):
         x = self.fuse(x)
 
         if self.training:
-            return *sides, x
+            return (*sides, x)
         else:
             return x
