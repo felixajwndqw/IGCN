@@ -88,6 +88,8 @@ def parse_filename(filename):
         if item[0] == '[' and item[-1] == ']':
             return [i.strip() for i in ast.literal_eval(item)]
         return item
+
+    filename = os.path.split(filename)[-1]
     # ba_i = filename.index('bands') + len('bands') + 1
     ks_i = filename.index('kernel_size') + len('kernel_size') + 1
     ng_i = filename.index('no_g') + len('no_g') + 1
@@ -111,7 +113,7 @@ def parse_filename(filename):
         relu_i = filename.index('relu') + len('relu') + 1
         params['relu_type'] = filename[relu_i:filename.index('_', relu_i)]
 
-    params['name'] = os.path.split(filename)[-1]
+    params['name'] = filename
 
     return params
 
