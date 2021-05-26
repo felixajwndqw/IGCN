@@ -1,4 +1,4 @@
-from math import exp
+#!/usr/bin/python -u
 import os
 from albumentations.augmentations.transforms import Rotate
 import torch
@@ -118,7 +118,6 @@ def get_bsd_train_data(args, training_args, data_dir, split):
             albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
         ]),
         split=split,
-        num_workers=4,
         batch_size=training_args.batch_size,
         dir=data_dir,
         padding=args.padding,
@@ -132,7 +131,6 @@ def get_bsd_test_data(args, training_args, data_dir):
         transform=albumentations.Compose([
             albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
         ]),
-        num_workers=4,
         batch_size=training_args.batch_size,
         dir=data_dir,
         test=True,
@@ -193,6 +191,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
     )
     if model_path:
         load(model, model_path, False, pretrain=pretrain, att=attention)
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
     return model
 
 
@@ -415,9 +415,8 @@ def main():
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
-    print(args.padding)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     run_seg_exp(net_args, training_args, device=device, args=args)
 
 

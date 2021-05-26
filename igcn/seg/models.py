@@ -167,7 +167,7 @@ class RCF(Model):
         x = self.fuse(x)
 
         if self.training:
-            return *sides, x
+            return (*sides, x)
         else:
             x = torch.cat((*sides, x), dim=1)
             return x.mean(1, keepdim=True)

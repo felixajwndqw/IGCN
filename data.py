@@ -8,7 +8,6 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from quicktorch.utils import imshow
-from cirrus.data import SynthCirrusDataset
 
 
 class EMDataset(Dataset):
@@ -154,13 +153,6 @@ if __name__ == '__main__':
     elif args.post:
         post_em_data(args.dir)
     elif args.demo:
-        if args.data == 'cirrus':
-            data = DataLoader(SynthCirrusDataset(
-                    'data/halo1000/train'
-                ),
-                batch_size=1,
-                shuffle=True
-            )
         if args.data == 'isbi':
             data = DataLoader(EMDataset(
                     'data/isbi/train',
