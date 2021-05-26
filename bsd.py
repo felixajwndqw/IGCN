@@ -13,6 +13,9 @@ from segmentation import create_model
 from isbi import parse_filename
 import torch.nn.functional as F
 import torchvision
+import PIL.Image as Image
+import numpy as np
+
 
 SIZE = 300
 
@@ -60,12 +63,14 @@ def main():
                         default=None, type=str,
                         help='Path to trained model.')
     parser.add_argument('--results_dir',
-                        default='../results/bsd/rcf', type=str,
+                        default='../results/bsd/rcf/labels', type=str,
                         help='Path to trained model.')
     parser.add_argument('--padding',
                         default=0, type=int,
                         help='Number of images used for validation dataset (only ISBI).')
     parser.add_argument('--multiscale',
+                        default=False, action='store_true')
+    parser.add_argument('--sigmoid',
                         default=False, action='store_true')
     args = parser.parse_args()
     net_args, training_args = parser.parse_group_args()
@@ -112,6 +117,10 @@ def main():
 
         if args.test:
             model.eval()
+            if args.sigmoid:
+                args.results_dir += 'sigmoid'
+            else:
+                args.results_dir += 'norm'
             if not os.path.exists(args.results_dir):
                 os.makedirs(args.results_dir)
             filenames = glob.glob('../data/bsd/processed/test/labels/*.png')
@@ -133,10 +142,19 @@ def main():
                     out = F.interpolate(out, (w, h), mode='bilinear')
                     outs.append(out)
                 out_batch = sum(outs) / len(outs)
-                torchvision.utils.save_image(
-                    out_batch,
-                    os.path.join(args.results_dir, fname)
-                )
+                # torchvision.utils.save_image(
+                #     out_batch,
+                #     os.path.join(args.results_dir, fname),
+                #     mode='L',
+                # )
+                out_batch = out_batch[0, 0]
+                if args.sigmoid:
+                    out_batch = torch.sigmoid(out_batch)
+                    out_batch = (out_batch.cpu().numpy() * 255).astype('uint8')
+                else:
+                    out_batch = out_batch.mul(255).add_(0.5).clamp_(0, 255).to('cpu', torch.uint8).numpy()
+                out_batch = Image.fromarray(out_batch)
+                out_batch.save(os.path.join(args.results_dir, fname))
             return
 
         total_params = sum(p.numel()

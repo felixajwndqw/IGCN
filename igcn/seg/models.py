@@ -169,4 +169,5 @@ class RCF(Model):
         if self.training:
             return *sides, x
         else:
-            return x
+            x = torch.cat((*sides, x), dim=1)
+            return x.mean(1, keepdim=True)
