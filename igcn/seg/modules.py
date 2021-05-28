@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from igcn.modules import IGConv
 
@@ -71,3 +72,37 @@ class Up(nn.Module):
     def forward(self, x1, x2):
         x1 = self.up(x1)
         return self.conv(x1 + x2)
+
+
+class RCFPlainBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 layers=2, **kwargs):
+        super().__init__()
+        self.convs = nn.ModuleList([
+            nn.Sequential(
+                nn.Conv2d(inc, outc, kernel_size, padding=1),
+                nn.ReLU(inplace=True)
+            )
+            for inc, outc
+            in (
+                (in_channels, out_channels),
+                *((out_channels, out_channels),) * (layers - 1)
+            )
+        ])
+        self.refines = nn.ModuleList([
+            nn.Conv2d(out_channels, 21, 1)
+            for _ in range(layers)
+        ])
+
+        self.one_by = nn.Conv2d(21, 1, 1)
+
+    def forward(self, x):
+        side = torch.zeros(x.size(0), 21, *x.size()[2:], device=x.device)
+
+        for conv, refine in zip(self.convs, self.refines):
+            x = conv(x)
+            side = side + refine(x)
+
+        side = self.one_by(side)
+
+        return x, side

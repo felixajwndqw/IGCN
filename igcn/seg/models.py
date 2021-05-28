@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn.cmplx import new_cmplx, concatenate
-from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
-from igcn.seg.modules import Down, Up, TripleIGConv
+from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, ToCmplx
+from igcn.seg.modules import Down, Up, TripleIGConv, RCFPlainBlock
 from igcn.seg.cmplx_modules import DownCmplx, UpCmplx, TripleIGConvCmplx, RCFBlock
 from igcn.seg.scale import Scale, ScaleParallel
 
@@ -114,13 +114,17 @@ class RCF(Model):
     def __init__(self, n_classes, n_channels=1, no_g=8, base_channels=16,
                  kernel_size=3, pooling='max',
                  mode='bilinear', gp='max',
-                 relu_type='mod', pad_to_remove=64, **kwargs):
+                 relu_type='mod', pad_to_remove=64, project='cat', cmplx=True,
+                 **kwargs):
         super().__init__(**kwargs)
         self.p = pad_to_remove // 2
-        self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1)
+        self.cmplx = cmplx
 
+        self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1) if cmplx else nn.Identity()
+
+        Block = RCFBlock if cmplx else RCFPlainBlock
         self.layers = nn.ModuleList([
-            RCFBlock(inc, outc, kernel_size, no_g=no_g, layers=l, gp=gp, relu_type=relu_type)
+            Block(inc, outc, kernel_size, no_g=no_g, layers=l, gp=gp, relu_type=relu_type, project=project)
             for inc, outc, l in (
                 (base_channels, base_channels, 2),
                 (base_channels, base_channels * 2, 2),
@@ -134,6 +138,8 @@ class RCF(Model):
             self.pool = AvgPoolCmplx(2)
         elif pooling == 'mag':
             self.pool = MaxMagPoolCmplx(2)
+        elif not cmplx:
+            self.pool = nn.MaxPool2d(2)
         else:
             self.pool = MaxPoolCmplx(2)
 
@@ -145,7 +151,8 @@ class RCF(Model):
         self.fuse = nn.Conv2d(5, 1, 1)
 
     def forward(self, x):
-        x = new_cmplx(x)
+        if self.cmplx:
+            x = new_cmplx(x)
 
         x = self.to_group(x)
 

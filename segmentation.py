@@ -173,6 +173,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         f'-base_channels={params["base_channels"]}'
         f'-gp={params["final_gp"]}'
         f'-relu={params["relu_type"]}'
+        f'-relu={params["fc_type"]}'
+        f'-cmplx={params["cmplx"]}'
     )
     model = model_fn(
         n_channels=n_channels,
@@ -187,7 +189,9 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         relu_type=params["relu_type"],
         upsample_mode=params["upsample_mode"],
         dropout=params["dropout"],
-        pad_to_remove=padding
+        pad_to_remove=padding,
+        project=params["fc_type"],
+        cmplx=params["cmplx"]
     )
     if model_path:
         load(model, model_path, False, pretrain=pretrain, att=attention)
@@ -278,7 +282,7 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
         sch=scheduler,
         metrics=metrics_class,
         criterion=criterion,
-        val_epochs=5
+        val_epochs=250
     )
 
     print('Evaluating')
@@ -307,7 +311,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         elif net_args.dataset == 'isbi':
             splits = get_splits(N, N // args.val_size)
         if net_args.dataset == 'bsd':
-            splits = get_splits(N, max(3, training_args.nsplits))  # Divide into 6 or more blocks
+            splits = get_splits(N, max(3, training_args.nsplits))  # Divide into 3 or more blocks
 
     if exp_name is None:
         exp_name = (
