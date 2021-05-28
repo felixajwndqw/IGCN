@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from quicktorch.models import Model
 from igcn.cmplx import new_cmplx, concatenate
-from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx, ToCmplx
+from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 from igcn.seg.modules import Down, Up, TripleIGConv, RCFPlainBlock
 from igcn.seg.cmplx_modules import DownCmplx, UpCmplx, TripleIGConvCmplx, RCFBlock
 from igcn.seg.scale import Scale, ScaleParallel
@@ -120,7 +120,10 @@ class RCF(Model):
         self.p = pad_to_remove // 2
         self.cmplx = cmplx
 
-        self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1) if cmplx else nn.Identity()
+        if cmplx:
+            self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1)
+        else:
+            self.to_group = nn.Conv2d(n_channels, base_channels, kernel_size, padding=1)
 
         Block = RCFBlock if cmplx else RCFPlainBlock
         self.layers = nn.ModuleList([
@@ -134,12 +137,12 @@ class RCF(Model):
             )
         ])
 
-        if pooling == 'avg':
+        if not cmplx:
+            self.pool = nn.MaxPool2d(2)
+        elif pooling == 'avg':
             self.pool = AvgPoolCmplx(2)
         elif pooling == 'mag':
             self.pool = MaxMagPoolCmplx(2)
-        elif not cmplx:
-            self.pool = nn.MaxPool2d(2)
         else:
             self.pool = MaxPoolCmplx(2)
 
