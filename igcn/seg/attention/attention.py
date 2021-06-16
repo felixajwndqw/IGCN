@@ -395,15 +395,12 @@ class DisassembleCmplx(nn.Module):
 
     def forward(self, x):
         x, xs = _compress_shape(x)
-        # print(x.size(), xs)
         xs = [2, 4 * xs[1], *xs[2:]]
         x = cmplx(
             disassemble(x[0]),
             disassemble(x[1])
         )
-        # print(x.size(), xs)
         x = _recover_shape(x, xs)
-        # print(x.size(), xs)
         return x
 
 

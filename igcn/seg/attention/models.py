@@ -16,21 +16,11 @@ from igcn.seg.attention.attention import (
 )
 
 from igcn.seg.cmplx_modules import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
-from igcn.cmplx_modules import MaxPoolCmplx, ReLUCmplx, IGConvGroupCmplx, Project, GaborPool, IGConvCmplx
+from igcn.cmplx_modules import MaxPoolCmplx, ReLUCmplx, IGConvGroupCmplx, Project, GaborPool, IGConvCmplx, ReshapeGabor
 from igcn.seg.scale import Scale, ScaleParallel
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import new_cmplx, resample_cmplx
 from igcn.utils import _compress_shape
-
-
-class ReshapeGabor(nn.Module):
-    def __init__(self, gabor_dim=2):
-        super().__init__()
-        self.gabor_dim = gabor_dim
-
-    def forward(self, x):
-        x, _ = _compress_shape(x)
-        return x
 
 
 class DAFStackSmall(Model):

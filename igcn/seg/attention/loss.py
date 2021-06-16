@@ -11,7 +11,7 @@ class DAFLoss(torch.nn.Module):
 
     def forward(self, output, target):
         if not (type(output[0]) == tuple or type(output[0]) == list):
-            return self.vec_criterion(output, target)
+            return self.seg_criterion(output, target)
         (
             first_attention_vectors,
             second_attention_vectors,
