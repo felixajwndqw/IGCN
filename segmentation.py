@@ -49,6 +49,7 @@ def get_metrics_criterion(variant, denoise=False):
     else:
         if denoise:
             MetricsClass = DenoisingTracker()
+            criterion = nn.MSELoss()
         else:
             MetricsClass = SegmentationTracker()
         criterion = nn.BCEWithLogitsLoss()
@@ -167,13 +168,13 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
             f'-pre={bool(model_path)}'
             f'-downscale={downscale}'
         )
+    params["cmplx"] = True
     model_name += (
         f'-kernel_size={params["kernel_size"]}'
         f'-no_g={params["no_g"]}'
         f'-base_channels={params["base_channels"]}'
         f'-gp={params["final_gp"]}'
         f'-relu={params["relu_type"]}'
-        f'-relu={params["fc_type"]}'
         f'-cmplx={params["cmplx"]}'
     )
     model = model_fn(
@@ -190,7 +191,6 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         upsample_mode=params["upsample_mode"],
         dropout=params["dropout"],
         pad_to_remove=padding,
-        project=params["fc_type"],
         cmplx=params["cmplx"]
     )
     if model_path:
@@ -287,9 +287,10 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
 
     print('Evaluating')
     if not args.only_val:
-        temp_metrics = evaluate(model, test_loader, device=device)
+        temp_metrics = evaluate(model, test_loader, metrics=metrics_class, device=device)
         m['PSNR'] = temp_metrics['PSNR']
-        m['IoU'] = temp_metrics['IoU']
+        if not args.denoise:
+            m['IoU'] = temp_metrics['IoU']
     del(model)
     torch.cuda.empty_cache()
     stats = {
