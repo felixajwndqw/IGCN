@@ -119,7 +119,6 @@ class RCF(Model):
         super().__init__(**kwargs)
         self.p = pad_to_remove // 2
         self.cmplx = cmplx
-
         if cmplx:
             self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1)
         else:

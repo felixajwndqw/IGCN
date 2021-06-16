@@ -208,10 +208,6 @@ def max_summed_mag_gabor_pool(x, **kwargs):
     return x.gather(dim=3, index=idxs).squeeze(3), idxs
 
 
-def avg_gabor_pool(x, dim=3, **kwargs):
-    return torch.mean(x, dim=dim), None
-
-
 def init_weights(w, mode='he', polar=False):
     """Initialises conv. weights according to C. Trabelsi, Deep Complex Networks
     """

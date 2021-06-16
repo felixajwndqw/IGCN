@@ -9,19 +9,16 @@ from torch.nn.modules.conv import Conv2d
 from .gabor import gabor, gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
 from .utils import _pair
 from .cmplx import (
-    cmplx,
     cmplx_mult,
     conv_cmplx,
     linear_cmplx,
     pool_cmplx,
     init_weights,
-    avg_gabor_pool,
     max_mag_gabor_pool,
     max_summed_mag_gabor_pool,
     relu_cmplx,
     relu_cmplx_mod,
     relu_cmplx_z,
-    bnorm_cmplx_old,
     magnitude,
     phase,
     concatenate
@@ -626,7 +623,7 @@ class BatchNormCmplxOld(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        if x.size(1):
+        if x.size(1) == 1:
             return x
 
         x, xs = _compress_shape(x)
@@ -684,6 +681,7 @@ class GaborPool(nn.Module):
     def __init__(self, pool_type='max', no_g=None, **pool_kwargs):
         super().__init__()
         self.no_g = no_g
+        self.pool_type = pool_type
         if pool_type == 'max':
             self.pooling = torch.max
         elif pool_type == 'avg':
@@ -693,7 +691,7 @@ class GaborPool(nn.Module):
         elif pool_type == 'sum':
             self.pooling = max_summed_mag_gabor_pool
         elif pool_type is None:
-            self.pooling = nn.Identity()
+            self.pooling = Identity()
 
     def forward(self, x):
         if self.no_g is not None:
@@ -705,7 +703,19 @@ class GaborPool(nn.Module):
                 x.size(3),
                 x.size(4)
             )
-        x, _ = self.pooling(x, dim=3)
+        x = self.pooling(x, dim=3)
+        if type(x) is tuple or self.pool_type == 'max':
+            x = x[0]
+        return x
+
+
+class Identity(nn.Module):
+    """Argument agnostic identity layer.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x, *args, **kwargs):
         return x
 
 
