@@ -117,10 +117,10 @@ def main():
 
         if args.test:
             model.eval()
-            if args.sigmoid:
-                args.results_dir += 'sigmoid'
-            else:
-                args.results_dir += 'norm'
+            # if args.sigmoid:
+            #     args.results_dir += 'sigmoid'
+            # else:
+            #     args.results_dir += 'norm'
             if not os.path.exists(args.results_dir):
                 os.makedirs(args.results_dir)
             filenames = glob.glob('../data/bsd/processed/test/labels/*.png')
@@ -142,13 +142,11 @@ def main():
                     out = F.interpolate(out, (w, h), mode='bilinear')
                     outs.append(out)
                 out_batch = sum(outs) / len(outs)
-                # torchvision.utils.save_image(
-                #     out_batch,
-                #     os.path.join(args.results_dir, fname),
-                #     mode='L',
-                # )
                 out_batch = out_batch[0, 0]
                 if args.sigmoid:
+                    # out_batch = torch.sigmoid(out_batch)
+                    # out_batch[out_batch < 0] = 0.
+
                     out_batch = torch.sigmoid(out_batch)
                     out_batch = (out_batch.cpu().numpy() * 255).astype('uint8')
                 else:

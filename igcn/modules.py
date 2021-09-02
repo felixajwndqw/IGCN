@@ -95,10 +95,11 @@ class IGConv(Conv2d):
 
         self.gabor = IGabor(no_g, kernel_size=kernel_size)
         self.no_g = no_g
-        self.pooling = pooling(kernel_size=pool_kernel, stride=pool_stride)
+        self.pooling = None
+        if pooling is not None:
+            self.pooling = pooling(kernel_size=pool_kernel, stride=pool_stride)
         self.max_gabor = max_gabor
         self.conv_kwargs = conv_kwargs
-        self.pooling = []
         self.bn = nn.BatchNorm2d(output_features * no_g)
         self.include_gparams = include_gparams
 
@@ -220,3 +221,16 @@ class MaxGabor(nn.Module):
         reshaped = x.view(x.size(0), x.size(1) // self.no_g, self.no_g, x.size(2), x.size(3))
         _, max_idxs = torch.max(reshaped, dim=2)
         return torch.cat((x, max_idxs.float()), dim=1)
+
+
+class RemovePadding(nn.Module):
+    """Removes padding from tensor
+    """
+    def __init__(self, p):
+        super().__init__()
+        self.p = p // 2
+
+    def forward(self, x):
+        if self.p > 0:
+            x = x[..., self.p:-self.p, self.p:-self.p]
+        return x

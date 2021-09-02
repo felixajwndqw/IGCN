@@ -1,3 +1,4 @@
+from igcn.modules import RemovePadding
 import torch
 import torch.nn as nn
 from quicktorch.models import Model
@@ -19,7 +20,7 @@ class UNetIGCNCmplx(Model):
         self.mode = mode
         self.kernel_size = kernel_size
         self.gp = gp
-        self.p = pad_to_remove // 2
+        self.strip = RemovePadding(pad_to_remove)
 
         in_channels_conv = n_channels
 
@@ -69,15 +70,14 @@ class UNetIGCNCmplx(Model):
         x = self.up4(x, x1)
         x = concatenate(x)
         x = x.view(x.size(0), -1, x.size(-2), x.size(-1))
-        if self.p > 0:
-            x = x[..., self.p:-self.p, self.p:-self.p]
+        x = self.strip(x)
         mask = self.outc(x)
         return mask
 
 
 class UNetIGCN(Model):
     def __init__(self, n_classes, n_channels=1, base_channels=16, no_g=4,
-                 kernel_size=3, mode='nearest', **kwargs):
+                 kernel_size=3, mode='nearest', pad_to_remove=64, **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -94,6 +94,7 @@ class UNetIGCN(Model):
         self.up2 = Up(base_channels * 3, base_channels * 2, kernel_size, no_g=no_g, mode=mode)
         self.up3 = Up(base_channels * 2, base_channels, kernel_size, no_g=no_g, mode=mode)
         self.up4 = Up(base_channels, base_channels, kernel_size, no_g=no_g, mode=mode, last=True)
+        self.strip = RemovePadding(pad_to_remove)
         self.outc = nn.Conv2d(base_channels, n_classes, kernel_size=1)
 
     def forward(self, x):
@@ -106,6 +107,7 @@ class UNetIGCN(Model):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
+        x = self.strip(x)
         mask = self.outc(x)
         return mask
 
@@ -117,8 +119,8 @@ class RCF(Model):
                  relu_type='mod', pad_to_remove=64, project='cat', cmplx=True,
                  **kwargs):
         super().__init__(**kwargs)
-        self.p = pad_to_remove // 2
         self.cmplx = cmplx
+        self.strip = RemovePadding(pad_to_remove)
         if cmplx:
             self.to_group = IGConvCmplx(n_channels, base_channels, kernel_size, no_g=no_g, padding=1)
         else:
@@ -159,16 +161,14 @@ class RCF(Model):
         x = self.to_group(x)
 
         x, side = self.layers[0](x)
-        if self.p > 0:
-            side = side[..., self.p:-self.p, self.p:-self.p]
+        side = self.strip(side)
 
         sides = [side]
         for layer, up in zip(self.layers, self.ups):
             x = self.pool(x)
             x, side = layer(x)
             side = up(side)
-            if self.p > 0:
-                side = side[..., self.p:-self.p, self.p:-self.p]
+            side = self.strip(side)
             sides.append(side)
 
         x = torch.cat(sides, dim=1)

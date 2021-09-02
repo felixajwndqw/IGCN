@@ -1,24 +1,26 @@
 #!/usr/bin/python -u
 import os
-from albumentations.augmentations.transforms import Rotate
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from igcn.seg.models import UNetIGCNCmplx, RCF
+from data import get_prague_train_data, get_prague_test_data, get_prague_splits
+from igcn.seg.models import UNetIGCN, UNetIGCNCmplx, RCF
 from igcn.seg.metrics import RCFMetric
 from igcn.seg.loss import RCFLoss
 from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from igcn.seg.attention.loss import DAFLoss
-from attention.models import DAFMSPlain
-from quicktorch.utils import train, evaluate, imshow, get_splits
-from quicktorch.metrics import DenoisingTracker, SegmentationTracker
+from quicktorch.modules.attention.models import DAFMSPlain
+from quicktorch.utils import train, evaluate, get_splits
+from quicktorch.metrics import (
+    DenoisingTracker, SegmentationTracker, MultiClassSegmentationTracker
+)
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
 from utils import ExperimentParser, calculate_error, RotateAndCrop
-from unet import UNetCmplx
+from unet import UNetCmplx, UNet
 import albumentations
 from isbi import get_isbi_train_data, get_isbi_test_data
 
@@ -28,6 +30,7 @@ SIZES = {
     'stars_bad_columns_ccd_saturation': 1200,
     'isbi': 30,
     'bsd': 300,
+    'prague': 90,
 }
 
 
@@ -39,7 +42,7 @@ def write_results(**kwargs):
     f.close()
 
 
-def get_metrics_criterion(variant, denoise=False):
+def get_metrics_criterion(variant, denoise=False, binary=True):
     if 'DAF' in variant:
         MetricsClass = DAFMetric()
         criterion = DAFLoss()
@@ -51,8 +54,13 @@ def get_metrics_criterion(variant, denoise=False):
             MetricsClass = DenoisingTracker()
             criterion = nn.MSELoss()
         else:
-            MetricsClass = SegmentationTracker()
-        criterion = nn.BCEWithLogitsLoss()
+            if binary:
+                criterion = nn.BCEWithLogitsLoss()
+                MetricsClass = SegmentationTracker()
+            else:
+                criterion = nn.CrossEntropyLoss()
+                MetricsClass = MultiClassSegmentationTracker()
+
     return MetricsClass, criterion
 
 
@@ -91,7 +99,7 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
     return train_loader, val_loader
 
 
-def get_synth_cirrus_test_data(args, training_args, data_dir):
+def get_synth_cirrus_test_data(args, training_args, data_dir, **kwargs):
     size = 256
     test_loader = DataLoader(
         SynthCirrusDataset(
@@ -126,7 +134,7 @@ def get_bsd_train_data(args, training_args, data_dir, split):
     return train_loader, val_loader
 
 
-def get_bsd_test_data(args, training_args, data_dir):
+def get_bsd_test_data(args, training_args, data_dir, **kwargs):
     size = 272
     test_loader = bsd(
         transform=albumentations.Compose([
@@ -143,25 +151,27 @@ def get_bsd_test_data(args, training_args, data_dir):
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
                  dataset='cirrus', padding=0, **params):
-    model_fn = UNetIGCNCmplx
+    models = {
+        'SFC': UNetIGCNCmplx,
+        'SFCReal': UNetIGCN,
+        'Standard': UNetCmplx,
+        'StandardReal': UNet,
+        'DAF': DAFStackSmall,
+        'DAFMS': DAFMS,
+        'DAFMSPlain': DAFMSPlain,
+        'RCF': RCF,
+    }
+    scalings = {
+        'T': True,
+        'P': 'parallel'
+    }
     scale = False
-    if variant[-1] == "T":
-        scale = True
-    if variant[-1] == "P":
-        scale = 'parallel'
-    attention = False
-    if "Standard" in variant:
-        model_fn = UNetCmplx
-    if "DAF" in variant:
-        attention = True
-        model_fn = DAFStackSmall
-    if "DAFMS" in variant:
-        model_fn = DAFMS
-    if "DAFMSPlain" in variant:
-        model_fn = DAFMSPlain
-    if "RCF" in variant:
-        model_fn = RCF
+    if variant[-1] in scalings.keys():
+        scale = scalings[variant[-1]]
+        variant = variant[:-1]
+    attention = True if "DAF" in variant else False
     model_name = f'{variant}-{dataset}'
+    model_fn = models[variant]
     if dataset == 'cirrus':
         model_name += (
             f'_bands={bands}'
@@ -185,6 +195,7 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         no_g=params["no_g"],
         kernel_size=params["kernel_size"],
         base_channels=params["base_channels"],
+        pooling=params["pooling"],
         scale=scale,
         gp=params["final_gp"],
         relu_type=params["relu_type"],
@@ -223,19 +234,27 @@ def load(model, save_path, legacy=False, pretrain=True, att=False):
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
 
-def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0', split=None, split_no=0, args=None):
+def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
     if net_args.dataset == 'synth':
         n_channels = 1
+        n_classes = 1
         get_train = get_synth_cirrus_train_data
         get_test = get_synth_cirrus_test_data
     elif net_args.dataset == 'isbi':
         n_channels = 1
+        n_classes = 1
         get_train = get_isbi_train_data
         get_test = get_isbi_test_data
     elif net_args.dataset == 'bsd':
         n_channels = 3
+        n_classes = 1
         get_train = get_bsd_train_data
         get_test = get_bsd_test_data
+    elif net_args.dataset == 'prague':
+        n_channels = 3
+        n_classes = 10
+        get_train = get_prague_train_data
+        get_test = get_prague_test_data
     else:
         raise NotImplementedError()
 
@@ -248,20 +267,22 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
     test_loader = get_test(
         args,
         training_args,
-        data_dir=args.dir
+        data_dir=args.dir,
+        test_idxs=test_idxs
     )
 
     model = create_model(
         'models/seg/' + net_args.dataset,
         variant=args.model_variant,
         n_channels=n_channels,
-        n_classes=1,
+        n_classes=n_classes,
         model_path=args.model_path,
         padding=args.padding,
         **vars(net_args),
     ).to(device)
 
-    metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise)
+    metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes == 1)
+    metrics_class.Writer = writer         # Delete this line if metric logging not desired
 
     total_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
@@ -282,7 +303,7 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
         sch=scheduler,
         metrics=metrics_class,
         criterion=criterion,
-        val_epochs=250
+        val_epochs=5
     )
 
     print('Evaluating')
@@ -296,6 +317,8 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
     stats = {
         'total_params': total_params
     }
+    if 'epoch' not in m.keys():
+        m['epoch'] = training_args.epochs
     return m, stats
 
 
@@ -304,6 +327,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
 
     metrics = []
     save_paths = []
+    test_idxs = None
     if training_args.nsplits == 1:
         splits = [[None, None]]
     else:
@@ -313,6 +337,9 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             splits = get_splits(N, N // args.val_size)
         if net_args.dataset == 'bsd':
             splits = get_splits(N, max(3, training_args.nsplits))  # Divide into 3 or more blocks
+        if net_args.dataset == 'prague':
+            splits, test_idxs = get_prague_splits(N, max(3, training_args.nsplits))
+            # splits = get_splits(N, max(3, training_args.nsplits))  # Divide into 3 or more blocks
 
     if exp_name is None:
         exp_name = (
@@ -330,6 +357,8 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             exp_worksheet_name += 'Den'
         else:
             exp_worksheet_name += 'Seg'
+    elif net_args.dataset == 'prague':
+        exp_worksheet_name = exp_worksheet_name.capitalize()
     else:
         exp_worksheet_name = exp_worksheet_name.upper()
     writer = LabScribeWriter(
@@ -350,6 +379,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             split=split,
             split_no=split_no,
             args=args,
+            test_idxs=test_idxs,
         )
         save_paths.append(m.pop('save_path'))
         metrics.append(m)
@@ -400,7 +430,7 @@ def main():
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default="SFC", type=str,
-                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain', 'RCF'],
+                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain', 'RCF', 'SFCReal', 'StandardReal'],
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--denoise',
                         default=False, action='store_true',

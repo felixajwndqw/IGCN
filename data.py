@@ -1,13 +1,18 @@
 import argparse
 import glob
 import os
+import albumentations
 import PIL.Image as Image
 import imageio
 import numpy as np
+import xml.etree.ElementTree as ET
+import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
-from quicktorch.utils import imshow
+from quicktorch.utils import imshow, train
+import matplotlib.pyplot as plt
+from sklearn.model_selection import KFold
 
 
 class EMDataset(Dataset):
@@ -65,6 +70,133 @@ class EMDataset(Dataset):
 
     def __len__(self):
         return len(self.em_paths) * self.aug_mult
+
+
+class PragueTextureDataset(Dataset):
+    classes = {
+        "bark": 0,
+        "flowers": 1,
+        "glass": 2,
+        "man-made": 3,
+        "nature": 4,
+        "plants": 5,
+        "rock": 6,
+        "stone": 7,
+        "textile": 8,
+        "wood": 9
+    }
+
+    def __init__(self, data_dir, indices=None, padding=0, transform=None):
+        super().__init__()
+        self.data_dir = data_dir
+        self.retrieve_paths(ET.parse(os.path.join(data_dir, 'data.xml')))
+        self.transform = transform
+        self.padding = padding
+        if indices is not None:
+            self.paths = [self.paths[i] for i in indices]
+            self.mask_paths = [self.mask_paths[i] for i in indices]
+            self.class_maps = [self.class_maps[i] for i in indices]
+
+    def __getitem__(self, i):
+        image = np.array(Image.open(self.paths[i]))
+        mask = np.array(Image.open(self.mask_paths[i]))
+
+        n_regions = len(self.class_maps[i])
+        regions = [np.where(mask == i, True, False) for i in range(n_regions)]
+
+        for j in range(n_regions):
+            mask[regions[j]] = self.classes[self.class_maps[i][j]]
+
+        if self.transform is not None:
+            t = self.transform(image=image, mask=mask)
+            image = t['image']
+            mask = t['mask']
+
+        image = transforms.ToTensor()(image)
+        mask = torch.tensor(mask).long()
+
+        # albumentations workaround
+        if self.padding > 0:
+            mask = remove_padding(mask, self.padding)
+
+        return image, mask
+
+    def __len__(self):
+        return len(self.paths)
+
+    def retrieve_paths(self, metadata):
+        sets = metadata.findall('section')
+        self.paths = []
+        self.mask_paths = []
+        self.class_maps = []
+
+        for i in range(len(sets) - 1):
+            subsections = sets[i].findall('section')
+            n_segments = int(subsections[0][1].text)
+            for j in range(3):  # subsets - 3 masks
+                for k in range(3):  # subsubsets - 3 imgs per mask
+                    self.paths.append(os.path.join(self.data_dir, subsections[j * 5 + 2 + k][0].text.strip("\"")))
+                    self.mask_paths.append(os.path.join(self.data_dir, subsections[j * 5 + 1][0].text.strip("\"")))
+                    texture_sources = [subsections[j * 5 + 2 + k][l + 8].text for l in range(n_segments)]
+                    self.class_maps.append([src.strip("\"").split('/')[0] for src in texture_sources])
+
+
+def get_prague_splits(N, n_splits):
+    """Removes test portion of every other sample before generating train/val
+    """
+    all_idxs = list(range(180))
+    train_idxs = all_idxs[::2]
+    test_idxs = all_idxs[1::2]
+
+    kfold = KFold(n_splits=n_splits, shuffle=True)
+    splits = kfold.split(train_idxs)
+    splits = np.array(list(splits), dtype=object)
+
+    return splits, test_idxs
+
+
+def get_prague_train_data(args, training_args, data_dir, split):
+    def grab_dataloader(isplit):
+        return DataLoader(
+            PragueTextureDataset(
+                data_dir,
+                transform=albumentations.Compose([
+                    albumentations.Resize(size // downscale, size // downscale),
+                    albumentations.Flip(),
+                    albumentations.RandomRotate90(),
+                    # albumentations.GaussNoise(p=1., var_limit=(0.05 * 255, 0.15 * 255)),
+                    albumentations.PadIfNeeded(size // downscale + args.padding, size // downscale + args.padding, border_mode=4)
+                ]),
+                indices=isplit,
+                padding=args.padding,
+            ),
+            batch_size=training_args.batch_size,
+            shuffle=True
+        )
+    size = 512
+    downscale = 4
+    train_loader = grab_dataloader(split[0])
+    val_loader = grab_dataloader(split[1])
+    return train_loader, val_loader
+
+
+def get_prague_test_data(args, training_args, data_dir, test_idxs=None):
+    size = 512
+    downscale = 4
+    if test_idxs is None:
+        test_idxs = np.arange(90, 180)
+    return DataLoader(
+        PragueTextureDataset(
+            data_dir,
+            transform=albumentations.Compose([
+                albumentations.Resize(size // downscale, size // downscale),
+                albumentations.PadIfNeeded(size // downscale + args.padding, size // downscale + args.padding, border_mode=4)
+            ]),
+            indices=test_idxs,
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size,
+    )
 
 
 def remove_padding(t, p):

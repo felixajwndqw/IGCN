@@ -57,12 +57,11 @@ def get_isbi_train_data(args, training_args, data_dir='../data/isbi', split=None
 
 
 def get_isbi_test_data(args, training_args, data_dir='../data/isbi', **kwargs):
-    padding = 64
     return DataLoader(
         EMDataset(
             data_dir + '/test',
             albumentations.Compose([
-                albumentations.PadIfNeeded(256 + padding, 256 + padding, border_mode=4)
+                albumentations.PadIfNeeded(256 + args.padding, 256 + args.padding, border_mode=4)
             ]),
             aug_mult=1,
             padding=args.padding
@@ -112,6 +111,10 @@ def parse_filename(filename):
     if 'relu' in filename:
         relu_i = filename.index('relu') + len('relu') + 1
         params['relu_type'] = filename[relu_i:filename.index('_', relu_i)]
+    # if 'cmplx' in filename:
+    #     cmplx_i = filename.index('cmplx') + len('cmplx') + 1
+    #     params['cmplx'] = filename[cmplx_i:filename.index('_', cmplx_i)]
+    #     params['cmplx'] = True if params['cmplx'] == 'True' else False
 
     params['name'] = filename
 
