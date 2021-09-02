@@ -10,19 +10,19 @@ class TripleIGConv(nn.Module):
         padding = kernel_size // 2
         self.conv1 = nn.Sequential(
             IGConv(in_channels, out_channels, no_g=no_g,
-                   rot_pool=None, kernel_size=kernel_size,
+                   kernel_size=kernel_size,
                    padding=padding, max_gabor=False),
             nn.ReLU(inplace=True)
         )
         self.conv2 = nn.Sequential(
             IGConv(out_channels, out_channels, no_g=no_g,
-                   rot_pool=None, kernel_size=kernel_size,
+                   kernel_size=kernel_size,
                    padding=padding, max_gabor=False),
             nn.ReLU(inplace=True)
         )
         self.conv3 = nn.Sequential(
             IGConv(out_channels, out_channels, no_g=no_g,
-                   rot_pool=None, kernel_size=kernel_size,
+                   kernel_size=kernel_size,
                    padding=padding, max_gabor=last,
                    include_gparams=include_gparams),
             nn.ReLU(inplace=True)
