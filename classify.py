@@ -169,6 +169,7 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
                   best_split=1, augment=False, nsplits=5, error_m=None,
                   weight_decay=1e-7, lr=1e-4, lr_decay=1, best_acc=0,
                   translate=0, scale=0, shear=0, softmax=False,
+                  l_init='uniform', sigma_init='fixed', single_param=False,
                   **kwargs):
     if dataset == 'mnistrot':  # this is dumb but it works with my dumb notation
         dataset = 'mnistr'
@@ -195,6 +196,9 @@ def write_results(dataset='mnist', kernel_size=3, no_g=4, base_channels=16,
            '\t\t' + str(all_gp) +
            '\t' + str(bnorm) +
            "\t\t" + str(softmax) +
+           '\t' + str(l_init) +
+           '\t' + str(sigma_init) +
+           '\t' + str(single_param) +
            '\t' + "{:1.4f}".format(m['accuracy']) +
            "\t" + "{:1.4f}".format(m['precision']) +
            "\t" + "{:1.4f}".format(m['recall']) +

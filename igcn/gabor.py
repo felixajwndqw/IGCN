@@ -260,8 +260,8 @@ def cartesian_coords(weight):
     h = weight.size(-2)
     w = weight.size(-1)
     y, x = torch.meshgrid([torch.arange(-h / 2, h / 2), torch.arange(-w / 2, w / 2)])
-    x = x.to(weight.device)
-    y = y.to(weight.device)
+    x = x.to(weight.device) + .5
+    y = y.to(weight.device) + .5
     return x, y
 
 
@@ -320,7 +320,7 @@ def grad_sin(weight, params):
     return torch.stack([dgdt, dgdl], dim=1)
 
 
-def gabor_cmplx(weight, params):
+def gabor_cmplx(weight, theta, lam, sigma=math.pi):
     """Computes a complex gabor filter.
 
     Args:
@@ -336,17 +336,27 @@ def gabor_cmplx(weight, params):
         torch.tensor: gabor filter with (2, G, 1, H, W) dimensions
     """
     x, y = cartesian_coords(weight)
-    f = f_h(x, y)
-    theta = params[0]
-    l = params[1].unsqueeze(1).unsqueeze(1)
+    lam = lam.unsqueeze(1).unsqueeze(1)
+    sigma = sigma.unsqueeze(1).unsqueeze(1)
+    f = f_h(x, y, sigma)
     x_p = x_prime(x, y, theta)
 
-    real = f * s_h(x_p, l)
-    imag = f * s_h_imag(x_p, l)
+    real = f * s_h(x_p, lam)
+    imag = f * s_h_imag(x_p, lam)
     out = cmplx(real, imag)
-    # out = norm(out)
-    # print(f'g.max()={g.max()}, g.min()={g.min()}, out.max()={out.max()}, out.min()={out.min()}, ')
     return out.unsqueeze(2)
+
+
+def gabor_wavelet(weight, theta, w):
+    x, y = cartesian_coords(weight)
+    # x *= s
+    # y *= s
+    x_p = x_prime(x, y, theta)
+    real = torch.cos(w * x_p) - torch.exp(-0.5 * (torch.tensor(w) ** 2))
+    imag = torch.sin(w * x_p)
+    output = cmplx(real, imag)
+    output *= torch.exp(-0.5 * (x ** 2 + y ** 2)) * np.pi ** (-0.25)
+    return output
 
 
 def gabor_gradient(weight, params):
@@ -405,7 +415,7 @@ def gabor_gradient_cmplx(weight, params):
 def f_h(x, y, sigma=math.pi):
     """First half of filter
     """
-    return torch.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2)).unsqueeze(0)
+    return torch.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2))
 
 
 def s_h(x_p, l):

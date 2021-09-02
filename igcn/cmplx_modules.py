@@ -137,19 +137,26 @@ class IGaborCmplx(nn.Module):
         layer (boolean, optional): Whether this is used as a layer or a
             modulation function.
         kernel_size (int, optional): Size of gabor kernel. Defaults to 3.
+        single_param (boolean, optional): Uses single lambda/sigma for gabor filters,
+            rather than no_g different variables.
     """
-    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='cmplx', **kwargs):
+    def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='cmplx',
+                 l_init='uniform', sigma_init='fixed', single_param=False, **kwargs):
         super().__init__(**kwargs)
+        print(f'{l_init=}, {sigma_init=}, {single_param=}')
+        self.no_g = no_g
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
         self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
         self.register_parameter(name="theta", param=self.theta)
-        self.l = nn.Parameter(data=torch.Tensor(no_g))
-        self.l.data.uniform_(
-            -1 / math.sqrt(no_g),
-            1 / math.sqrt(no_g)
-        )
+        if not single_param:
+            self.l = nn.Parameter(data=torch.Tensor(no_g))
+            self.sigma = nn.Parameter(data=torch.Tensor(no_g))
+        else:
+            self.l = nn.Parameter(data=torch.Tensor(1))
+            self.sigma = nn.Parameter(data=torch.Tensor(1))
+        self.init_lambda(l_init)
+        self.init_sigma(sigma_init)
         self.register_parameter(name="lambda", param=self.l)
-        self.no_g = no_g
         self.data_dim = '2d'
 
         if type(kernel_size) is tuple:
@@ -212,10 +219,9 @@ class IGaborCmplx(nn.Module):
         """
         filt = gabor_cmplx(
             x,
-            torch.stack((
-                self.theta,
-                self.l
-            ))
+            self.theta,
+            self.l,
+            self.sigma
         ).unsqueeze(1)
         if self.cyclic:
             filt = cyclic_expand(filt)
@@ -228,6 +234,31 @@ class IGaborCmplx(nn.Module):
         """Called in backward hook so that filter bank will be regenerated.
         """
         self.calc_filters = True
+
+    def init_lambda(self, l_init):
+        if l_init == 'uniform':
+            self.l.data.uniform_(
+                -1 / math.sqrt(self.no_g),
+                1 / math.sqrt(self.no_g)
+            )
+        elif l_init == 'normalg':
+            self.l.data.normal_(1 / math.sqrt(self.no_g))
+        elif l_init == 'normal':
+            self.l.data.normal_(1 / math.sqrt(2))
+        elif l_init == 'fixed':
+            self.l.data.fill_(1 / math.sqrt(2))
+            self.l.requires_grad = False
+        else:
+            raise ValueError("Unknown lambda initialisation type: " + l_init)
+
+    def init_sigma(self, sigma_init):
+        if sigma_init == 'normal':
+            self.sigma.data.normal_(math.pi)
+        elif sigma_init == 'fixed':
+            self.sigma.data.fill_(math.pi)
+            self.sigma.requires_grad = False
+        else:
+            raise ValueError("Unknown lambda initialisation type: " + sigma_init)
 
 
 class IGaborCmplx2(nn.Module):
@@ -317,7 +348,9 @@ class IGConvCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init='he', mod='hadam', **conv_kwargs):
+                 weight_init='he', mod='hadam',
+                 l_init='uniform', sigma_init='fixed', single_param=False,
+                 **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -334,7 +367,8 @@ class IGConvCmplx(nn.Module):
         self.conv = conv_cmplx
         self.dim = len(kernel_size)
 
-        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod,
+                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param)
         self.no_g = no_g
         self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
 
@@ -400,7 +434,9 @@ class IGConvGroupCmplx(nn.Module):
     """
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
-                 weight_init='he', mod='hadam', **conv_kwargs):
+                 weight_init='he', mod='hadam',
+                 l_init='uniform', sigma_init='fixed', single_param=False,
+                 **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
         super().__init__()
@@ -418,7 +454,8 @@ class IGConvGroupCmplx(nn.Module):
         self.dim = len(kernel_size)
         conv_kwargs['data_dim'] = f'{self.dim}d'
 
-        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod)
+        self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod,
+                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param)
         self.no_g = no_g
         self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
 

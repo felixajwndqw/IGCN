@@ -29,7 +29,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--dataset',
             default='mnistrot', type=str,
-            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus', 'synth'],
+            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus', 'synth', 'prague'],
             help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--model_type',
@@ -145,6 +145,20 @@ class ExperimentParser(argparse.ArgumentParser):
             choices=[None, 'nearest', 'bilinear'],
             help=('Decoder upsampling method. Choices: %(choices)s '
                   '(default: %(default)s.)'))
+        self.n_parser.add_argument(
+            '--l_init',
+            default='uniform', type=str,
+            choices=['uniform', 'normal', 'normalg', 'fixed'],
+            help='Initialisation method for gabor lambda param.')
+        self.n_parser.add_argument(
+            '--sigma_init',
+            default='fixed', type=str,
+            choices=['fixed', 'normal'],
+            help='Initialisation method for gabor lambda param.')
+        self.n_parser.add_argument(
+            '--single_param',
+            default=False, action='store_true',
+            help='Uses only a single lambda/sigma parameter.')
 
         self.t_parser.add_argument(
             '--epochs',
