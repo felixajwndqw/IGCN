@@ -3,19 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 from quicktorch.models import Model
 from igcn.cmplx import new_cmplx, cmplx
-from igcn.cmplx_modules import ConvCmplx, BatchNormCmplxOld, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx
+from igcn.cmplx_modules import ConvCmplx, BatchNormCmplxOld, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 from igcn.cmplx_bn import BatchNormCmplx
+from igcn.seg.scale import Scale
 
 
 class UNetCmplx(Model):
     def __init__(self, n_classes, n_channels=1, base_channels=16,
-                 kernel_size=3, nfc=1, dropout=0., pad_to_remove=64, **kwargs):
+                 kernel_size=3, nfc=1, dropout=0., pad_to_remove=64, scale=False, **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.kernel_size = kernel_size
         self.p = pad_to_remove // 2
 
+        if scale:
+            self.preprocess = Scale(n_channels, method='arcsinh')
+        else:
+            self.preprocess = None
         self.inc = TripleConvCmplx(n_channels, base_channels, kernel_size)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, **kwargs)
         self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, **kwargs)
@@ -39,6 +44,8 @@ class UNetCmplx(Model):
         )
 
     def forward(self, x):
+        if self.preprocess is not None:
+            x = self.preprocess(x)
         x = new_cmplx(x)
         x1 = self.inc(x)
         x2 = self.down1(x1)
@@ -96,6 +103,8 @@ class DownCmplx(nn.Module):
         super().__init__()
         if pooling == 'avg':
             Pool = AvgPoolCmplx(2)
+        elif pooling == 'mag':
+            Pool = MaxMagPoolCmplx(2)
         else:
             Pool = MaxPoolCmplx(2)
         self.pool_conv = nn.Sequential(
