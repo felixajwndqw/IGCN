@@ -14,7 +14,9 @@ class UNetIGCNCmplx(Model):
                  kernel_size=3, nfc=1, dropout=0., pooling='max',
                  mode='bilinear', gp='max', scale=False,
                  relu_type='mod', pad_to_remove=64, **kwargs):
+        print(kwargs)
         super().__init__(**kwargs)
+        print(kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.mode = mode
@@ -32,15 +34,15 @@ class UNetIGCNCmplx(Model):
             self.preprocess = Scale(n_channels, in_channels_conv, method='arcsinh')
         else:
             self.preprocess = None
-        self.inc = TripleIGConvCmplx(in_channels_conv, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, first=True)
-        self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
-        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
-        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
-        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling)
-        self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode)
-        self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode)
-        self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode)
-        self.up4 = UpCmplx(base_channels, base_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type, mode=mode, last=True)
+        self.inc = TripleIGConvCmplx(in_channels_conv, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, first=True, **kwargs)
+        self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
+        self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
+        self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
+        self.up4 = UpCmplx(base_channels, base_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type, mode=mode, last=True, **kwargs)
 
         gp_mult = no_g if gp is None else 1
         linear_blocks = []

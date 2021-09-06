@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.modules.conv import Conv2d
-from .gabor import gabor, gabor_cmplx, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
+from .gabor import gabor, gabor_cmplx, gabor_wavelet, norm, sin, GaborFunctionCmplx, GaborFunctionCyclicCmplx, GaborFunctionCmplxMult, GaborFunctionCyclicCmplxMult
 from .utils import _pair
 from .cmplx import (
     cmplx_mult,
@@ -141,10 +141,12 @@ class IGaborCmplx(nn.Module):
             rather than no_g different variables.
     """
     def __init__(self, no_g=4, kernel_size=3, cyclic=False, mod='cmplx',
-                 l_init='uniform', sigma_init='fixed', single_param=False, **kwargs):
+                 l_init='uniform', sigma_init='fixed', single_param=False,
+                 morlet=False, **kwargs):
         super().__init__(**kwargs)
-        print(f'{l_init=}, {sigma_init=}, {single_param=}')
+        print(f'{l_init=}, {sigma_init=}, {single_param=}, {morlet=}')
         self.no_g = no_g
+        self.morlet = morlet
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
         self.theta.data = torch.arange(no_g, dtype=torch.float) / (no_g) * math.pi
         self.register_parameter(name="theta", param=self.theta)
@@ -196,6 +198,12 @@ class IGaborCmplx(nn.Module):
         elif mod == "cmplx":
             self.modulate = cmplx_mult
 
+        self.morlet = morlet
+        if morlet:
+            self.filter = gabor_wavelet
+        else:
+            self.filter = gabor_cmplx
+
     def forward(self, x):
         if self.calc_filters:
             self.generate_gabor_filters(x)
@@ -217,7 +225,7 @@ class IGaborCmplx(nn.Module):
     def generate_gabor_filters(self, x):
         """Generates the gabor filter bank
         """
-        filt = gabor_cmplx(
+        filt = self.filter(
             x,
             self.theta,
             self.l,
@@ -349,7 +357,7 @@ class IGConvCmplx(nn.Module):
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
                  weight_init='he', mod='hadam',
-                 l_init='uniform', sigma_init='fixed', single_param=False,
+                 l_init='uniform', sigma_init='fixed', single_param=False, morlet=False,
                  **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
@@ -368,12 +376,12 @@ class IGConvCmplx(nn.Module):
         self.dim = len(kernel_size)
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, mod=mod,
-                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param)
+                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet)
         self.no_g = no_g
         self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
 
         self.include_gparams = include_gparams
-        self.conv_kwargs = conv_kwargs
+        self.conv_kwargs = sanitise_conv_kwargs(conv_kwargs)
 
     def forward(self, x):
         tw = self.gabor(self.weight)
@@ -435,7 +443,7 @@ class IGConvGroupCmplx(nn.Module):
     def __init__(self, input_features, output_features, kernel_size,
                  no_g=2, gabor_pooling=None, include_gparams=False,
                  weight_init='he', mod='hadam',
-                 l_init='uniform', sigma_init='fixed', single_param=False,
+                 l_init='uniform', sigma_init='fixed', single_param=False, morlet=False,
                  **conv_kwargs):
         kernel_size = _pair(kernel_size)
         self.kernel_size = kernel_size
@@ -455,12 +463,12 @@ class IGConvGroupCmplx(nn.Module):
         conv_kwargs['data_dim'] = f'{self.dim}d'
 
         self.gabor = IGaborCmplx(no_g, kernel_size=kernel_size, cyclic=True, mod=mod,
-                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param)
+                                 l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet)
         self.no_g = no_g
         self.gabor_pooling = GaborPool(gabor_pooling) if gabor_pooling is not None else None
 
         self.include_gparams = include_gparams
-        self.conv_kwargs = conv_kwargs
+        self.conv_kwargs = sanitise_conv_kwargs(conv_kwargs)
 
     def forward(self, x):
         # print(f'self.weight.size()={self.weight.size()}')
@@ -558,7 +566,7 @@ class ConvCmplx(nn.Module):
         if weight_init is not None:
             init_weights(self.weight, weight_init)
         self.conv = conv_cmplx
-        self.conv_kwargs = conv_kwargs
+        self.conv_kwargs = sanitise_conv_kwargs(conv_kwargs)
 
     def forward(self, x):
         out = self.conv(x, self.weight, **self.conv_kwargs)
@@ -764,3 +772,11 @@ class ReshapeGabor(nn.Module):
     def forward(self, x):
         x, _ = _compress_shape(x)
         return x
+
+
+def sanitise_conv_kwargs(conv_kwargs):
+    valid_keys = ['stride', 'padding', 'dilation', 'groups', 'bias', 'padding_mode', 'device', 'dtype']
+    for key in list(conv_kwargs.keys()):
+        if key not in valid_keys:
+            conv_kwargs.pop(key)
+    return conv_kwargs

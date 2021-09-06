@@ -202,7 +202,11 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         upsample_mode=params["upsample_mode"],
         dropout=params["dropout"],
         pad_to_remove=padding,
-        cmplx=params["cmplx"]
+        cmplx=params["cmplx"],
+        l_init=params["l_init"],
+        sigma_init=params["sigma_init"],
+        single_param=params["single_param"],
+        morlet=params["morlet"],
     )
     if model_path:
         load(model, model_path, False, pretrain=pretrain, att=attention)

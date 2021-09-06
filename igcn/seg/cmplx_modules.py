@@ -94,7 +94,7 @@ class TripleIGConvCmplx(nn.Module):
 class DownCmplx(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max', relu_type='mod'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, pooling='avg', gp='max', relu_type='mod', **kwargs):
         super().__init__()
         if pooling == 'avg':
             Pool = AvgPoolCmplx(2)
@@ -104,7 +104,7 @@ class DownCmplx(nn.Module):
             Pool = MaxPoolCmplx(2)
         self.pool_conv = nn.Sequential(
             Pool,
-            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type)
+            TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type, **kwargs)
         )
 
     def forward(self, x):
@@ -141,7 +141,7 @@ class UpCmplx(nn.Module):
             be used. Defaults to 'nearest'.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None, relu_type='mod'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, no_g=4, mode='nearest', last=False, gp=None, relu_type='mod', **kwargs):
         super().__init__()
 
         if mode is not None:
@@ -149,7 +149,7 @@ class UpCmplx(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
 
-        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp, relu_type=relu_type)
+        self.conv = TripleIGConvCmplx(in_channels, out_channels, kernel_size, no_g=no_g, last=last, gp=gp, relu_type=relu_type, **kwargs)
 
     def forward(self, x1, x2):
         x1, xs = _compress_shape(x1)

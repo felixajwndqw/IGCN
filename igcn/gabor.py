@@ -347,16 +347,18 @@ def gabor_cmplx(weight, theta, lam, sigma=math.pi):
     return out.unsqueeze(2)
 
 
-def gabor_wavelet(weight, theta, w):
+def gabor_wavelet(weight, theta, w, s):
     x, y = cartesian_coords(weight)
-    # x *= s
-    # y *= s
+    w = w.unsqueeze(1).unsqueeze(1)
+    s = s.unsqueeze(1).unsqueeze(1)
+    x = x * s
+    y = y * s
     x_p = x_prime(x, y, theta)
     real = torch.cos(w * x_p) - torch.exp(-0.5 * (torch.tensor(w) ** 2))
     imag = torch.sin(w * x_p)
-    output = cmplx(real, imag)
-    output *= torch.exp(-0.5 * (x ** 2 + y ** 2)) * np.pi ** (-0.25)
-    return output
+    out = cmplx(real, imag)
+    out *= torch.exp(-0.5 * (x ** 2 + y ** 2)) * np.pi ** (-0.25)
+    return out.unsqueeze(2)
 
 
 def gabor_gradient(weight, params):

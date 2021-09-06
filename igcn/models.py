@@ -461,6 +461,7 @@ class SFC(Model):
                  relu_type='c', fc_block='lin', fc_type='cat',
                  base_channels=16,
                  l_init='uniform', sigma_init='fixed', single_param=False,
+                 morlet=False,
                  **kwargs):
         (super().__init__)(**kwargs)
         if pooling == 'max':
@@ -472,32 +473,32 @@ class SFC(Model):
         channel_co = 16 // base_channels
         self.block1 = nn.Sequential(
             IGConvCmplx(n_channels, 24 // channel_co, 9, no_g, padding=3, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(24 // channel_co)),
             BatchNormCmplx((24 // channel_co * no_g), bnorm_type=bnorm))
         self.block2 = nn.Sequential(
             IGConvGroupCmplx(24 // channel_co, 32 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                             l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                             l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(32 // channel_co)),
             BatchNormCmplx((32 // channel_co * no_g), bnorm_type=bnorm))
         self.block3 = nn.Sequential(
             IGConvGroupCmplx(32 // channel_co, 36 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                             l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                             l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(36 // channel_co)),
             BatchNormCmplx((36 // channel_co * no_g), bnorm_type=bnorm))
         self.block4 = nn.Sequential(
             IGConvGroupCmplx(36 // channel_co, 36 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                             l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                             l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(36 // channel_co)),
             BatchNormCmplx((36 // channel_co * no_g), bnorm_type=bnorm))
         self.block5 = nn.Sequential(
             IGConvGroupCmplx(36 // channel_co, 64 // channel_co, 7, no_g, padding=2, weight_init='he', mod=mod,
-                             l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                             l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(64 // channel_co)),
             BatchNormCmplx((64 // channel_co * no_g), bnorm_type=bnorm))
         self.block6 = nn.Sequential(
             IGConvGroupCmplx(64 // channel_co, 96 // channel_co, 5, no_g, padding=1, weight_init='he', mod=mod,
-                             l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                             l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(96 // channel_co)),
             BatchNormCmplx((96 // channel_co * no_g), bnorm_type=bnorm))
         self.pool1 = Pool(kernel_size=2, stride=2)
@@ -546,6 +547,7 @@ class SFCNonCyclic(Model):
                  relu_type='c', fc_block='lin', fc_type='cat',
                  base_channels=16,
                  l_init='uniform', sigma_init='fixed', single_param=False,
+                 morlet=False,
                  **kwargs):
         (super().__init__)(**kwargs)
         if pooling == 'max':
@@ -555,40 +557,39 @@ class SFCNonCyclic(Model):
         if pooling == 'mag':
             Pool = MaxMagPoolCmplx
         channel_co = 16 // base_channels
-        print(channel_co)
         self.block1 = nn.Sequential(
             IGConvCmplx(n_channels, 24 // channel_co, 9, no_g, padding=2, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(24 // channel_co)),
             BatchNormCmplx((24 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
         self.block2 = nn.Sequential(
             IGConvCmplx(24 // channel_co, 32 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(32 // channel_co)),
             BatchNormCmplx((32 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
         self.block3 = nn.Sequential(
             IGConvCmplx(32 // channel_co, 36 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(36 // channel_co)),
             BatchNormCmplx((36 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
         self.block4 = nn.Sequential(
             IGConvCmplx(36 // channel_co, 36 // channel_co, 7, no_g, padding=3, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(36 // channel_co)),
             BatchNormCmplx((36 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
         self.block5 = nn.Sequential(
             IGConvCmplx(36 // channel_co, 64 // channel_co, 7, no_g, padding=2, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(64 // channel_co)),
             BatchNormCmplx((64 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
         self.block6 = nn.Sequential(
             IGConvCmplx(64 // channel_co, 96 // channel_co, 5, no_g, padding=1, weight_init='he', mod=mod,
-                        l_init=l_init, sigma_init=sigma_init, single_param=single_param),
+                        l_init=l_init, sigma_init=sigma_init, single_param=single_param, morlet=morlet),
             ReLUCmplx(inplace=True, relu_type=relu_type, channels=(96 // channel_co)),
             BatchNormCmplx((96 // channel_co * no_g), bnorm_type=bnorm),
             GaborPool(final_gp))
