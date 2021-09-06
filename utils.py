@@ -159,6 +159,10 @@ class ExperimentParser(argparse.ArgumentParser):
             '--single_param',
             default=False, action='store_true',
             help='Uses only a single lambda/sigma parameter.')
+        self.n_parser.add_argument(
+            '--morlet',
+            default=False, action='store_true',
+            help='Uses Morlet wavelet.')
 
         self.t_parser.add_argument(
             '--epochs',
