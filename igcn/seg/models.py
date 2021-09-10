@@ -79,13 +79,22 @@ class UNetIGCNCmplx(Model):
 
 class UNetIGCN(Model):
     def __init__(self, n_classes, n_channels=1, base_channels=16, no_g=4,
-                 kernel_size=3, mode='nearest', pad_to_remove=64, **kwargs):
+                 kernel_size=3, mode='nearest', pad_to_remove=64, scale=False, **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.mode = mode
         self.kernel_size = kernel_size
         self.base_channels = base_channels
+
+        if scale == 'parallel':
+            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
+            in_channels_conv = n_channels * 2
+        elif scale:
+            in_channels_conv = n_channels * 1
+            self.preprocess = Scale(n_channels, in_channels_conv, method='arcsinh')
+        else:
+            self.preprocess = None
 
         self.inc = TripleIGConv(n_channels, base_channels, kernel_size, no_g=no_g)
         self.down1 = Down(base_channels, base_channels * 2, kernel_size, no_g=no_g)
@@ -100,6 +109,8 @@ class UNetIGCN(Model):
         self.outc = nn.Conv2d(base_channels, n_classes, kernel_size=1)
 
     def forward(self, x):
+        if self.preprocess is not None:
+            x = self.preprocess(x)
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
