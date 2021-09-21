@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 import torch
-from data import CirrusDataset
 from PIL import Image
 import numpy as np
 import cv2
@@ -12,6 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from igcn.seg.models import UNetIGCNCmplx
 from igcn.utils import _pair
 from run_cirrus import create_model
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data import CirrusDataset
 
 
 def pad_for_crops(image, crop_size, overlap):
