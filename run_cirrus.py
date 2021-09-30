@@ -18,26 +18,6 @@ IMG_SIZE = 256
 PAD = 0
 
 
-def get_N(survey_dir, mask_dir, bands):
-    # mask_paths = glob.glob(os.path.join(mask_dir, '*.npz'))
-    # if set(bands) == set('g'):
-    #     return 116
-    # if set(bands) == set('r'):
-    #     return 108
-    # if set(bands) == set(['g', 'r']):
-    #     return 108
-    # Cirrus only 
-    if set(bands) == set(['g', 'r']):
-        return 48
-    # Cirrus + HB
-    # if set(bands) == set('g'):
-    #     return 184
-    # if set(bands) == set('r'):
-    #     return 184
-    # if set(bands) == set(['g', 'r']):
-    #     return 184
-
-
 def get_train_data(training_args, args, split):
     trainloader = DataLoader(
         CirrusDataset(
@@ -57,6 +37,8 @@ def get_train_data(training_args, args, split):
             bands=args.bands,
             aug_mult=max(1, 512 // IMG_SIZE),
             padding=args.padding,
+            class_map=args.class_map,
+            keep_background=not args.background_class,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -81,6 +63,8 @@ def get_train_data(training_args, args, split):
             bands=args.bands,
             aug_mult=max(1, 1024 // IMG_SIZE),
             padding=args.padding,
+            class_map=args.class_map,
+            keep_background=args.background_class,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -106,6 +90,8 @@ def get_test_data(training_args, args, test_idxs):
             bands=args.bands,
             aug_mult=max(1, 1024 // IMG_SIZE),
             padding=args.padding,
+            class_map=args.class_map,
+            keep_background=not args.background_class,
         ),
         batch_size=training_args.batch_size,
         shuffle=True
@@ -156,7 +142,11 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         optimizer,
         training_args.lr_decay
     )
-    metrics_class, criterion = get_metrics_criterion(args.model_variant)
+    metrics_class, criterion = get_metrics_criterion(
+        args.model_variant,
+        binary=args.class_map is None,
+        cirrus=True
+    )
     metrics_class.Writer = writer
 
     start = time.time()
@@ -264,6 +254,13 @@ def main():
     parser.add_argument('--padding',
                         default=32, type=int,
                         help='Amount to pad images by for training.')
+    parser.add_argument('--class_map',
+                        default=None,
+                        choices=[None, *CirrusDataset.class_maps.keys()],
+                        help='Which class map to use. (default: %(default)s)')
+    parser.add_argument('--background_class',
+                        default=False, action='store_true',
+                        help='Whether to use a background class.')
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
@@ -274,7 +271,7 @@ def main():
 
     metrics = []
     save_paths = []
-    N = get_N(args.survey_dir, args.mask_dir, args.bands)
+    N = CirrusDataset.get_N(args.survey_dir, args.mask_dir, args.bands)
     splits, test_idxs = generate_splits(N, training_args.nsplits)
 
     if args.evaluate:

@@ -28,6 +28,9 @@ from isbi import get_isbi_train_data, get_isbi_test_data
 SIZES = {
     'stars_bad_columns_ccd': 300,
     'stars_bad_columns_ccd_saturation': 1200,
+    'static': 300,
+    'rot': 300,
+    'rot_stars': 300,
     'isbi': 30,
     'bsd': 300,
     'prague': 90,
@@ -42,7 +45,7 @@ def write_results(**kwargs):
     f.close()
 
 
-def get_metrics_criterion(variant, denoise=False, binary=True):
+def get_metrics_criterion(variant, denoise=False, binary=True, cirrus=False):
     if 'DAF' in variant:
         MetricsClass = DAFMetric()
         criterion = DAFLoss()
@@ -57,6 +60,9 @@ def get_metrics_criterion(variant, denoise=False, binary=True):
             if binary:
                 criterion = nn.BCEWithLogitsLoss()
                 MetricsClass = SegmentationTracker()
+            elif cirrus:
+                criterion = nn.BCEWithLogitsLoss()
+                MetricsClass = MultiClassSegmentationTracker()
             else:
                 criterion = nn.CrossEntropyLoss()
                 MetricsClass = MultiClassSegmentationTracker()
@@ -207,6 +213,7 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         sigma_init=params["sigma_init"],
         single_param=params["single_param"],
         morlet=params["morlet"],
+        not_group=params["not_group"],
     )
     if model_path:
         load(model, model_path, True, pretrain=pretrain, att=attention)
@@ -240,29 +247,41 @@ def load(model, save_path, legacy=False, pretrain=True, att=False):
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
 
-def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
-    if net_args.dataset == 'synth':
-        n_channels = 1
-        n_classes = 1
-        get_train = get_synth_cirrus_train_data
-        get_test = get_synth_cirrus_test_data
-    elif net_args.dataset == 'isbi':
-        n_channels = 1
-        n_classes = 1
-        get_train = get_isbi_train_data
-        get_test = get_isbi_test_data
-    elif net_args.dataset == 'bsd':
-        n_channels = 3
-        n_classes = 1
-        get_train = get_bsd_train_data
-        get_test = get_bsd_test_data
-    elif net_args.dataset == 'prague':
-        n_channels = 3
-        n_classes = 10
-        get_train = get_prague_train_data
-        get_test = get_prague_test_data
-    else:
-        raise NotImplementedError()
+DATASETS = {
+    'synth': {
+        'n_channels': 1,
+        'n_classes': 1,
+        'get_train': get_synth_cirrus_train_data,
+        'get_test': get_synth_cirrus_test_data,
+    },
+    'isbi': {
+        'n_channels': 1,
+        'n_classes': 1,
+        'get_train': get_isbi_train_data,
+        'get_test': get_isbi_test_data,
+    },
+    'bsd': {
+        'n_channels': 3,
+        'n_classes': 1,
+        'get_train': get_bsd_train_data,
+        'get_test': get_bsd_test_data,
+    },
+    'prague': {
+        'n_channels': 3,
+        'n_classes': 10,
+        'get_train': get_prague_train_data,
+        'get_test': get_prague_test_data,
+    }
+}
+
+
+def run_segmentation_split(net_args, training_args, metrics_class=None, criterion=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
+    if net_args.dataset not in DATASETS.keys():
+        raise NotImplementedError(f"Dataset {net_args.dataset} not implemented.")
+    n_channels = DATASETS[net_args.dataset]['n_channels']
+    n_classes = DATASETS[net_args.dataset]['n_classes']
+    get_train = DATASETS[net_args.dataset]['get_train']
+    get_test = DATASETS[net_args.dataset]['get_test']
 
     train_loader, val_loader = get_train(
         args,
@@ -288,9 +307,6 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
         padding=args.padding,
         **vars(net_args),
     ).to(device)
-
-    metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes == 1)
-    metrics_class.Writer = writer         # Delete this line if metric logging not desired
 
     total_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
@@ -377,12 +393,18 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         nsplits=training_args.nsplits
     )
     writer.begin_experiment(vars(net_args))
+
+    n_classes = DATASETS[net_args.dataset]['n_classes']
+
     for split_no, split in zip(range(training_args.nsplits), splits):
+        metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes == 1)
+        metrics_class.Writer = writer         # Delete this line if metric logging not desired
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         m, stats = run_segmentation_split(
             net_args,
             training_args,
-            writer=writer,
+            metrics_class=metrics_class,
+            criterion=criterion,
             device=device,
             split=split,
             split_no=split_no,
@@ -391,12 +413,12 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         )
         save_paths.append(m.pop('save_path'))
         metrics.append(m)
-        writer.upload_split({k: m[k] for k in ('IoU', 'PSNR', 'Dice')})
+        writer.upload_split({k: m[k] for k in metrics_class.get_metrics().keys()})
 
     mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
-    best_iou = max([mi['IoU'] for mi in metrics])
-    best_split = [mi['IoU'] for mi in metrics].index(best_iou) + 1
-    best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
+    best_master = max([mi[metrics_class.master_metric] for mi in metrics])
+    best_split = [mi[metrics_class.master_metric] for mi in metrics].index(best_master) + 1
+    best_psnr = metrics[[mi[metrics_class.master_metric] for mi in metrics].index(best_master)]['PSNR']
     mean_m['epoch'] = metrics[best_split-1]['epoch']
     eval_m = metrics[best_split-1]
     error_m = {'PSNR': 0}
@@ -406,8 +428,8 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
                    for key in m.keys()}
     writer.upload_best_split(
         {
-            'test_iou': eval_m['IoU'],
-            'mean_iou': mean_m['IoU'],
+            'test_iou': eval_m[metrics_class.master_metric],
+            'mean_iou': mean_m[metrics_class.master_metric],
             'best_split': best_split,
         },
         best_split
@@ -420,7 +442,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             'psnr': mean_m['PSNR'],
             'psnr_error': error_m['PSNR'],
             'best_psnr': best_psnr,
-            'best_iou': best_iou,
+            'best_master': best_master,
             'best_split': best_split,
             'dataset': net_args.dataset,
             'denoise': args.denoise,
@@ -428,7 +450,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         # **vars(training_args)
     )
 
-    return best_iou, mean_m['IoU']
+    return best_master, mean_m[metrics_class.master_metric]
 
 
 def main():
