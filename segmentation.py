@@ -19,6 +19,7 @@ from quicktorch.metrics import (
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
+from cirrus.scale import Scale, ScaleParallel
 from utils import ExperimentParser, calculate_error, RotateAndCrop
 from unet import UNetCmplx, UNet
 import albumentations
@@ -168,12 +169,13 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         'RCF': RCF,
     }
     scalings = {
-        'T': True,
-        'P': 'parallel'
+        'T': Scale,
+        'P': ScaleParallel
     }
-    scale = False
+    scale = None
     if variant[-1] in scalings.keys():
-        scale = scalings[variant[-1]]
+        scale = scalings[variant[-1]](n_channels)
+        n_channels *= scale.n_scaling  # Ensure network input channels are increased
         variant = variant[:-1]
     attention = True if "DAF" in variant else False
     model_name = f'{variant}-{dataset}'

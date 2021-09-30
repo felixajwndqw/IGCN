@@ -17,7 +17,6 @@ from igcn.seg.attention.attention import (
 
 from igcn.seg.cmplx_modules import DownCmplx, TripleIGConvCmplx, UpSimpleCmplx
 from igcn.cmplx_modules import MaxPoolCmplx, ReLUCmplx, IGConvGroupCmplx, Project, GaborPool, IGConvCmplx, ReshapeGabor
-from igcn.seg.scale import Scale, ScaleParallel
 from igcn.cmplx_bn import BatchNormCmplx
 from igcn.cmplx import new_cmplx, resample_cmplx
 from igcn.utils import _compress_shape
@@ -25,16 +24,10 @@ from igcn.utils import _compress_shape
 
 class DAFStackSmall(Model):
     def __init__(self, n_channels=1, base_channels=64, no_g=1, n_classes=1,
-                 pooling='max', gp='avg', attention_gp='avg', scale=False, **kwargs):
+                 pooling='max', gp='avg', attention_gp='avg', scale=None, **kwargs):
         super().__init__(**kwargs)
 
-        if scale == 'parallel':
-            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
-            n_channels *= 2
-        elif scale:
-            self.preprocess = Scale(n_channels, method='arcsinh')
-        else:
-            self.preprocess = None
+        self.preprocess = scale
 
         self.inc = TripleIGConvCmplx(n_channels, base_channels, kernel_size=3, no_g=no_g, gp=None, first=True)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size=3, no_g=no_g, gp=None, pooling=pooling)
@@ -215,8 +208,12 @@ class DAFStackSmall(Model):
 class DAFMS(Model):
     def __init__(self, n_channels=1, base_channels=64, no_g=1, n_classes=1,
                  pooling='max', gp='avg', attention_gp='avg', pad_to_remove=64,
+                 scale=None,
                  **kwargs):
         super().__init__(**kwargs)
+
+        self.preprocess = scale
+
         self.disassemble = Disassemble()
         self.disassemble_cmplx = DisassembleCmplx()
         self.reassemble = Reassemble()
@@ -438,6 +435,8 @@ class DAFMS(Model):
         )
 
     def forward(self, x):
+        if self.preprocess is not None:
+            x = self.preprocess(x)
         output_size = x.size()
         # Create downscaled copies
         down3 = x

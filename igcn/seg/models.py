@@ -6,17 +6,14 @@ from igcn.cmplx import new_cmplx, concatenate
 from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 from igcn.seg.modules import Down, Up, TripleIGConv, RCFPlainBlock
 from igcn.seg.cmplx_modules import DownCmplx, UpCmplx, TripleIGConvCmplx, RCFBlock
-from igcn.seg.scale import Scale, ScaleParallel
 
 
 class UNetIGCNCmplx(Model):
     def __init__(self, n_classes, n_channels=1, no_g=8, base_channels=16,
                  kernel_size=3, nfc=1, dropout=0., pooling='max',
-                 mode='bilinear', gp='max', scale=False,
+                 mode='bilinear', gp='max', scale=None,
                  relu_type='mod', pad_to_remove=64, **kwargs):
-        print(kwargs)
         super().__init__(**kwargs)
-        print(kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.mode = mode
@@ -26,36 +23,20 @@ class UNetIGCNCmplx(Model):
 
         in_channels_conv = n_channels
 
-        if scale == 'parallel':
-            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
-            in_channels_conv = n_channels * 2
-        elif scale:
-            in_channels_conv = n_channels * 1
-            self.preprocess = Scale(n_channels, in_channels_conv, method='arcsinh')
-        else:
-            self.preprocess = None
+        self.preprocess = scale
+
         self.inc = TripleIGConvCmplx(in_channels_conv, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, first=True, **kwargs)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
-        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
-        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
-        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
-        self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
-        self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
+        self.down2 = DownCmplx(base_channels * 2, base_channels * 3, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.down3 = DownCmplx(base_channels * 3, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.down4 = DownCmplx(base_channels * 4, base_channels * 4, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, pooling=pooling, **kwargs)
+        self.up1 = UpCmplx(base_channels * 4, base_channels * 3, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
+        self.up2 = UpCmplx(base_channels * 3, base_channels * 2, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
         self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, no_g=no_g, gp=None, relu_type=relu_type, mode=mode, **kwargs)
         self.up4 = UpCmplx(base_channels, base_channels, kernel_size, no_g=no_g, gp=gp, relu_type=relu_type, mode=mode, last=True, **kwargs)
 
         gp_mult = no_g if gp is None else 1
-        linear_blocks = []
-        for _ in range(nfc):
-            linear_blocks.append(nn.Sequential(
-                nn.Conv2d(base_channels * 2 * gp_mult, base_channels * 2 * gp_mult, kernel_size=1),
-                nn.ReLU(inplace=True),
-                nn.Dropout(p=dropout)
-            ))
-        self.outc = nn.Sequential(
-            *linear_blocks,
-            nn.Conv2d(base_channels * 2 * gp_mult, n_classes, kernel_size=1)
-        )
+        self.outc = nn.Conv2d(base_channels * 2 * gp_mult, n_classes, kernel_size=1)
 
     def forward(self, x):
         if self.preprocess is not None:
@@ -79,7 +60,7 @@ class UNetIGCNCmplx(Model):
 
 class UNetIGCN(Model):
     def __init__(self, n_classes, n_channels=1, base_channels=16, no_g=4,
-                 kernel_size=3, mode='nearest', pad_to_remove=64, scale=False, **kwargs):
+                 kernel_size=3, mode='nearest', pad_to_remove=64, scale=None, **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -87,14 +68,7 @@ class UNetIGCN(Model):
         self.kernel_size = kernel_size
         self.base_channels = base_channels
 
-        if scale == 'parallel':
-            self.preprocess = ScaleParallel(n_channels, method='arcsinh')
-            in_channels_conv = n_channels * 2
-        elif scale:
-            in_channels_conv = n_channels * 1
-            self.preprocess = Scale(n_channels, in_channels_conv, method='arcsinh')
-        else:
-            self.preprocess = None
+        self.preprocess = scale
 
         self.inc = TripleIGConv(n_channels, base_channels, kernel_size, no_g=no_g)
         self.down1 = Down(base_channels, base_channels * 2, kernel_size, no_g=no_g)

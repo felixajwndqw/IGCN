@@ -5,29 +5,26 @@ from quicktorch.models import Model
 from igcn.cmplx import new_cmplx, cmplx
 from igcn.cmplx_modules import ConvCmplx, BatchNormCmplxOld, ReLUCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 from igcn.cmplx_bn import BatchNormCmplx
-from igcn.seg.scale import Scale
 
 
 class UNetCmplx(Model):
     def __init__(self, n_classes, n_channels=1, base_channels=16,
-                 kernel_size=3, nfc=1, dropout=0., pad_to_remove=64, scale=False, **kwargs):
+                 kernel_size=3, nfc=1, dropout=0., pad_to_remove=64, scale=None, **kwargs):
         super().__init__(**kwargs)
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.kernel_size = kernel_size
         self.p = pad_to_remove // 2
 
-        if scale:
-            self.preprocess = Scale(n_channels, method='arcsinh')
-        else:
-            self.preprocess = None
+        self.preprocess = scale
+
         self.inc = TripleConvCmplx(n_channels, base_channels, kernel_size)
         self.down1 = DownCmplx(base_channels, base_channels * 2, kernel_size, **kwargs)
-        self.down2 = DownCmplx(base_channels * 2, base_channels * 4, kernel_size, **kwargs)
-        self.down3 = DownCmplx(base_channels * 4, base_channels * 8, kernel_size, **kwargs)
-        self.down4 = DownCmplx(base_channels * 8, base_channels * 8, kernel_size, **kwargs)
-        self.up1 = UpCmplx(base_channels * 8, base_channels * 4, kernel_size, **kwargs)
-        self.up2 = UpCmplx(base_channels * 4, base_channels * 2, kernel_size, **kwargs)
+        self.down2 = DownCmplx(base_channels * 2, base_channels * 3, kernel_size, **kwargs)
+        self.down3 = DownCmplx(base_channels * 3, base_channels * 4, kernel_size, **kwargs)
+        self.down4 = DownCmplx(base_channels * 4, base_channels * 4, kernel_size, **kwargs)
+        self.up1 = UpCmplx(base_channels * 4, base_channels * 3, kernel_size, **kwargs)
+        self.up2 = UpCmplx(base_channels * 3, base_channels * 2, kernel_size, **kwargs)
         self.up3 = UpCmplx(base_channels * 2, base_channels, kernel_size, **kwargs)
         self.up4 = UpCmplx(base_channels, base_channels, kernel_size, **kwargs)
 
@@ -152,11 +149,11 @@ class UNet(Model):
 
         self.inc = TripleConv(n_channels, base_channels, kernel_size)
         self.down1 = Down(base_channels, base_channels * 2, kernel_size, pooling=pooling)
-        self.down2 = Down(base_channels * 2, base_channels * 4, kernel_size, pooling=pooling)
-        self.down3 = Down(base_channels * 4, base_channels * 8, kernel_size, pooling=pooling)
-        self.down4 = Down(base_channels * 8, base_channels * 8, kernel_size, pooling=pooling)
-        self.up1 = Up(base_channels * 8, base_channels * 4, kernel_size, mode=mode)
-        self.up2 = Up(base_channels * 4, base_channels * 2, kernel_size, mode=mode)
+        self.down2 = Down(base_channels * 2, base_channels * 3, kernel_size, pooling=pooling)
+        self.down3 = Down(base_channels * 3, base_channels * 4, kernel_size, pooling=pooling)
+        self.down4 = Down(base_channels * 4, base_channels * 4, kernel_size, pooling=pooling)
+        self.up1 = Up(base_channels * 4, base_channels * 3, kernel_size, mode=mode)
+        self.up2 = Up(base_channels * 3, base_channels * 2, kernel_size, mode=mode)
         self.up3 = Up(base_channels * 2, base_channels, kernel_size, mode=mode)
         self.up4 = Up(base_channels, base_channels, kernel_size, mode=mode)
 
