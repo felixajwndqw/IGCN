@@ -209,7 +209,7 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         morlet=params["morlet"],
     )
     if model_path:
-        load(model, model_path, False, pretrain=pretrain, att=attention)
+        load(model, model_path, True, pretrain=pretrain, att=attention)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     return model
@@ -222,17 +222,19 @@ def load(model, save_path, legacy=False, pretrain=True, att=False):
         if att:
             scal_key = 'down1.0.weight'
         else:
-            scal_key = 'inc.conv1.weight'
+            # scal_key = 'inc.conv1.weight'
+            scal_key = 'inc.conv1.0.weight'
         weight = checkpoint['model_state_dict'][scal_key]
         out_c = 1
         if model.preprocess is not None:
             out_c = model.preprocess.n_scaling
         checkpoint['model_state_dict'][scal_key] = weight.repeat(1, 1, 2 * out_c, 1, 1)
+        # checkpoint['model_state_dict'][scal_key] = weight.repeat(1, 2 * out_c, 1, 1)
         if att:
             checkpoint['model_state_dict'][scal_key].squeeze_(0)
     if legacy:
         for key in checkpoint['model_state_dict']:
-            if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
+            if key.split('.')[-1] == 'gabor_filters':# and key.split('.')[1] != 'conv1':
                 checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].unsqueeze(1)
 
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
@@ -275,8 +277,10 @@ def run_segmentation_split(net_args, training_args, writer=None, device='cuda:0'
         test_idxs=test_idxs
     )
 
+    save_dir = 'D:/seg_models/seg/' + net_args.dataset# + f'/paramtest/{net_args.l_init}-{net_args.sigma_init}-{str(net_args.single_param)}'
+    os.makedirs(save_dir, exist_ok=True)
     model = create_model(
-        'models/seg/' + net_args.dataset,
+        save_dir,
         variant=args.model_variant,
         n_channels=n_channels,
         n_classes=n_classes,

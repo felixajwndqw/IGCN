@@ -11,11 +11,11 @@ from quicktorch.writers import LabScribeWriter
 from cirrus.data import CirrusDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
-from segmentation import get_metrics_criterion, create_model
+from segmentation import get_metrics_criterion, create_model, load
 
 
 IMG_SIZE = 256
-PAD = 32
+PAD = 0
 
 
 def get_N(survey_dir, mask_dir, bands):
@@ -51,11 +51,12 @@ def get_train_data(training_args, args, split):
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
             ]),
             indices=split[0],
             bands=args.bands,
-            aug_mult=4,
+            aug_mult=max(1, 512 // IMG_SIZE),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -74,11 +75,12 @@ def get_train_data(training_args, args, split):
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
             ]),
             indices=split[1],
             bands=args.bands,
-            aug_mult=8,
+            aug_mult=max(1, 1024 // IMG_SIZE),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -98,11 +100,12 @@ def get_test_data(training_args, args, test_idxs):
                 # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
                 albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
                 albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
-                albumentations.PadIfNeeded(288, 288, border_mode=4)
+                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
             ]),
             indices=test_idxs,
             bands=args.bands,
-            aug_mult=6,
+            aug_mult=max(1, 1024 // IMG_SIZE),
+            padding=args.padding,
         ),
         batch_size=training_args.batch_size,
         shuffle=True
@@ -135,6 +138,7 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         bands=args.bands,
         downscale=args.downscale,
         model_path=args.model_path,
+        padding=args.padding,
         **vars(net_args)
     ).to(device)
 
@@ -192,9 +196,10 @@ def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
         n_classes=args.n_classes,
         bands=args.bands,
         downscale=args.downscale,
+        padding=args.padding,
         **vars(net_args),
     ).to(device)
-    eval_model.load(save_path=model_path)
+    load(eval_model, model_path, legacy=True, pretrain=False)
 
     test_data = get_test_data(training_args, args, test_idxs)
 
@@ -234,8 +239,13 @@ def main():
                         help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default='SFC', type=str,
-                        choices=['SFC', 'SFCT', 'SFCP', 'Standard', 'DAF', 'DAFT', 'DAFP'],
-                        help='Model variant. (default: %(default)s)')
+                        choices=[
+                            'SFC', 'SFCT', 'SFCP', 'SFCReal',
+                            'DAF', 'DAFT', 'DAFP',
+                            'DAFMS', 'DAFMST', 'DAFMSP',
+                            'DAFMSPlain', 'DAFMSPlainT', 'DAFMSPlainP',
+                            'Standard', 'StandardT', 'StandardP',
+                        ], help='Model variant. (default: %(default)s)')
     parser.add_argument('--n_classes',
                         default=1, type=int,
                         help='Number of classes to predict. '
@@ -251,9 +261,13 @@ def main():
     parser.add_argument('--evaluate',
                         default=False, action='store_true',
                         help='Evaluates given model path.')
+    parser.add_argument('--padding',
+                        default=32, type=int,
+                        help='Amount to pad images by for training.')
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
+    net_args.dataset = 'cirrus'
     print(args.bands)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
