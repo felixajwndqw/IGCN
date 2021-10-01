@@ -10,19 +10,21 @@ from igcn.utils import _compress_shape, _recover_shape
 class TripleIGConvCmplx(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
                  no_g=4, include_gparams=False, last=False, gp='max',
-                 relu_type='mod',
+                 relu_type='mod', not_group=False,
                  first=False, **kwargs):
         super().__init__()
         first_conv = IGConvGroupCmplx
-        if first:
+        if first or not_group:
             first_conv = IGConvCmplx
+        conv = IGConvCmplx if not_group else IGConvGroupCmplx
+        not_group_div = no_g if not_group else 1
         if type(kernel_size) is tuple:
             padding = kernel_size[-1] // 2
         else:
             padding = kernel_size // 2
 
         self.conv1 = first_conv(
-            in_channels, out_channels, no_g=no_g,
+            in_channels * (not_group_div if not first else 1), out_channels, no_g=no_g,
             kernel_size=kernel_size,# if not first else 11,
             padding=padding,# if not first else 5,
             gabor_pooling=None, **kwargs)
@@ -32,8 +34,8 @@ class TripleIGConvCmplx(nn.Module):
             ReLUCmplx(relu_type=relu_type, channels=out_channels, inplace=True)
         )
 
-        self.conv2 = IGConvGroupCmplx(
-            out_channels, out_channels, no_g=no_g,
+        self.conv2 = conv(
+            out_channels * not_group_div, out_channels, no_g=no_g,
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=None, **kwargs)
         self.bn_relu2 = nn.Sequential(
@@ -42,8 +44,8 @@ class TripleIGConvCmplx(nn.Module):
             ReLUCmplx(relu_type=relu_type, channels=out_channels, inplace=True)
         )
 
-        self.conv3 = IGConvGroupCmplx(
-            out_channels, out_channels, no_g=no_g,
+        self.conv3 = conv(
+            out_channels * not_group_div, out_channels * (1 if gp is None else no_g), no_g=no_g,
             kernel_size=kernel_size,
             padding=padding, gabor_pooling=gp,
             include_gparams=include_gparams, **kwargs)

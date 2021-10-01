@@ -144,7 +144,6 @@ class IGaborCmplx(nn.Module):
                  l_init='uniform', sigma_init='fixed', single_param=False,
                  morlet=False, **kwargs):
         super().__init__(**kwargs)
-        print(f'{l_init=}, {sigma_init=}, {single_param=}, {morlet=}')
         self.no_g = no_g
         self.morlet = morlet
         self.theta = nn.Parameter(data=torch.Tensor(no_g))
@@ -243,27 +242,27 @@ class IGaborCmplx(nn.Module):
         """
         self.calc_filters = True
 
-    def init_lambda(self, l_init):
+    def init_lambda(self, l_init, mean=3):
         if l_init == 'uniform':
             self.l.data.uniform_(
-                -1 / math.sqrt(self.no_g),
-                1 / math.sqrt(self.no_g)
+                1.5,
+                3
             )
         elif l_init == 'normalg':
-            self.l.data.normal_(1 / math.sqrt(self.no_g))
+            self.l.data.normal_(mean / math.sqrt(self.no_g), std=.25 * math.sqrt(self.no_g))
         elif l_init == 'normal':
-            self.l.data.normal_(1 / math.sqrt(2))
+            self.l.data.normal_(mean / math.sqrt(2), std=.25)
         elif l_init == 'fixed':
-            self.l.data.fill_(1 / math.sqrt(2))
+            self.l.data.fill_(mean)
             self.l.requires_grad = False
         else:
             raise ValueError("Unknown lambda initialisation type: " + l_init)
 
-    def init_sigma(self, sigma_init):
+    def init_sigma(self, sigma_init, mean=math.pi):
         if sigma_init == 'normal':
-            self.sigma.data.normal_(math.pi)
+            self.sigma.data.normal_(mean, std=.25)
         elif sigma_init == 'fixed':
-            self.sigma.data.fill_(math.pi)
+            self.sigma.data.fill_(mean)
             self.sigma.requires_grad = False
         else:
             raise ValueError("Unknown lambda initialisation type: " + sigma_init)
@@ -408,14 +407,13 @@ class IGConvCmplx(nn.Module):
             self.no_g,
             *out.size()[3:]
         )
-        # print(f'out.size()={out.size()}')
 
         if self.gabor_pooling is None and self.include_gparams is False:
             return out
 
         # pool_out, max_idxs = self.gabor_pooling(out, dim=3)
         # pool_out = pool_out.unsqueeze(3)
-        pool_out, max_idxs = self.gabor_pooling(out, dim=3)
+        pool_out = self.gabor_pooling(out)
         if self.include_gparams:
             max_thetas = self.gabor.theta[max_idxs]
             return out, max_thetas[0]  # Just returns real thetas in complex
@@ -496,7 +494,6 @@ class IGConvGroupCmplx(nn.Module):
             self.no_g,
             *out.size()[3:]
         )
-        # print(f'out.size()={out.size()}')
 
         if self.gabor_pooling is None and self.include_gparams is False:
             return out
@@ -509,7 +506,6 @@ class IGConvGroupCmplx(nn.Module):
         if self.include_gparams:
             max_thetas = self.gabor.theta[max_idxs]
             return out, max_thetas[0]  # Just returns real thetas in complex
-        # print(f'out.size()={out.size()}, pool_out.size()={pool_out.size()}')
         return pool_out#.unsqueeze(3)
 
 
