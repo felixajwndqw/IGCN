@@ -139,6 +139,10 @@ class ExperimentParser(argparse.ArgumentParser):
             default=False, action='store_true',
             help='Whether to use group convolutions.')
         self.n_parser.add_argument(
+            '--not_group',
+            default=False, action='store_true',
+            help='Whether to not use group convolutions. Used for segmentation where group is default option.')
+        self.n_parser.add_argument(
             '--upsample_mode',
             default='bilinear',
             type=parse_none,
