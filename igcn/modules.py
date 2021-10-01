@@ -31,7 +31,7 @@ class IGabor(nn.Module):
         self.no_g = no_g
         self.layer = layer
         self.calc_filters = True  # Flag whether filter bank needs recalculating
-        self.register_backward_hook(self.set_filter_calc)
+        self.register_full_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
         # print(f'x.size()={x.unsqueeze(1).size()}, gabor={gabor(x, self.gabor_params).unsqueeze(1).size()}')
@@ -103,9 +103,6 @@ class IGConv(Conv2d):
         self.bn = nn.BatchNorm2d(output_features * no_g)
         self.include_gparams = include_gparams
 
-        # if plot:
-        #     self.plot = FilterPlot(no_g, kernel_size[0], output_features)
-        # else:
         self.plot = None
 
     def forward(self, x):
@@ -221,16 +218,3 @@ class MaxGabor(nn.Module):
         reshaped = x.view(x.size(0), x.size(1) // self.no_g, self.no_g, x.size(2), x.size(3))
         _, max_idxs = torch.max(reshaped, dim=2)
         return torch.cat((x, max_idxs.float()), dim=1)
-
-
-class RemovePadding(nn.Module):
-    """Removes padding from tensor
-    """
-    def __init__(self, p):
-        super().__init__()
-        self.p = p // 2
-
-    def forward(self, x):
-        if self.p > 0:
-            x = x[..., self.p:-self.p, self.p:-self.p]
-        return x

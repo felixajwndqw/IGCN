@@ -1,7 +1,7 @@
-from igcn.modules import RemovePadding
 import torch
 import torch.nn as nn
 from quicktorch.models import Model
+from quicktorch.modules.utils import RemovePadding
 from igcn.cmplx import new_cmplx, concatenate
 from igcn.cmplx_modules import IGConvCmplx, MaxPoolCmplx, AvgPoolCmplx, MaxMagPoolCmplx
 from igcn.seg.modules import Down, Up, TripleIGConv, RCFPlainBlock
