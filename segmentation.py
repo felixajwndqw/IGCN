@@ -1,5 +1,6 @@
 #!/usr/bin/python -u
 import os
+import shutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,9 +13,14 @@ from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from igcn.seg.attention.loss import DAFLoss
 from quicktorch.modules.attention.models import DAFMSPlain
+from quicktorch.modules.attention.loss import DAFLossMCML
+from quicktorch.modules.loss import ConsensusLoss, ConsensusLossMC
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.metrics import (
-    DenoisingTracker, SegmentationTracker, MultiClassSegmentationTracker
+    DenoisingTracker,
+    SegmentationTracker,
+    MultiClassSegmentationTracker,
+    MCMLSegmentationTracker
 )
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
@@ -46,11 +52,15 @@ def write_results(**kwargs):
     f.close()
 
 
-def get_metrics_criterion(variant, denoise=False, binary=True, cirrus=False):
+def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False):
     if 'DAF' in variant:
-        MetricsClass = DAFMetric()
-        criterion = DAFLoss()
-    if 'RCF' in variant:
+        if lsb:
+            MetricsClass = DAFMetric(n_classes=n_classes)
+            criterion = DAFLossMCML()
+        else:
+            MetricsClass = DAFMetric(n_classes=n_classes)
+            criterion = DAFLoss()
+    elif 'RCF' in variant:
         MetricsClass = RCFMetric()
         criterion = RCFLoss()
     else:
@@ -58,15 +68,19 @@ def get_metrics_criterion(variant, denoise=False, binary=True, cirrus=False):
             MetricsClass = DenoisingTracker()
             criterion = nn.MSELoss()
         else:
-            if binary:
+            if lsb:
+                if n_classes == 1:
+                    criterion = ConsensusLoss()
+                    MetricsClass = SegmentationTracker()
+                if n_classes > 1:
+                    criterion = ConsensusLossMC()
+                    MetricsClass = MCMLSegmentationTracker(n_classes=n_classes)
+            elif n_classes == 1:
                 criterion = nn.BCEWithLogitsLoss()
                 MetricsClass = SegmentationTracker()
-            elif cirrus:
-                criterion = nn.BCEWithLogitsLoss()
-                MetricsClass = MultiClassSegmentationTracker()
-            else:
+            elif n_classes > 1:
                 criterion = nn.CrossEntropyLoss()
-                MetricsClass = MultiClassSegmentationTracker()
+                MetricsClass = MultiClassSegmentationTracker(n_classes=n_classes)
 
     return MetricsClass, criterion
 
@@ -157,7 +171,7 @@ def get_bsd_test_data(args, training_args, data_dir, **kwargs):
 
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
-                 dataset='cirrus', padding=0, **params):
+                 dataset='cirrus', padding=0, class_map=None, **params):
     models = {
         'SFC': UNetIGCNCmplx,
         'SFCReal': UNetIGCN,
@@ -180,6 +194,10 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
     attention = True if "DAF" in variant else False
     model_name = f'{variant}-{dataset}'
     model_fn = models[variant]
+    if class_map is not None:
+        if type(class_map) is dict:
+            class_map = 'custom'
+        model_name += f'-classmap={class_map}'
     if dataset == 'cirrus':
         model_name += (
             f'_bands={bands}'
@@ -218,13 +236,13 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         not_group=params["not_group"],
     )
     if model_path:
-        load(model, model_path, True, pretrain=pretrain, att=attention)
+        load(model, model_path, False, pretrain=pretrain, att=attention, n_classes=n_classes)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     return model
 
 
-def load(model, save_path, legacy=False, pretrain=True, att=False):
+def load(model, save_path, legacy=False, pretrain=True, att=False, n_classes=1):
     checkpoint = torch.load(save_path)
 
     if pretrain:
@@ -241,8 +259,16 @@ def load(model, save_path, legacy=False, pretrain=True, att=False):
         # checkpoint['model_state_dict'][scal_key] = weight.repeat(1, 2 * out_c, 1, 1)
         if att:
             checkpoint['model_state_dict'][scal_key].squeeze_(0)
+            if n_classes > 1:
+                fc_keys = [key for key in checkpoint['model_state_dict'].keys() if 'predict' in key]
+                for key in fc_keys:
+                    if 'bias' in key:
+                        checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes)
+                    else:
+                        checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes, 1, 1, 1)
     if legacy:
         for key in checkpoint['model_state_dict']:
+            # if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
             if key.split('.')[-1] == 'gabor_filters':# and key.split('.')[1] != 'conv1':
                 checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].unsqueeze(1)
 
@@ -399,7 +425,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
     n_classes = DATASETS[net_args.dataset]['n_classes']
 
     for split_no, split in zip(range(training_args.nsplits), splits):
-        metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes == 1)
+        metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
         metrics_class.Writer = writer         # Delete this line if metric logging not desired
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         m, stats = run_segmentation_split(
@@ -420,9 +446,10 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
     mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
     best_master = max([mi[metrics_class.master_metric] for mi in metrics])
     best_split = [mi[metrics_class.master_metric] for mi in metrics].index(best_master) + 1
+    best_split_idx = best_split - 1
     best_psnr = metrics[[mi[metrics_class.master_metric] for mi in metrics].index(best_master)]['PSNR']
-    mean_m['epoch'] = metrics[best_split-1]['epoch']
-    eval_m = metrics[best_split-1]
+    mean_m['epoch'] = metrics[best_split_idx]['epoch']
+    eval_m = metrics[best_split_idx]
     error_m = {'PSNR': 0}
 
     if training_args.nsplits > 1:
@@ -452,6 +479,9 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         # **vars(training_args)
     )
 
+    if args.save_path:
+        shutil.copy(save_paths[best_split_idx], args.save_path)
+
     return best_master, mean_m[metrics_class.master_metric]
 
 
@@ -479,7 +509,11 @@ def main():
     parser.add_argument('--model_path',
                         default='', type=str,
                         help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
+    parser.add_argument('--save_path',
+                        default='', type=str,
+                        help='Path to save model to (in addition to standard saving). (default: %(default)s)')
 
+    parser.n_parser.set_defaults(dataset='cirrus')
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
 

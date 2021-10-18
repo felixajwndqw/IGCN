@@ -6,39 +6,42 @@ from torch.utils.data import DataLoader
 from igcn.seg.models import UNetIGCNCmplx
 from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from quicktorch.utils import train, evaluate, get_splits
-from quicktorch.metrics import MetricTracker, SegmentationTracker
+from quicktorch.metrics import MetricTracker, SegmentationTracker, MCMLSegmentationTracker
 from quicktorch.writers import LabScribeWriter
-from cirrus.data import CirrusDataset
+from igcn.seg.attention.metrics import DAFMetric
+from cirrus.data import CirrusDataset, LSBDataset
 from utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
 from segmentation import get_metrics_criterion, create_model, load
+from myvis.vis import visualise_attention
 
 
-IMG_SIZE = 256
-PAD = 0
+datasets = {
+    'cirrus': CirrusDataset,
+    'lsb': LSBDataset
+}
 
 
 def get_train_data(training_args, args, split):
+    Dataset = datasets[args.dataset]
     trainloader = DataLoader(
-        CirrusDataset(
+        Dataset(
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
-                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
-                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
+                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
+                albumentations.Resize((args.img_size), (args.img_size)),
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
+                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
             ]),
             indices=split[0],
             bands=args.bands,
-            aug_mult=max(1, 512 // IMG_SIZE),
+            aug_mult=max(1, 512 // args.img_size),
             padding=args.padding,
             class_map=args.class_map,
-            keep_background=not args.background_class,
+            keep_background=args.background_class,
         ),
         batch_size=training_args.batch_size,
         shuffle=True,
@@ -46,22 +49,20 @@ def get_train_data(training_args, args, split):
         pin_memory=True,
     )
     validloader = DataLoader(
-        CirrusDataset(
+        Dataset(
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
-                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
-                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
+                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
+                albumentations.Resize((args.img_size), (args.img_size)),
                 # albumentations.RandomBrightnessContrast(),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
+                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
             ]),
             indices=split[1],
             bands=args.bands,
-            aug_mult=max(1, 1024 // IMG_SIZE),
+            aug_mult=max(1, 1024 // args.img_size),
             padding=args.padding,
             class_map=args.class_map,
             keep_background=args.background_class,
@@ -75,27 +76,27 @@ def get_train_data(training_args, args, split):
 
 
 def get_test_data(training_args, args, test_idxs):
-    return DataLoader(
-        CirrusDataset(
+    Dataset = datasets[args.dataset]
+    testloader = DataLoader(
+        Dataset(
             survey_dir=args.survey_dir,
             mask_dir=args.mask_dir,
             transform=albumentations.Compose([
-                # albumentations.RandomCrop((IMG_SIZE + PAD) * args.downscale, (IMG_SIZE + PAD) * args.downscale),
-                # albumentations.Resize((IMG_SIZE + PAD), (IMG_SIZE + PAD)),
-                albumentations.RandomCrop((IMG_SIZE) * args.downscale, (IMG_SIZE) * args.downscale),
-                albumentations.Resize((IMG_SIZE), (IMG_SIZE)),
-                albumentations.PadIfNeeded(IMG_SIZE + args.padding, IMG_SIZE + args.padding, border_mode=4)
+                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
+                albumentations.Resize((args.img_size), (args.img_size)),
+                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
             ]),
             indices=test_idxs,
             bands=args.bands,
-            aug_mult=max(1, 1024 // IMG_SIZE),
+            aug_mult=max(1, 1024 // args.img_size),
             padding=args.padding,
             class_map=args.class_map,
-            keep_background=not args.background_class,
+            keep_background=args.background_class,
         ),
         batch_size=training_args.batch_size,
         shuffle=True
     )
+    return testloader
 
 
 def write_results(**kwargs):
@@ -112,10 +113,9 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
     train_data, valid_data = get_train_data(
         training_args,
         args,
-        split=split
+        split=split,
     )
 
-    # dataset = os.path.split(args.dir)[-1]
     model = create_model(
         args.save_dir,
         variant=args.model_variant,
@@ -125,8 +125,10 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         downscale=args.downscale,
         model_path=args.model_path,
         padding=args.padding,
+        class_map=args.class_map,
         **vars(net_args)
     ).to(device)
+
 
     total_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
@@ -144,8 +146,8 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
     )
     metrics_class, criterion = get_metrics_criterion(
         args.model_variant,
-        binary=args.class_map is None,
-        cirrus=True
+        n_classes=args.n_classes,
+        lsb=net_args.dataset == 'lsb'
     )
     metrics_class.Writer = writer
 
@@ -179,6 +181,8 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
 
 def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
                          device='cuda:0'):
+    test_data = get_test_data(training_args, args, test_idxs)
+
     eval_model = create_model(
         args.save_dir,
         variant=args.model_variant,
@@ -187,13 +191,18 @@ def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
         bands=args.bands,
         downscale=args.downscale,
         padding=args.padding,
+        class_map=args.class_map,
         **vars(net_args),
     ).to(device)
-    load(eval_model, model_path, legacy=True, pretrain=False)
+    load(eval_model, model_path, legacy=False, pretrain=False)
 
-    test_data = get_test_data(training_args, args, test_idxs)
-
-    metrics_class = SegmentationTracker(full_metrics=True)
+    if 'DAF' in args.model_variant:
+        metrics_class = DAFMetric(full_metrics=True, n_classes=args.n_classes)
+    else:
+        if args.n_classes > 1:
+            metrics_class = MCMLSegmentationTracker(full_metrics=True, n_classes=args.n_classes)
+        else:
+            metrics_class = SegmentationTracker(full_metrics=True)
     eval_m = evaluate(
         eval_model,
         test_data,
@@ -204,9 +213,47 @@ def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
     return eval_m
 
 
+def visualise(net_args, training_args, args, model_path,
+              device='cuda:0'):
+    dataset = datasets[net_args.dataset](
+        survey_dir=args.survey_dir,
+        mask_dir=args.mask_dir,
+        transform=albumentations.Compose([
+            albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
+            albumentations.Resize((args.img_size), (args.img_size)),
+            albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
+        ]),
+        bands=args.bands,
+        aug_mult=1,
+        padding=args.padding,
+        class_map=args.class_map,
+        keep_background=args.background_class,
+    )
+
+    model = create_model(
+        args.save_dir,
+        variant=args.model_variant,
+        n_channels=len(args.bands),
+        n_classes=args.n_classes,
+        bands=args.bands,
+        downscale=args.downscale,
+        padding=args.padding,
+        class_map=args.class_map,
+        **vars(net_args),
+    ).to(device)
+    load(model, model_path, legacy=False, pretrain=False)
+
+    img, mask = dataset.get_galaxy(args.galaxy)
+    img = img.unsqueeze(0).to(device)
+    mask = mask.unsqueeze(0).to(device)
+
+    if 'DAF' in args.model_variant:
+        visualise_attention(model, img, mask, torch.tensor([512, 512]))
+
+
 def generate_splits(N, nsplits=1, val_ratio=0.2, test_ratio=0.15):
     test_N = int(N * test_ratio)
-    test_idxs = list(range(test_N, N))
+    test_idxs = list(range(N - test_N, N))
 
     splits = get_splits(N - test_N, max(int(1 / val_ratio), nsplits))  # Divide into 6 or more blocks
 
@@ -215,6 +262,7 @@ def generate_splits(N, nsplits=1, val_ratio=0.2, test_ratio=0.15):
 
 def main():
     parser = ExperimentParser(description='Runs a segmentation model')
+    parser.n_parser.set_defaults(dataset='cirrus')
     parser.add_argument('--survey_dir',
                         default='../data/matlas_reprocessed_cirrus', type=str,
                         help='Path to survey directory. (default: %(default)s)')
@@ -251,6 +299,9 @@ def main():
     parser.add_argument('--evaluate',
                         default=False, action='store_true',
                         help='Evaluates given model path.')
+    parser.add_argument('--img_size',
+                        default=1024, type=int,
+                        help='Image size (after downscaling) network should be trained on.')
     parser.add_argument('--padding',
                         default=32, type=int,
                         help='Amount to pad images by for training.')
@@ -260,19 +311,31 @@ def main():
                         help='Which class map to use. (default: %(default)s)')
     parser.add_argument('--background_class',
                         default=False, action='store_true',
-                        help='Whether to use a background class.')
+                        help='Evaluates given model path.')
+    parser.add_argument('--visualise',
+                        default=False, action='store_true',
+                        help='Visualises network outputs for given galaxy.')
+    parser.add_argument('--galaxy',
+                        default='NGC1121', type=str,
+                        help='Which galaxy to visualise. (default: %(default)s)')
 
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
-    net_args.dataset = 'cirrus'
-    print(args.bands)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     metrics = []
     save_paths = []
-    N = CirrusDataset.get_N(args.survey_dir, args.mask_dir, args.bands)
+    N = datasets[net_args.dataset].get_N(
+        args.survey_dir,
+        args.mask_dir,
+        args.bands,
+        class_map=args.class_map
+    )
     splits, test_idxs = generate_splits(N, training_args.nsplits)
+
+    if args.class_map is not None:
+        args.n_classes = len(datasets[net_args.dataset].class_maps[args.class_map]['classes']) - 1
 
     if args.evaluate:
         eval_m = run_evaluation_split(
@@ -283,7 +346,16 @@ def main():
             test_idxs,
             device='cuda:0',
         )
-        print(eval_m)
+        return
+
+    if args.visualise:
+        visualise(
+            net_args,
+            training_args,
+            args,
+            args.model_path,
+            device='cuda:0',
+        )
         return
 
     exp_name = (
@@ -327,18 +399,26 @@ def main():
             )
 
         metrics.append(m)
-        writer.upload_split({k: m[k] for k in ('IoU', 'PSNR', 'loss')})
+        writer.upload_split({k: str(m[k]) for k in ('IoU',)})
 
-    mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
-    best_iou = max([mi['IoU'] for mi in metrics])
-    best_split = [mi['IoU'] for mi in metrics].index(best_iou) + 1
-    best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
+    # mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
+    def avg(x, n_classes):
+        if n_classes > 1:
+            return sum(x) / args.n_classes
+        else:
+            return x
+
+    mean_m = {key: sum([avg(mi[key], args.n_classes) for mi in metrics]) / training_args.nsplits
+        for key in ('IoU',)}
+    best_iou = max([avg(mi['IoU'], args.n_classes) for mi in metrics])
+    best_split = [avg(mi['IoU'], args.n_classes) for mi in metrics].index(best_iou) + 1
+    # best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
     # mean_m['epoch'] = metrics[best_split-1]['epoch']
 
     error_m = {'e_psnr': 0}
     if training_args.nsplits > 1:
-        error_m = {f'e_{key}': calculate_error([mi[key] for mi in metrics])
-                   for key in m.keys()}
+        error_m = {f'e_{key}': calculate_error([avg(mi[key], args.n_classes) for mi in metrics])
+                for key in ('IoU',)}
 
     if training_args.eval_best:
         eval_m = run_evaluation_split(
@@ -351,14 +431,16 @@ def main():
         )
     else:
         eval_m = metrics[best_split-1]
+    print(metrics)
+    print(eval_m)
 
     total_params = stats['total_params']
     mins = stats['mins']
     secs = stats['secs']
     writer.upload_best_split(
         {
-            'test_iou': eval_m['IoU'],
-            'mean_iou': mean_m['IoU'],
+            'test_iou': str(eval_m['IoU']),
+            'mean_iou': str(mean_m['IoU']),
             'best_split': best_split,
         },
         best_split
@@ -367,10 +449,10 @@ def main():
     write_results(
         **{
             'params': total_params,
-            'm_psnr': mean_m['PSNR'],
+            # 'm_psnr': mean_m['PSNR'],
             'm_iou': mean_m['IoU'],
             'best_iou': best_iou,
-            'best_psnr': best_psnr,
+            # 'best_psnr': best_psnr,
             'best_split': best_split,
             'time_split': "{:3d}m{:2d}s".format(mins, secs),
             'zpaths': save_paths,
