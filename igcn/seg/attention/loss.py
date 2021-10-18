@@ -4,9 +4,11 @@ import torch
 class DAFLoss(torch.nn.Module):
     def __init__(self,
                  seg_criterion=torch.nn.BCEWithLogitsLoss(),
-                 vec_criterion=torch.nn.MSELoss()):
+                 vec_criterion=torch.nn.MSELoss(),
+                 pos_weight=7):
         super().__init__()
         self.seg_criterion = seg_criterion
+        self.seg_criterion.pos_weight = torch.tensor(pos_weight)
         self.vec_criterion = vec_criterion
 
     def forward(self, output, target):
