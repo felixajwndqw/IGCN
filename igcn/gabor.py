@@ -414,10 +414,10 @@ def gabor_gradient_cmplx(weight, params):
     return torch.stack([dgdt, dgdl], dim=1)
 
 
-def f_h(x, y, sigma=math.pi):
+def f_h(x, y, sigma=math.pi, eps=1e-5):
     """First half of filter
     """
-    return torch.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2))
+    return torch.exp(-(x ** 2 + y ** 2) / (2 * (sigma + eps) ** 2))
 
 
 def s_h(x_p, l):
