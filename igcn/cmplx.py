@@ -127,7 +127,7 @@ def relu_cmplx_mod(x, b=1e-8, inplace=False, eps=1e-8, **kwargs):
 def relu_cmplx(x, inplace=False, **kwargs):
     """Computes complex relu.
     """
-    return cmplx(F.relu(x[0]), F.relu(x[1]))
+    return cmplx(F.silu(x[0]), F.silu(x[1]))
 
 
 def bnorm_cmplx_old(x, eps=1e-8):
