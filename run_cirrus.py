@@ -1,6 +1,8 @@
 import albumentations
+import os
 import time
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from igcn.seg.models import UNetIGCNCmplx
@@ -8,9 +10,14 @@ from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.metrics import MetricTracker, SegmentationTracker, MCMLSegmentationTracker
 from quicktorch.writers import LabScribeWriter
+from quicktorch.modules.attention.loss import (
+    FocalWithLogitsLoss,
+    UnifiedFocalWithLogitsLoss,
+    AsymmetricFocalTvesrkyWithLogitsLoss
+)
 from igcn.seg.attention.metrics import DAFMetric
 from cirrus.data import CirrusDataset, LSBDataset
-from utils import ExperimentParser, calculate_error
+from experiment_utils import ExperimentParser, calculate_error
 from unet import UNetCmplx
 from segmentation import get_metrics_criterion, create_model, load
 from myvis.vis import visualise_attention
@@ -108,6 +115,14 @@ def write_results(**kwargs):
     f.close()
 
 
+seg_losses = {
+    'bce': nn.BCEWithLogitsLoss,
+    'unified': UnifiedFocalWithLogitsLoss,
+    'focaltversky': AsymmetricFocalTvesrkyWithLogitsLoss,
+    'focal': FocalWithLogitsLoss,
+}
+
+
 def run_cirrus_split(net_args, training_args, args, writer=None,
                      device='cuda:0', split=None, split_no=0):
     train_data, valid_data = get_train_data(
@@ -126,6 +141,10 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         model_path=args.model_path,
         padding=args.padding,
         class_map=args.class_map,
+        name_params={
+            'consensus': os.path.split(args.mask_dir)[-1],
+            'loss': args.loss_type,
+        },
         **vars(net_args)
     ).to(device)
 
@@ -144,11 +163,19 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         optimizer,
         training_args.lr_decay
     )
+    class_balances = train_data.dataset.class_balances
+    pos_weight = torch.sqrt(torch.tensor(class_balances, device=device))
+    pos_weight = pos_weight.view(pos_weight.shape[0], 1, 1)
+    seg_criterion = seg_losses[args.loss_type](reduction='none', pos_weight=pos_weight)
+
     metrics_class, criterion = get_metrics_criterion(
         args.model_variant,
         n_classes=args.n_classes,
-        lsb=net_args.dataset == 'lsb'
+        lsb=net_args.dataset == 'lsb',
+        pos_weight=pos_weight,
+        seg_criterion=seg_criterion
     )
+
     metrics_class.Writer = writer
 
     start = time.time()
@@ -157,7 +184,6 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
         [train_data, valid_data],
         criterion=criterion,
         save_best=True,
-        save_last=True,
         epochs=training_args.epochs,
         opt=optimizer,
         device=device,
@@ -308,6 +334,10 @@ def main():
     parser.add_argument('--class_map',
                         default=None,
                         choices=[None, *CirrusDataset.class_maps.keys()],
+                        help='Which class map to use. (default: %(default)s)')
+    parser.add_argument('--loss_type',
+                        default='bce',
+                        choices=['bce', 'unified', 'focaltversky'],
                         help='Which class map to use. (default: %(default)s)')
     parser.add_argument('--background_class',
                         default=False, action='store_true',

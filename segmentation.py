@@ -12,8 +12,7 @@ from igcn.seg.loss import RCFLoss
 from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from igcn.seg.attention.metrics import DAFMetric
 from igcn.seg.attention.loss import DAFLoss
-from quicktorch.modules.attention.models import DAFMSPlain
-from quicktorch.modules.attention.loss import DAFLossMCML
+from quicktorch.modules.attention.loss import DAFConsensusLoss
 from quicktorch.modules.loss import ConsensusLoss, ConsensusLossMC
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.metrics import (
@@ -25,8 +24,8 @@ from quicktorch.metrics import (
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
-from cirrus.scale import Scale, ScaleParallel
-from utils import ExperimentParser, calculate_error, RotateAndCrop
+from cirrus.scale import ScaleMultiple, ScaleParallel
+from experiment_utils import ExperimentParser, calculate_error, RotateAndCrop
 from unet import UNetCmplx, UNet
 import albumentations
 from isbi import get_isbi_train_data, get_isbi_test_data
@@ -52,14 +51,22 @@ def write_results(**kwargs):
     f.close()
 
 
-def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False):
+def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False,
+                          pos_weight=None, seg_criterion=nn.BCEWithLogitsLoss()):
+    print(pos_weight)
     if 'DAF' in variant:
+        MetricsClass = DAFMetric(n_classes=n_classes)
         if lsb:
-            MetricsClass = DAFMetric(n_classes=n_classes)
-            criterion = DAFLossMCML()
+            criterion = DAFConsensusLoss(
+                pos_weight=pos_weight.view(pos_weight.shape[0], 1, 1),
+                seg_criterion=seg_criterion
+            )
+            # criterion = DAFLoss(      # use this if you train on only one annotator
+            #     pos_weight=pos_weight,
+            #     seg_criterion=seg_criterion
+            # )
         else:
-            MetricsClass = DAFMetric(n_classes=n_classes)
-            criterion = DAFLoss()
+            criterion = DAFLoss(pos_weight=pos_weight)
     elif 'RCF' in variant:
         MetricsClass = RCFMetric()
         criterion = RCFLoss()
@@ -70,13 +77,13 @@ def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False):
         else:
             if lsb:
                 if n_classes == 1:
-                    criterion = ConsensusLoss()
+                    criterion = ConsensusLoss(pos_weight=pos_weight)
                     MetricsClass = SegmentationTracker()
                 if n_classes > 1:
-                    criterion = ConsensusLossMC()
+                    criterion = ConsensusLossMC(pos_weight=pos_weight)
                     MetricsClass = MCMLSegmentationTracker(n_classes=n_classes)
             elif n_classes == 1:
-                criterion = nn.BCEWithLogitsLoss()
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
                 MetricsClass = SegmentationTracker()
             elif n_classes > 1:
                 criterion = nn.CrossEntropyLoss()
@@ -171,19 +178,16 @@ def get_bsd_test_data(args, training_args, data_dir, **kwargs):
 
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
-                 dataset='cirrus', padding=0, class_map=None, **params):
+                 dataset='cirrus', padding=0, class_map=None, name_params=None, **params):
     models = {
         'SFC': UNetIGCNCmplx,
         'SFCReal': UNetIGCN,
         'Standard': UNetCmplx,
         'StandardReal': UNet,
-        'DAF': DAFStackSmall,
-        'DAFMS': DAFMS,
-        'DAFMSPlain': DAFMSPlain,
         'RCF': RCF,
     }
     scalings = {
-        'T': Scale,
+        'T': ScaleMultiple,
         'P': ScaleParallel
     }
     scale = None
@@ -191,7 +195,6 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         scale = scalings[variant[-1]](n_channels)
         n_channels *= scale.n_scaling  # Ensure network input channels are increased
         variant = variant[:-1]
-    attention = True if "DAF" in variant else False
     model_name = f'{variant}-{dataset}'
     model_fn = models[variant]
     if class_map is not None:
@@ -207,12 +210,15 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
     params["cmplx"] = True
     model_name += (
         f'-kernel_size={params["kernel_size"]}'
-        f'-no_g={params["no_g"]}'
+        # f'-no_g={params["no_g"]}'
         f'-base_channels={params["base_channels"]}'
-        f'-gp={params["final_gp"]}'
-        f'-relu={params["relu_type"]}'
-        f'-cmplx={params["cmplx"]}'
+        # f'-gp={params["final_gp"]}'
+        # f'-relu={params["relu_type"]}'
+        # f'-cmplx={params["cmplx"]}'
     )
+    if name_params is not None:
+        for key in name_params:
+            model_name += f'_{key}={name_params[key]}'
     model = model_fn(
         n_channels=n_channels,
         n_classes=n_classes,
@@ -236,7 +242,7 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         not_group=params["not_group"],
     )
     if model_path:
-        load(model, model_path, False, pretrain=pretrain, att=attention, n_classes=n_classes)
+        load(model, model_path, False, pretrain=pretrain, att=False, n_classes=n_classes)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     return model
@@ -259,13 +265,17 @@ def load(model, save_path, legacy=False, pretrain=True, att=False, n_classes=1):
         # checkpoint['model_state_dict'][scal_key] = weight.repeat(1, 2 * out_c, 1, 1)
         if att:
             checkpoint['model_state_dict'][scal_key].squeeze_(0)
-            if n_classes > 1:
+        if n_classes > 1:
+            if att:
                 fc_keys = [key for key in checkpoint['model_state_dict'].keys() if 'predict' in key]
-                for key in fc_keys:
-                    if 'bias' in key:
-                        checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes)
-                    else:
-                        checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes, 1, 1, 1)
+            else:
+                fc_keys = [key for key in checkpoint['model_state_dict'].keys() if 'outc.1' in key or 'outc.weight' in key or 'out.bias' in key]
+            for key in fc_keys:
+                if 'bias' in key:
+                    checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes)
+                else:
+                    checkpoint['model_state_dict'][key] = checkpoint['model_state_dict'][key].repeat(n_classes, 1, 1, 1)
+
     if legacy:
         for key in checkpoint['model_state_dict']:
             # if key.split('.')[-1] == 'gabor_filters' and key.split('.')[1] != 'conv1':
@@ -303,13 +313,14 @@ DATASETS = {
 }
 
 
-def run_segmentation_split(net_args, training_args, metrics_class=None, criterion=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
+def run_segmentation_split(net_args, training_args, metrics_class=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
     if net_args.dataset not in DATASETS.keys():
         raise NotImplementedError(f"Dataset {net_args.dataset} not implemented.")
     n_channels = DATASETS[net_args.dataset]['n_channels']
     n_classes = DATASETS[net_args.dataset]['n_classes']
     get_train = DATASETS[net_args.dataset]['get_train']
     get_test = DATASETS[net_args.dataset]['get_test']
+
 
     train_loader, val_loader = get_train(
         args,
@@ -323,6 +334,7 @@ def run_segmentation_split(net_args, training_args, metrics_class=None, criterio
         data_dir=args.dir,
         test_idxs=test_idxs
     )
+    _, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
 
     save_dir = 'D:/seg_models/seg/' + net_args.dataset# + f'/paramtest/{net_args.l_init}-{net_args.sigma_init}-{str(net_args.single_param)}'
     os.makedirs(save_dir, exist_ok=True)
@@ -425,14 +437,13 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
     n_classes = DATASETS[net_args.dataset]['n_classes']
 
     for split_no, split in zip(range(training_args.nsplits), splits):
-        metrics_class, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
+        metrics_class, _ = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
         metrics_class.Writer = writer         # Delete this line if metric logging not desired
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         m, stats = run_segmentation_split(
             net_args,
             training_args,
             metrics_class=metrics_class,
-            criterion=criterion,
             device=device,
             split=split,
             split_no=split_no,
