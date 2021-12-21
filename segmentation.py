@@ -9,10 +9,8 @@ from data import get_prague_train_data, get_prague_test_data, get_prague_splits
 from igcn.seg.models import UNetIGCN, UNetIGCNCmplx, RCF
 from igcn.seg.metrics import RCFMetric
 from igcn.seg.loss import RCFLoss
-from igcn.seg.attention.models import DAFMS, DAFStackSmall
-from igcn.seg.attention.metrics import DAFMetric
-from igcn.seg.attention.loss import DAFLoss
-from quicktorch.modules.attention.loss import DAFConsensusLoss
+from quicktorch.modules.attention.loss import DAFLoss, DAFConsensusLoss
+from quicktorch.modules.attention.metrics import DAFMetric
 from quicktorch.modules.loss import ConsensusLoss, ConsensusLossMC
 from quicktorch.utils import train, evaluate, get_splits
 from quicktorch.metrics import (
@@ -25,6 +23,7 @@ from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
 from cirrus.scale import ScaleMultiple, ScaleParallel
+from cirrus.training_utils import create_attention_model
 from experiment_utils import ExperimentParser, calculate_error, RotateAndCrop
 from unet import UNetCmplx, UNet
 import albumentations
@@ -54,7 +53,7 @@ def write_results(**kwargs):
 def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False,
                           pos_weight=None, seg_criterion=nn.BCEWithLogitsLoss()):
     print(pos_weight)
-    if 'DAF' in variant:
+    if 'DAF' in variant or variant == 'Attention':
         MetricsClass = DAFMetric(n_classes=n_classes)
         if lsb:
             criterion = DAFConsensusLoss(
@@ -179,6 +178,24 @@ def get_bsd_test_data(args, training_args, data_dir, **kwargs):
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
                  dataset='cirrus', padding=0, class_map=None, name_params=None, **params):
+    print(variant)
+    if variant == 'Attention':
+        model = create_attention_model(
+            len(bands),
+            n_classes,
+            {
+                'base_channels': params["base_channels"],
+                'backbone': 'MS',
+                'attention_head': 'Dual',
+                'attention_mod': 'Guided',
+                'scale_key': None,
+                'scales': [0, 1, 2],
+            },
+            pad_to_remove=padding,
+        )
+        if model_path:
+            load(model, model_path, False, pretrain=pretrain, att=False, n_classes=n_classes)
+        return model
     models = {
         'SFC': UNetIGCNCmplx,
         'SFCReal': UNetIGCN,
@@ -373,9 +390,12 @@ def run_segmentation_split(net_args, training_args, metrics_class=None, device='
     print('Evaluating')
     if not args.only_val:
         temp_metrics = evaluate(model, test_loader, metrics=metrics_class, device=device)
-        m['PSNR'] = temp_metrics['PSNR']
-        if not args.denoise:
-            m['IoU'] = temp_metrics['IoU']
+        for key in ('PSNR', 'IoU'):
+            if key in temp_metrics:
+                m[key] = temp_metrics[key]
+        # m['PSNR'] = temp_metrics['PSNR']
+        # if not args.denoise:
+        #     m['IoU'] = temp_metrics['IoU']
     del(model)
     torch.cuda.empty_cache()
     stats = {
@@ -503,7 +523,7 @@ def main():
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default="SFC", type=str,
-                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain', 'RCF', 'SFCReal', 'StandardReal'],
+                        choices=['SFC', 'Standard', 'DAF', 'DAFMS', 'DAFMSPlain', 'RCF', 'SFCReal', 'StandardReal', 'Attention'],
                         help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--denoise',
                         default=False, action='store_true',

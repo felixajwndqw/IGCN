@@ -1,109 +1,17 @@
-import albumentations
+import glob
 import os
 import time
+
 import torch
-import torch.nn as nn
 import torch.optim as optim
+
 from torch.utils.data import DataLoader
-from igcn.seg.models import UNetIGCNCmplx
-from igcn.seg.attention.models import DAFMS, DAFStackSmall
 from quicktorch.utils import train, evaluate, get_splits
-from quicktorch.metrics import MetricTracker, SegmentationTracker, MCMLSegmentationTracker
 from quicktorch.writers import LabScribeWriter
-from quicktorch.modules.attention.loss import (
-    FocalWithLogitsLoss,
-    UnifiedFocalWithLogitsLoss,
-    AsymmetricFocalTvesrkyWithLogitsLoss
-)
-from igcn.seg.attention.metrics import DAFMetric
-from cirrus.data import CirrusDataset, LSBDataset
-from experiment_utils import ExperimentParser, calculate_error
-from unet import UNetCmplx
-from segmentation import get_metrics_criterion, create_model, load
 from myvis.vis import visualise_attention
-
-
-datasets = {
-    'cirrus': CirrusDataset,
-    'lsb': LSBDataset
-}
-
-
-def get_train_data(training_args, args, split):
-    Dataset = datasets[args.dataset]
-    trainloader = DataLoader(
-        Dataset(
-            survey_dir=args.survey_dir,
-            mask_dir=args.mask_dir,
-            transform=albumentations.Compose([
-                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
-                albumentations.Resize((args.img_size), (args.img_size)),
-                # albumentations.RandomBrightnessContrast(),
-                albumentations.Flip(),
-                albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
-            ]),
-            indices=split[0],
-            bands=args.bands,
-            aug_mult=max(1, 512 // args.img_size),
-            padding=args.padding,
-            class_map=args.class_map,
-            keep_background=args.background_class,
-        ),
-        batch_size=training_args.batch_size,
-        shuffle=True,
-        # num_workers=2,
-        pin_memory=True,
-    )
-    validloader = DataLoader(
-        Dataset(
-            survey_dir=args.survey_dir,
-            mask_dir=args.mask_dir,
-            transform=albumentations.Compose([
-                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
-                albumentations.Resize((args.img_size), (args.img_size)),
-                # albumentations.RandomBrightnessContrast(),
-                albumentations.Flip(),
-                albumentations.RandomRotate90(),
-                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
-            ]),
-            indices=split[1],
-            bands=args.bands,
-            aug_mult=max(1, 1024 // args.img_size),
-            padding=args.padding,
-            class_map=args.class_map,
-            keep_background=args.background_class,
-        ),
-        batch_size=training_args.batch_size,
-        shuffle=True,
-        # num_workers=2,
-        pin_memory=True,
-    )
-    return trainloader, validloader
-
-
-def get_test_data(training_args, args, test_idxs):
-    Dataset = datasets[args.dataset]
-    testloader = DataLoader(
-        Dataset(
-            survey_dir=args.survey_dir,
-            mask_dir=args.mask_dir,
-            transform=albumentations.Compose([
-                albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
-                albumentations.Resize((args.img_size), (args.img_size)),
-                albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
-            ]),
-            indices=test_idxs,
-            bands=args.bands,
-            aug_mult=max(1, 1024 // args.img_size),
-            padding=args.padding,
-            class_map=args.class_map,
-            keep_background=args.background_class,
-        ),
-        batch_size=training_args.batch_size,
-        shuffle=True
-    )
-    return testloader
+from experiment_utils import ExperimentParser, calculate_error
+from segmentation import create_model, load
+from cirrus.training_utils import construct_dataset, load_config, get_loss, get_metrics, create_attention_model
 
 
 def write_results(**kwargs):
@@ -115,39 +23,38 @@ def write_results(**kwargs):
     f.close()
 
 
-seg_losses = {
-    'bce': nn.BCEWithLogitsLoss,
-    'unified': UnifiedFocalWithLogitsLoss,
-    'focaltversky': AsymmetricFocalTvesrkyWithLogitsLoss,
-    'focal': FocalWithLogitsLoss,
-}
+def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=None,
+                     device='cuda:0', split=None):
+    dataset_train = construct_dataset(dataset='lsb', idxs=split[0], class_map=exp_config['class_map'], transform=exp_config['transforms'], aug_mult=exp_config['aug_mult'], padding=exp_config['padding'])
+    dataset_val = construct_dataset(dataset='lsb', idxs=split[1], class_map=exp_config['class_map'], transform=exp_config['transforms'], padding=exp_config['padding'])
+    train_data = DataLoader(dataset_train, exp_config['batch_size'], True, pin_memory=True)
+    val_data = DataLoader(dataset_val, exp_config['batch_size'], True, pin_memory=True)
+    num_classes = dataset_train.num_classes
 
-
-def run_cirrus_split(net_args, training_args, args, writer=None,
-                     device='cuda:0', split=None, split_no=0):
-    train_data, valid_data = get_train_data(
-        training_args,
-        args,
-        split=split,
-    )
-
-    model = create_model(
-        args.save_dir,
-        variant=args.model_variant,
-        n_channels=len(args.bands),
-        n_classes=args.n_classes,
-        bands=args.bands,
-        downscale=args.downscale,
-        model_path=args.model_path,
-        padding=args.padding,
-        class_map=args.class_map,
-        name_params={
-            'consensus': os.path.split(args.mask_dir)[-1],
-            'loss': args.loss_type,
-        },
-        **vars(net_args)
-    ).to(device)
-
+    if model_config['model_variant'] == 'Attention':
+        model = create_attention_model(
+            len(exp_config['bands']),
+            num_classes,
+            model_config,
+            pad_to_remove=exp_config['padding'],
+        )
+        model.save_dir = save_dir
+    else:
+        model = create_model(
+            save_dir,
+            variant=args.model_variant,
+            n_channels=len(exp_config['bands']),
+            n_classes=num_classes,
+            bands=exp_config['bands'],
+            padding=exp_config['padding'],
+            class_map=exp_config['class_map'],
+            name_params={
+                'consensus': os.path.split(args.mask_dir)[-1],
+                'loss': exp_config['loss_type'],
+            },
+            **vars(net_args)
+        )
+    model = model.to(device)
 
     total_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
@@ -156,35 +63,44 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
 
     optimizer = optim.Adam(
         model.parameters(),
-        lr=training_args.lr,
-        weight_decay=training_args.weight_decay
+        lr=exp_config['lr'],
+        weight_decay=exp_config['weight_decay']
     )
     scheduler = optim.lr_scheduler.ExponentialLR(
         optimizer,
-        training_args.lr_decay
+        exp_config['lr_decay']
     )
-    class_balances = train_data.dataset.class_balances
+    class_balances = dataset_train.class_balances
     pos_weight = torch.sqrt(torch.tensor(class_balances, device=device))
     pos_weight = pos_weight.view(pos_weight.shape[0], 1, 1)
-    seg_criterion = seg_losses[args.loss_type](reduction='none', pos_weight=pos_weight)
-
-    metrics_class, criterion = get_metrics_criterion(
-        args.model_variant,
-        n_classes=args.n_classes,
-        lsb=net_args.dataset == 'lsb',
-        pos_weight=pos_weight,
-        seg_criterion=seg_criterion
+    criterion = get_loss(
+        exp_config['seg_loss'],
+        exp_config['consensus_loss'],
+        exp_config['aux_loss'],
+        pos_weight=pos_weight
     )
 
+    metrics_class = get_metrics(dataset_train.num_classes, model_config['model_variant'])
     metrics_class.Writer = writer
+
+    if os.path.exists(os.path.join(save_dir, 'current.pt')):
+        checkpoint = torch.load(os.path.join(save_dir, 'current.pt'))
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        print(checkpoint.keys())
+        metrics_class.best_metrics.update(checkpoint['best_metrics'])
+        start_epoch = checkpoint['epoch']
+    else:
+        start_epoch = 0
 
     start = time.time()
     m = train(
         model,
-        [train_data, valid_data],
+        [train_data, val_data],
         criterion=criterion,
         save_best=True,
-        epochs=training_args.epochs,
+        epochs=exp_config['epochs'],
+        start_epoch=start_epoch,
         opt=optimizer,
         device=device,
         sch=scheduler,
@@ -205,68 +121,91 @@ def run_cirrus_split(net_args, training_args, args, writer=None,
     return m, stats
 
 
-def run_evaluation_split(net_args, training_args, args, model_path, test_idxs,
-                         device='cuda:0'):
-    test_data = get_test_data(training_args, args, test_idxs)
+def run_evaluation_split(net_args, args, exp_config, model_config, model_path, test_idxs,
+                         device='cuda:0', figs_dir=None):
+    dataset_test = construct_dataset(
+        dataset='lsb',
+        idxs=test_idxs,
+        class_map=exp_config['class_map'],
+        transform={
+            'crop': [3000, 3000],
+            'resize': [1024, 1024],
+            'pad': [1024 + exp_config['padding'], 1024 + exp_config['padding']]
+        },
+        padding=exp_config['padding']
+    )
+    test_data = DataLoader(dataset_test, 1)
+    num_classes = dataset_test.num_classes
 
-    eval_model = create_model(
-        args.save_dir,
-        variant=args.model_variant,
-        n_channels=len(args.bands),
-        n_classes=args.n_classes,
-        bands=args.bands,
-        downscale=args.downscale,
-        padding=args.padding,
-        class_map=args.class_map,
-        **vars(net_args),
-    ).to(device)
-    load(eval_model, model_path, legacy=False, pretrain=False)
-
-    if 'DAF' in args.model_variant:
-        metrics_class = DAFMetric(full_metrics=True, n_classes=args.n_classes)
+    if model_config['model_variant'] == 'Attention':
+        model = create_attention_model(
+            len(exp_config['bands']),
+            num_classes,
+            model_config,
+            pad_to_remove=exp_config['padding'],
+        )
     else:
-        if args.n_classes > 1:
-            metrics_class = MCMLSegmentationTracker(full_metrics=True, n_classes=args.n_classes)
-        else:
-            metrics_class = SegmentationTracker(full_metrics=True)
+        model = create_model(
+            args.save_dir,
+            variant=args.model_variant,
+            n_channels=len(exp_config['bands']),
+            n_classes=num_classes,
+            bands=exp_config['bands'],
+            padding=exp_config['padding'],
+            class_map=args.class_map,
+            **vars(net_args),
+        )
+    model = model.to(device)
+    load(model, model_path, legacy=False, pretrain=False)
+
+    metrics_class = get_metrics(num_classes, model_config['model_variant'])
+
+    figs_dir = os.path.join(figs_dir, 'figs')
+    os.makedirs(figs_dir, exist_ok=True)
     eval_m = evaluate(
-        eval_model,
+        model,
         test_data,
         device=device,
-        metrics=metrics_class
+        metrics=metrics_class,
+        figs_dir=figs_dir,
+        figs_labels=dataset_test.galaxies
     )
 
     return eval_m
 
 
-def visualise(net_args, training_args, args, model_path,
+def visualise(net_args, args, exp_config, model_config, model_path,
               device='cuda:0'):
-    dataset = datasets[net_args.dataset](
-        survey_dir=args.survey_dir,
-        mask_dir=args.mask_dir,
-        transform=albumentations.Compose([
-            albumentations.RandomCrop((args.img_size) * args.downscale, (args.img_size) * args.downscale),
-            albumentations.Resize((args.img_size), (args.img_size)),
-            albumentations.PadIfNeeded(args.img_size + args.padding, args.img_size + args.padding, border_mode=4)
-        ]),
-        bands=args.bands,
-        aug_mult=1,
-        padding=args.padding,
-        class_map=args.class_map,
-        keep_background=args.background_class,
+    dataset = construct_dataset(
+        'lsb',
+        {
+            'crop': [3000, 3000],
+            'resize': [1024, 1024],
+            'pad': [1024 + exp_config['padding'], 1024 + exp_config['padding']]
+        },
+        padding=exp_config['padding'],
+        class_map=exp_config['class_map']
     )
 
-    model = create_model(
-        args.save_dir,
-        variant=args.model_variant,
-        n_channels=len(args.bands),
-        n_classes=args.n_classes,
-        bands=args.bands,
-        downscale=args.downscale,
-        padding=args.padding,
-        class_map=args.class_map,
-        **vars(net_args),
-    ).to(device)
+    if model_config['model_variant'] == 'Attention':
+        model = create_attention_model(
+            len(exp_config['bands']),
+            dataset.num_classes,
+            model_config,
+            pad_to_remove=exp_config['padding'],
+        )
+    else:
+        model = create_model(
+            args.save_dir,
+            variant=args.model_variant,
+            n_channels=len(exp_config['bands']),
+            n_classes=dataset.num_classes,
+            bands=exp_config['bands'],
+            padding=exp_config['padding'],
+            class_map=args.class_map,
+            **vars(net_args),
+        ).to(device)
+
     load(model, model_path, legacy=False, pretrain=False)
 
     img, mask = dataset.get_galaxy(args.galaxy)
@@ -277,30 +216,54 @@ def visualise(net_args, training_args, args, model_path,
         visualise_attention(model, img, mask, torch.tensor([512, 512]))
 
 
-def generate_splits(N, nsplits=1, val_ratio=0.2, test_ratio=0.15):
+def generate_splits(N, nsplits=1, val_ratio=0.2, test_ratio=0.15, force_test_idxs=[]):
     test_N = int(N * test_ratio)
     test_idxs = list(range(N - test_N, N))
 
     splits = get_splits(N - test_N, max(int(1 / val_ratio), nsplits))  # Divide into 6 or more blocks
 
+    if force_test_idxs:
+        to_be_swapped = test_idxs[:len(force_test_idxs)]
+        for i, (idx, sw_idx) in enumerate(zip(force_test_idxs, to_be_swapped)):
+            test_idxs[i] = idx
+            for split in splits:
+                for part in split:
+                    part[part == idx] = sw_idx
+
     return splits, test_idxs
+
+
+def get_test_idxs(dataset, exp_config):
+    if 'test_galaxies' not in exp_config:
+        return []
+    else:
+        return [i for i, gal in enumerate(dataset.galaxies) if gal in exp_config['test_galaxies']]
 
 
 def main():
     parser = ExperimentParser(description='Runs a segmentation model')
     parser.n_parser.set_defaults(dataset='cirrus')
-    parser.add_argument('--survey_dir',
-                        default='../data/matlas_reprocessed_cirrus', type=str,
-                        help='Path to survey directory. (default: %(default)s)')
-    parser.add_argument('--mask_dir',
-                        default='../data/cirrus', type=str,
-                        help='Path to data directory. (default: %(default)s)')
     parser.add_argument('--save_dir',
                         default='models/seg/cirrus', type=str,
                         help='Directory to save models to. (default: %(default)s)')
     parser.add_argument('--model_path',
                         default='', type=str,
                         help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
+    parser.add_argument('--checkpoint_dir',
+                        default='', type=str,
+                        help='Path to checkpoint directory. (default: %(default)s)')
+    parser.add_argument('--auto_checkpoint',
+                        default=False, action='store_true',
+                        help='Automatically uses last version directory as checkpoint dir.')
+    parser.add_argument('--experiment_config',
+                        default='./configs/experiments/cirrus/standard.yaml', type=str,
+                        help='Experiment configuration. (default: %(default)s)')
+    parser.add_argument('--evaluation_config',
+                        default='./configs/experiments/cirrus/evaluation.yaml', type=str,
+                        help='Experiment configuration. (default: %(default)s)')
+    parser.add_argument('--model_config',
+                        default='./configs/models/triplemsguided.yaml', type=str,
+                        help='Model configuration. (default: %(default)s)')
     parser.add_argument('--model_variant',
                         default='SFC', type=str,
                         choices=[
@@ -310,36 +273,7 @@ def main():
                             'DAFMSPlain', 'DAFMSPlainT', 'DAFMSPlainP',
                             'Standard', 'StandardT', 'StandardP',
                         ], help='Model variant. (default: %(default)s)')
-    parser.add_argument('--n_classes',
-                        default=1, type=int,
-                        help='Number of classes to predict. '
-                             '(default: %(default)s)')
-    parser.add_argument('--bands',
-                        default=['g'], type=str, nargs='+',
-                        help='Image wavelength band to train on. '
-                             '(default: %(default)s)')
-    parser.add_argument('--downscale',
-                        default=1, type=int,
-                        help='Ratio to downscale images by. '
-                             '(default: %(default)s)')
     parser.add_argument('--evaluate',
-                        default=False, action='store_true',
-                        help='Evaluates given model path.')
-    parser.add_argument('--img_size',
-                        default=1024, type=int,
-                        help='Image size (after downscaling) network should be trained on.')
-    parser.add_argument('--padding',
-                        default=32, type=int,
-                        help='Amount to pad images by for training.')
-    parser.add_argument('--class_map',
-                        default=None,
-                        choices=[None, *CirrusDataset.class_maps.keys()],
-                        help='Which class map to use. (default: %(default)s)')
-    parser.add_argument('--loss_type',
-                        default='bce',
-                        choices=['bce', 'unified', 'focaltversky'],
-                        help='Which class map to use. (default: %(default)s)')
-    parser.add_argument('--background_class',
                         default=False, action='store_true',
                         help='Evaluates given model path.')
     parser.add_argument('--visualise',
@@ -349,29 +283,41 @@ def main():
                         default='NGC1121', type=str,
                         help='Which galaxy to visualise. (default: %(default)s)')
 
-    net_args, training_args = parser.parse_group_args()
+    net_args, _ = parser.parse_group_args()
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    exp_config = load_config(args.experiment_config, './configs/experiments/default.yaml')
+    eval_config = load_config(args.evaluation_config, './configs/experiments/default.yaml')
+    model_config = load_config(args.model_config)
+
+    if args.checkpoint_dir:
+        args.save_dir = args.checkpoint_dir
+        ver_dir = os.path.split(args.save_dir)[-1]
+    else:
+        args.save_dir = os.path.join(args.save_dir, f'{model_config["name"]}_{exp_config["name"]}')
+        ver_no = len(glob.glob(args.save_dir + '/*/'))
+        if args.auto_checkpoint:
+            ver_no = max(0, ver_no - 1)
+        ver_dir = 'ver' + str(ver_no)
+        args.save_dir = os.path.join(args.save_dir, ver_dir)
+        os.makedirs(args.save_dir, exist_ok=True)
 
     metrics = []
     save_paths = []
-    N = datasets[net_args.dataset].get_N(
-        args.survey_dir,
-        args.mask_dir,
-        args.bands,
-        class_map=args.class_map
-    )
-    splits, test_idxs = generate_splits(N, training_args.nsplits)
-
-    if args.class_map is not None:
-        args.n_classes = len(datasets[net_args.dataset].class_maps[args.class_map]['classes']) - 1
+    dataset = construct_dataset(dataset=exp_config['dataset'], class_map=exp_config['class_map'], padding=exp_config['padding'])
+    N = len(dataset)
+    force_test_idxs = get_test_idxs(dataset, exp_config)
+    splits, test_idxs = generate_splits(N, exp_config['nsplits'], force_test_idxs=force_test_idxs)
+    num_classes = dataset.num_classes
+    del dataset
 
     if args.evaluate:
         eval_m = run_evaluation_split(
             net_args,
-            training_args,
             args,
+            eval_config,
+            model_config,
             args.model_path,
             test_idxs,
             device='cuda:0',
@@ -381,80 +327,84 @@ def main():
     if args.visualise:
         visualise(
             net_args,
-            training_args,
             args,
+            exp_config,
+            model_config,
             args.model_path,
             device='cuda:0',
         )
         return
 
-    exp_name = (
-        f'{args.model_variant}-Cirrus'
-        f'-pre={bool(args.model_path)}'
-        f'-base_channels={net_args.base_channels}'
-        f'-no_g={net_args.no_g}'
-        f'-bands={args.bands}'
-        f'-downscale={args.downscale}'
-        f'-gp={args.final_gp}'
-        f'-relu={args.relu_type}'
-    )
+    exp_name = '-'.join([
+        f'class_map={exp_config["class_map"]}',
+        f'exp_config={exp_config["name"]}',
+        f'model_config={model_config["name"]}',
+        f'version={ver_dir}',
+    ])
     writer = LabScribeWriter(
         'Results',
         exp_name=exp_name,
         exp_worksheet_name='CirrusSeg',
         metrics_worksheet_name='CirrusSegMetrics',
-        nsplits=training_args.nsplits
+        nsplits=exp_config['nsplits']
     )
     writer.begin_experiment(exp_name)
-    for split_no, split in zip(range(training_args.nsplits), splits):
-        print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
+    for split_no, split in zip(range(exp_config['nsplits']), splits):
+        print('Beginning split #{}/{}'.format(split_no + 1, exp_config['nsplits']))
+        save_dir = os.path.join(args.save_dir, f'split{split_no + 1}')
+        os.makedirs(save_dir, exist_ok=True)
         m, stats = run_cirrus_split(
             net_args,
-            training_args,
             args,
+            exp_config,
+            model_config,
+            save_dir,
             writer=writer,
             device=device,
             split=split
         )
         save_paths.append(m.pop('save_path'))
 
-        if not training_args.eval_best:
+        if not exp_config['eval_best']:
             m = run_evaluation_split(
                 net_args,
-                training_args,
                 args,
+                eval_config,
+                model_config,
                 save_paths[-1],
                 test_idxs,
                 device='cuda:0',
+                figs_dir=save_dir
             )
 
         metrics.append(m)
         writer.upload_split({k: str(m[k]) for k in ('IoU',)})
 
-    # mean_m = {key: sum(mi[key] for mi in metrics) / training_args.nsplits for key in m.keys()}
+    # mean_m = {key: sum(mi[key] for mi in metrics) / exp_config['nsplits'] for key in m.keys()}
     def avg(x, n_classes):
         if n_classes > 1:
-            return sum(x) / args.n_classes
+            return sum(x) / n_classes
         else:
             return x
 
-    mean_m = {key: sum([avg(mi[key], args.n_classes) for mi in metrics]) / training_args.nsplits
+    mean_m = {key: sum([avg(mi[key], num_classes) for mi in metrics]) / exp_config['nsplits']
         for key in ('IoU',)}
-    best_iou = max([avg(mi['IoU'], args.n_classes) for mi in metrics])
-    best_split = [avg(mi['IoU'], args.n_classes) for mi in metrics].index(best_iou) + 1
+    best_iou = max([avg(mi['IoU'], num_classes) for mi in metrics])
+    best_split = [avg(mi['IoU'], num_classes) for mi in metrics].index(best_iou) + 1
     # best_psnr = metrics[[mi['IoU'] for mi in metrics].index(best_iou)]['PSNR']
     # mean_m['epoch'] = metrics[best_split-1]['epoch']
 
     error_m = {'e_psnr': 0}
-    if training_args.nsplits > 1:
-        error_m = {f'e_{key}': calculate_error([avg(mi[key], args.n_classes) for mi in metrics])
+    if exp_config['nsplits'] > 1:
+        error_m = {f'e_{key}': calculate_error([avg(mi[key], num_classes) for mi in metrics])
                 for key in ('IoU',)}
 
-    if training_args.eval_best:
+    if exp_config['eval_best']:
         eval_m = run_evaluation_split(
             net_args,
-            training_args,
             args,
+            eval_config,
+            model_config,
             save_paths[best_split-1],
             test_idxs,
             device='cuda:0',
@@ -476,6 +426,10 @@ def main():
         best_split
     )
 
+    exp_config['exp_name'] = exp_config['name']
+    model_config['model_name'] = model_config['name']
+    del exp_config['name']
+    del model_config['name']
     write_results(
         **{
             'params': total_params,
@@ -489,8 +443,8 @@ def main():
         },
         **error_m,
         **eval_m,
-        **vars(training_args),
-        **vars(net_args)
+        **exp_config,
+        **model_config,
     )
 
 
