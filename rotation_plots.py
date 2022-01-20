@@ -2,7 +2,7 @@ import os
 import torch
 import PIL
 import numpy as np
-from utils import ExperimentParser
+from experiment_utils import ExperimentParser
 from quicktorch.data import mnist
 from igcn.models import IGCN
 import matplotlib.pyplot as plt

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="igcn",
     version="0.1",
-    author="felixajwndqw",
-    url="github.com/felixajwndqw/igcn_pytorch",
+    author="felixrichards",
+    url="github.com/felixrichards/igcn",
     packages=find_packages()
 )
