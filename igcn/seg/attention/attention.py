@@ -1,17 +1,121 @@
 import math
+import sys
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from igcn.seg.cmplx_modules import DownCmplx, UpSimpleCmplx
-from igcn.cmplx_modules import GaborPool, ReLUCmplx, IGConvGroupCmplx
+from igcn.cmplx_modules import GaborPool, Project, ReLUCmplx, IGConvGroupCmplx, IGConvCmplx
+from igcn.modules import IGConv
+from igcn.modules import GaborPool as GaborPoolReal
 from igcn.cmplx_bn import BatchNormCmplx
-from igcn.cmplx import magnitude, cmplx
+from igcn.cmplx import magnitude, cmplx, new_cmplx
 from igcn.utils import _compress_shape, _recover_shape
 
+from quicktorch.modules.attention.attention import (
+    PositionAttentionHead,
+    ChannelAttentionHead,
+    DualAttentionHead,
+    AttentionLayer,
+    PAM_Module,
+    CAM_Module
+)
 
-__all__ = ['PAM_Module', 'CAM_Module', 'GAM_Module', 'semanticModule']
+
+__all__ = ['PAMCmplx_Module', 'CAMCmplx_Module', 'GAMCmplx_Module', 'semanticModule']
+
+
+def get_gabor_attention_head(key):
+    return getattr(sys.modules[__name__], f'Gabor{key}AttentionHead')
+
+
+class GaborDualAttentionHead(DualAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGabor(channels, 4, PAMReal_Module)
+        self.cam = AttentionLayerGabor(channels, 4, CAMReal_Module)
+
+
+class GaborPositionAttentionHead(PositionAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGabor(channels, 4, PAMReal_Module)
+
+
+class GaborChannelAttentionHead(ChannelAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.cam = AttentionLayerGabor(channels, 4, CAMReal_Module)
+
+
+class GaborDualCmplxAttentionHead(DualAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGaborCmplx(channels, 4, PAMCmplx_Module)
+        self.cam = AttentionLayerGaborCmplx(channels, 4, CAMCmplx_Module)
+
+
+class GaborPositionCmplxAttentionHead(PositionAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGaborCmplx(channels, 4, PAMCmplx_Module)
+
+
+class GaborChannelCmplxAttentionHead(ChannelAttentionHead):
+    """
+    """
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.cam = AttentionLayerGaborCmplx(channels, 4, CAMCmplx_Module)
+
+
+class GaborTriAttentionHead(DualAttentionHead):
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.gam = AttentionLayerGabor(channels, 4, GAMReal_Module)
+
+    def forward(self, fused, semantic):
+        return self.conv(
+            (
+                self.pam(fused) +
+                self.cam(fused) +
+                self.gam(fused)
+            ) *
+            self.conv_semantic(semantic)
+        )
+
+
+class GaborTriCmplxAttentionHead(GaborTriAttentionHead):
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.gam = AttentionLayerGaborCmplx(channels, 4, GAMCmplx_Module)
+
+
+class GaborTriGaborAttentionHead(GaborTriAttentionHead):
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGabor(channels, 4, PAMReal_Module)
+        self.cam = AttentionLayerGabor(channels, 4, CAMReal_Module)
+        self.gam = AttentionLayerGabor(channels, 4, GAMReal_Module)
+
+
+class GaborTriGaborCmplxAttentionHead(GaborTriAttentionHead):
+    def __init__(self, channels):
+        super().__init__(channels)
+        self.pam = AttentionLayerGaborCmplx(channels, 4, PAMCmplx_Module)
+        self.cam = AttentionLayerGaborCmplx(channels, 4, CAMCmplx_Module)
+        self.gam = AttentionLayerGaborCmplx(channels, 4, GAMCmplx_Module)
 
 
 class SoftmaxCmplx(nn.Module):
@@ -63,13 +167,13 @@ class SemanticModule(nn.Module):
         return enc.view(-1), x
 
 
-class PAM_Module(nn.Module):
+class PAMCmplx_Module(nn.Module):
     """ Position attention module"""
     def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, gp='avg'):
-        super(PAM_Module, self).__init__()
-        self.query_conv = IGConvGroupCmplx(in_dim, max(in_dim//8, 1), kernel_size=1, no_g=no_g, gabor_pooling=gp)
-        self.key_conv = IGConvGroupCmplx(in_dim, max(in_dim//8, 1), kernel_size=1, no_g=no_g, gabor_pooling=gp)
-        self.value_conv = IGConvGroupCmplx(in_dim, in_dim, kernel_size=1, no_g=no_g)
+        super().__init__()
+        self.query_conv = IGConvCmplx(in_dim * no_g, max(in_dim//8, 1), kernel_size=1, no_g=no_g, gabor_pooling=gp)
+        self.key_conv = IGConvCmplx(in_dim * no_g, max(in_dim//8, 1), kernel_size=1, no_g=no_g, gabor_pooling=gp)
+        self.value_conv = IGConvCmplx(in_dim * no_g, in_dim, kernel_size=1, no_g=no_g)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.align = Alignment(dim=-1)
 
@@ -111,7 +215,202 @@ class PAM_Module(nn.Module):
         return out
 
 
-# class CAM_Module(nn.Module):
+class CAMCmplx_Module(nn.Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, gp='avg'):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.align = Alignment(dim=-1)
+
+    def forward(self, x):
+        """
+        Parameters:
+        ----------
+            inputs :
+                x : input feature maps (2 X B X C X G X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        x = torch.complex(x[0], x[1])
+        m_batchsize, C, G, height, width = x.size()
+        proj_query = x.view(m_batchsize, C, -1)
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+
+        energy = torch.bmm(proj_query, proj_key)
+        # try cutting this op and see results
+        # also consider using max mag i.e.
+        # (torch.max(energy.abs(), -1, keepdim=True)[0].expand_as(energy) - energy.abs()) * 
+        # torch.exp(torch.complex(torch.zeros_like(energy, dtype=torch.float), energy.angle()))
+        energy = torch.complex(
+            torch.max(energy.real, -1, keepdim=True)[0].expand_as(energy),
+            torch.max(energy.imag, -1, keepdim=True)[0].expand_as(energy)
+        ) - energy
+        attention = self.align(energy)
+        attention = torch.complex(
+            attention,
+            torch.zeros_like(attention, dtype=torch.float)
+        )
+
+        proj_value = x.view(m_batchsize, C, -1)
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, G, height, width)
+
+        out = self.gamma * out + x
+        out = cmplx(out.real, out.imag)
+        return out
+
+
+class GAMCmplx_Module(nn.Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, **kwargs):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.align = Alignment(dim=-1)
+
+    def forward(self, x):
+        """
+        Parameters:
+        ----------
+            inputs :
+                x : input feature maps (2 X B X C X G X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        x = torch.complex(x[0], x[1])
+        m_batchsize, C, G, height, width = x.size()
+
+        # Gx(CxWxH)
+        proj_query = x.view(m_batchsize, G, -1)
+        # (CxWxH)xG
+        proj_key = x.view(m_batchsize, G, -1).permute(0, 2, 1)
+
+        energy = torch.bmm(proj_query, proj_key)
+        energy = torch.complex(
+            torch.max(energy.real, -1, keepdim=True)[0].expand_as(energy),
+            torch.max(energy.imag, -1, keepdim=True)[0].expand_as(energy)
+        ) - energy
+        attention = self.align(energy)
+        attention = torch.complex(
+            attention,
+            torch.zeros_like(attention, dtype=torch.float)
+        )
+        proj_value = x.view(m_batchsize, G, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, G, height, width)
+
+        out = self.gamma * out + x
+        out = cmplx(out.real, out.imag)
+        return out
+
+
+class PAMReal_Module(nn.Module):
+    """ Position attention module"""
+    def __init__(self, in_channels, no_g, gp='max'):
+        super().__init__()
+        self.query_conv = IGConv(in_channels * no_g, max(in_channels//8, no_g), kernel_size=1, no_g=no_g, max_gabor=True)
+        self.key_conv = IGConv(in_channels * no_g, max(in_channels//8, no_g), kernel_size=1, no_g=no_g, max_gabor=True)
+        self.value_conv = IGConv(in_channels * no_g, in_channels * no_g, kernel_size=1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.align = nn.Softmax(dim=-1)
+        self.no_g = no_g
+
+    def forward(self, x):
+        """
+        Parameters:
+        ----------
+            inputs :
+                x : input feature maps( B X C X G X H X W)
+            returns :
+                out : attention value + input feature
+        """
+        m_batchsize, C, height, width = x.size()
+        C = C // self.no_g
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
+
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.align(energy)
+        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, C * self.no_g, height, width)
+
+        out = self.gamma * out + x
+        return out
+
+
+class CAMReal_Module(nn.Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim, no_g, gp='avg'):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.align = nn.Softmax(dim=-1)
+        self.no_g = no_g
+
+    def forward(self, x):
+        """
+        Parameters:
+        ----------
+            inputs :
+                x : input feature maps( B X C X G X H X W)
+            returns :
+                out : attention value + input feature
+        """
+        m_batchsize, C, height, width = x.size()
+        C = C // self.no_g
+        proj_query = x.view(m_batchsize, C, -1)
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+
+        energy = torch.bmm(proj_query, proj_key)
+        energy = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        attention = self.align(energy)
+        proj_value = x.view(m_batchsize, C, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C * self.no_g, height, width)
+
+        out = self.gamma * out + x
+        return out
+
+
+class GAMReal_Module(nn.Module):
+    """ Gabor attention module"""
+    def __init__(self, in_channels, no_g, gp='max'):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.align = nn.Softmax(dim=-1)
+        self.no_g = no_g
+
+    def forward(self, x):
+        """
+        Parameters:
+        ----------
+            inputs :
+                x : input feature maps( B X C X G X H X W)
+            returns :
+                out : attention value + input feature
+        """
+        m_batchsize, C, height, width = x.size()
+        C = C // self.no_g
+        proj_query = x.view(m_batchsize, self.no_g, -1)
+        proj_key = x.view(m_batchsize, self.no_g, -1).permute(0, 2, 1)
+
+        energy = torch.bmm(proj_query, proj_key)
+        energy = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        attention = self.align(energy)
+        proj_value = x.view(m_batchsize, self.no_g, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C * self.no_g, height, width)
+
+        out = self.gamma * out + x
+        return out
+
+
+# class CAMCmplx_Module(nn.Module):
 #     """ Channel attention module"""
 #     def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplx, **kwargs):
 #         super().__init__()
@@ -160,58 +459,7 @@ class PAM_Module(nn.Module):
 #         return out
 
 
-class CAM_Module(nn.Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, gp='avg'):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.align = Alignment(dim=-1)
-        if gp is not None:
-            self.gp = GaborPool(gp)
-        else:
-            self.gp = None
-
-    def forward(self, x):
-        """
-        Parameters:
-        ----------
-            inputs :
-                x : input feature maps (2 X B X C X G X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        x = torch.complex(x[0], x[1])
-        m_batchsize, C, G, height, width = x.size()
-        proj_value = x.view(m_batchsize, C, -1)
-        if self.gp is not None:
-            x = self.gp(x)
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-
-        energy = torch.bmm(proj_query, proj_key)
-        # try cutting this op and see results
-        # also consider using max mag i.e.
-        # (torch.max(energy.abs(), -1, keepdim=True)[0].expand_as(energy) - energy.abs()) * 
-        # torch.exp(torch.complex(torch.zeros_like(energy, dtype=torch.float), energy.angle()))
-        energy = torch.complex(
-            torch.max(energy.real, -1, keepdim=True)[0].expand_as(energy),
-            torch.max(energy.imag, -1, keepdim=True)[0].expand_as(energy)
-        ) - energy
-        attention = self.align(energy)
-        attention = torch.complex(
-            attention,
-            torch.zeros_like(attention, dtype=torch.float)
-        )
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, G, height, width)
-
-        out = self.gamma * out + x
-        return cmplx(out.real, out.imag)
-
-
-# class GAM_Module(nn.Module):
+# class GAMCmplx_Module(nn.Module):
 #     """ Gabor orientation attention module"""
 #     def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplx, **kwargs):
 #         super().__init__()
@@ -260,73 +508,62 @@ class CAM_Module(nn.Module):
 #         return out
 
 
-class GAM_Module(nn.Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim, no_g, Alignment=SoftmaxCmplxTorch, **kwargs):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.align = Alignment(dim=-1)
-
-    def forward(self, x):
-        """
-        Parameters:
-        ----------
-            inputs :
-                x : input feature maps (2 X B X C X G X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        x = torch.complex(x[0], x[1])
-        m_batchsize, C, G, height, width = x.size()
-
-        # Gx(CxWxH)
-        proj_query = x.view(m_batchsize, G, -1)
-        # (CxWxH)xG
-        proj_key = x.view(m_batchsize, G, -1).permute(0, 2, 1)
-
-        energy = torch.bmm(proj_query, proj_key)
-        energy = torch.complex(
-            torch.max(energy.real, -1, keepdim=True)[0].expand_as(energy),
-            torch.max(energy.imag, -1, keepdim=True)[0].expand_as(energy)
-        ) - energy
-        attention = self.align(energy)
-        attention = torch.complex(
-            attention,
-            torch.zeros_like(attention, dtype=torch.float)
-        )
-        proj_value = x.view(m_batchsize, G, -1)
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, G, height, width)
-
-        out = self.gamma * out + x
-        return cmplx(out.real, out.imag)
-
-
-class AttentionLayer(nn.Module):
+class AttentionLayerGaborCmplx(nn.Module):
     """
-    Helper Function for PAM and CAM attention
+    Helper function for complex-valued gabor attention modules
 
     Parameters:
     ----------
     input:
         in_ch : input channels
-        use_pam : Boolean value whether to use PAM_Module or CAM_Module
+        use_pam : Boolean value whether to use PAMCmplx_Module or CAMCmplx_Module
     output:
         returns the attention map
     """
-    def __init__(self, in_ch, no_g, AttentionModule=PAM_Module, Alignment=SoftmaxCmplxTorch, gp=None):
+    def __init__(self, in_ch, no_g, AttentionModule=PAMCmplx_Module, Alignment=SoftmaxCmplxTorch, gp='max', project='cat'):
         super().__init__()
 
+        cmplx_to_real = Project(project)
         self.attn = nn.Sequential(
-            IGConvGroupCmplx(in_ch * 2, in_ch, kernel_size=3, padding=1, no_g=no_g),
+            IGConvCmplx(in_ch * 2, in_ch, kernel_size=3, padding=1, no_g=no_g),
             BatchNormCmplx(in_ch * no_g),
             ReLUCmplx(channels=in_ch),
             AttentionModule(in_ch, no_g, Alignment=Alignment, gp=gp),
-            IGConvGroupCmplx(in_ch, in_ch, kernel_size=3, padding=1, no_g=no_g),
-            BatchNormCmplx(in_ch * no_g),
-            ReLUCmplx(channels=in_ch)
+            GaborPool(gp),
+            cmplx_to_real,
+            nn.Conv2d(in_ch * cmplx_to_real.mult, in_ch, kernel_size=3, padding=1),
+            nn.BatchNorm2d(in_ch),
+            nn.PReLU()
+        )
+
+    def forward(self, x):
+        x = new_cmplx(x)
+        return self.attn(x)
+
+
+class AttentionLayerGabor(nn.Module):
+    """
+    Helper Function for real-valued gabor attention modules
+
+    Parameters:
+    ----------
+    input:
+        in_ch : input channels
+        use_pam : Boolean value whether to use PAMCmplx_Module or CAMCmplx_Module
+    output:
+        returns the attention map
+    """
+    def __init__(self, in_ch, no_g, AttentionModule=PAMReal_Module, Alignment=SoftmaxCmplxTorch, gp=None):
+        super().__init__()
+
+        self.attn = nn.Sequential(
+            IGConv(in_ch * 2, in_ch * no_g, kernel_size=3, padding=1, no_g=no_g),
+            nn.PReLU(),
+            AttentionModule(in_ch, no_g, gp=gp),
+            GaborPoolReal(no_g, gp),
+            nn.Conv2d(in_ch, in_ch, kernel_size=3, padding=1),
+            nn.BatchNorm2d(in_ch),
+            nn.PReLU()
         )
 
     def forward(self, x):
@@ -347,7 +584,7 @@ class MultiConv(nn.Module):
         returns the refined convolution tensor
     """
     def __init__(self, in_ch, out_ch, no_g, attn=True):
-        super(MultiConv, self).__init__()
+        super().__init__()
 
         self.fuse_attn = nn.Sequential(
             IGConvGroupCmplx(in_ch, out_ch, kernel_size=3, padding=1, no_g=no_g),
