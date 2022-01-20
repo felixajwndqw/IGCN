@@ -736,14 +736,8 @@ class GaborPool(nn.Module):
 
     def forward(self, x):
         if self.no_g is not None:
-            x = x.view(
-                x.size(0),
-                x.size(1),
-                x.size(2) // self.no_g,
-                self.no_g,
-                x.size(3),
-                x.size(4)
-            )
+            _, b, c, w, h = x.shape
+            x = x.view(2, b, c // self.no_g, self.no_g, w, h)
         x = self.pooling(x, dim=3)
         if type(x) is tuple or self.pool_type == 'max':
             x = x[0]

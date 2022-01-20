@@ -218,3 +218,24 @@ class MaxGabor(nn.Module):
         reshaped = x.view(x.size(0), x.size(1) // self.no_g, self.no_g, x.size(2), x.size(3))
         _, max_idxs = torch.max(reshaped, dim=2)
         return torch.cat((x, max_idxs.float()), dim=1)
+
+
+class GaborPool(nn.Module):
+    """
+    """
+    def __init__(self, no_g, pool_type='max', **kwargs):
+        super().__init__(**kwargs)
+        self.no_g = no_g
+        self.pool_type = pool_type
+        if pool_type == 'max':
+            self.pooling = torch.max
+        elif pool_type == 'avg':
+            self.pooling = torch.mean
+        else:
+            self.pooling = torch.max
+
+    def forward(self, x):
+        b, c, w, h = x.size()
+        reshaped = x.view(b, c // self.no_g, self.no_g, w, h)
+        out, _ = self.pooling(reshaped, dim=2)
+        return out
