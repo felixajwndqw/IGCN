@@ -23,7 +23,7 @@ from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
 from cirrus.data import SynthCirrusDataset
 from cirrus.scale import ScaleMultiple, ScaleParallel
-from cirrus.training_utils import create_attention_model
+from cirrus.training_utils import create_attention_model, load_config
 from experiment_utils import ExperimentParser, calculate_error, RotateAndCrop
 from unet import UNetCmplx, UNet
 import albumentations
@@ -177,22 +177,16 @@ def get_bsd_test_data(args, training_args, data_dir, **kwargs):
 
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
-                 dataset='cirrus', padding=0, class_map=None, name_params=None, **params):
+                 dataset='cirrus', padding=0, class_map=None, name_params=None, model_config=None, **params):
     print(variant)
     if variant == 'Attention':
         model = create_attention_model(
-            len(bands),
+            max(len(bands), n_channels),
             n_classes,
-            {
-                'base_channels': params["base_channels"],
-                'backbone': 'MS',
-                'attention_head': 'Dual',
-                'attention_mod': 'Guided',
-                'scale_key': None,
-                'scales': [0, 1, 2],
-            },
+            model_config,
             pad_to_remove=padding,
         )
+        model.save_dir = save_dir
         if model_path:
             load(model, model_path, False, pretrain=pretrain, att=False, n_classes=n_classes)
         return model
@@ -330,7 +324,9 @@ DATASETS = {
 }
 
 
-def run_segmentation_split(net_args, training_args, metrics_class=None, device='cuda:0', split=None, split_no=0, args=None, test_idxs=None):
+def run_segmentation_split(
+    net_args, training_args, metrics_class=None, device='cuda:0',
+    split=None, split_no=0, args=None, test_idxs=None, model_config=None):
     if net_args.dataset not in DATASETS.keys():
         raise NotImplementedError(f"Dataset {net_args.dataset} not implemented.")
     n_channels = DATASETS[net_args.dataset]['n_channels']
@@ -362,6 +358,7 @@ def run_segmentation_split(net_args, training_args, metrics_class=None, device='
         n_classes=n_classes,
         model_path=args.model_path,
         padding=args.padding,
+        model_config=model_config,
         **vars(net_args),
     ).to(device)
 
@@ -408,6 +405,8 @@ def run_segmentation_split(net_args, training_args, metrics_class=None, device='
 
 def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, **kwargs):
     N = SIZES[os.path.split(args.dir)[-1]]
+    model_config = load_config(args.model_config) if args.model_config else None
+    model_config['scale_key'] = None
 
     metrics = []
     save_paths = []
@@ -469,6 +468,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             split_no=split_no,
             args=args,
             test_idxs=test_idxs,
+            model_config=model_config,
         )
         save_paths.append(m.pop('save_path'))
         metrics.append(m)
@@ -478,10 +478,9 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
     best_master = max([mi[metrics_class.master_metric] for mi in metrics])
     best_split = [mi[metrics_class.master_metric] for mi in metrics].index(best_master) + 1
     best_split_idx = best_split - 1
-    best_psnr = metrics[[mi[metrics_class.master_metric] for mi in metrics].index(best_master)]['PSNR']
     mean_m['epoch'] = metrics[best_split_idx]['epoch']
     eval_m = metrics[best_split_idx]
-    error_m = {'PSNR': 0}
+    error_m = {metrics_class.master_metric: 0}
 
     if training_args.nsplits > 1:
         error_m = {key: calculate_error([mi[key] for mi in metrics])
@@ -499,9 +498,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
         **{
             'params': stats['total_params'],
             'standard': args.model_variant,
-            'psnr': mean_m['PSNR'],
-            'psnr_error': error_m['PSNR'],
-            'best_psnr': best_psnr,
+            'master_error': error_m[metrics_class.master_metric],
             'best_master': best_master,
             'best_split': best_split,
             'dataset': net_args.dataset,
@@ -543,12 +540,24 @@ def main():
     parser.add_argument('--save_path',
                         default='', type=str,
                         help='Path to save model to (in addition to standard saving). (default: %(default)s)')
+    parser.add_argument('--save_dir',
+                        default='', type=str,
+                        help='Directory to save model in (do not use if using save_path) (default: %(default)s)')
+    parser.add_argument('--model_config',
+                        default='./experiments/configs/models/dualmsguided.yaml', type=str,
+                        help='Model configuration. (default: %(default)s)')
 
-    parser.n_parser.set_defaults(dataset='cirrus')
+    parser.n_parser.set_defaults(dataset='synth')
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.save_dir and args.model_config and not args.save_path:
+        os.makedirs(args.save_dir, exist_ok=True)
+        args.save_path = os.path.join(
+            args.save_dir,
+            os.path.split(args.model_config)[-1][:-5] + '.pt'
+        )
     run_seg_exp(net_args, training_args, device=device, args=args)
 
 
