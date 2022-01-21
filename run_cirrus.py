@@ -37,6 +37,7 @@ def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=
             num_classes,
             model_config,
             pad_to_remove=exp_config['padding'],
+            pretrain_path=args.model_path
         )
         model.save_dir = save_dir
     else:
@@ -105,7 +106,7 @@ def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=
         device=device,
         sch=scheduler,
         metrics=metrics_class,
-        val_epochs=5
+        val_epochs=15
     )
 
     time_taken = time.time() - start
@@ -365,7 +366,7 @@ def main():
         )
         save_paths.append(m.pop('save_path'))
 
-        if not exp_config['eval_best']:
+        if not exp_config['eval_best'] and exp_config['eval']:
             m = run_evaluation_split(
                 net_args,
                 args,
@@ -399,7 +400,7 @@ def main():
         error_m = {f'e_{key}': calculate_error([avg(mi[key], num_classes) for mi in metrics])
                 for key in ('IoU',)}
 
-    if exp_config['eval_best']:
+    if exp_config['eval_best'] and exp_config['eval']:
         eval_m = run_evaluation_split(
             net_args,
             args,
