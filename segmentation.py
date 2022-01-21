@@ -189,6 +189,8 @@ def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
         model.save_dir = save_dir
         if model_path:
             load(model, model_path, False, pretrain=pretrain, att=False, n_classes=n_classes)
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model)
         return model
     models = {
         'SFC': UNetIGCNCmplx,
