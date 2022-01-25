@@ -554,11 +554,12 @@ def main():
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if args.save_dir and args.model_config and not args.save_path:
+    if args.save_dir and args.model_config and (not args.save_path or len(os.path.split(args.save_path)) <= 1):
         os.makedirs(args.save_dir, exist_ok=True)
+        save_name = args.save_path if args.save_path else os.path.split(args.model_config)[-1][:-5] + '.pt'
         args.save_path = os.path.join(
             args.save_dir,
-            os.path.split(args.model_config)[-1][:-5] + '.pt'
+            save_name
         )
     run_seg_exp(net_args, training_args, device=device, args=args)
 

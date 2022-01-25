@@ -16,7 +16,7 @@ from cirrus.training_utils import construct_dataset, load_config, get_loss, get_
 
 def write_results(**kwargs):
     sorted_keys = sorted([key for key in kwargs.keys()])
-    result = '\n' + '\t'.join([str(kwargs[key]) for key in sorted_keys])
+    result = '\n' + '-'.join([key + '=' + str(kwargs[key]) for key in sorted_keys])
 
     f = open("cirrus_results.txt", "a+")
     f.write(result)
@@ -25,8 +25,8 @@ def write_results(**kwargs):
 
 def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=None,
                      device='cuda:0', split=None):
-    dataset_train = construct_dataset(dataset='lsb', idxs=split[0], class_map=exp_config['class_map'], transform=exp_config['transforms'], aug_mult=exp_config['aug_mult'], padding=exp_config['padding'])
-    dataset_val = construct_dataset(dataset='lsb', idxs=split[1], class_map=exp_config['class_map'], transform=exp_config['transforms'], padding=exp_config['padding'])
+    dataset_train = construct_dataset(dataset=exp_config['dataset'], idxs=split[0], class_map=exp_config['class_map'], transform=exp_config['transforms'], aug_mult=exp_config['aug_mult'], padding=exp_config['padding'])
+    dataset_val = construct_dataset(dataset=exp_config['dataset'], idxs=split[1], class_map=exp_config['class_map'], transform=exp_config['transforms'], padding=exp_config['padding'])
     train_data = DataLoader(dataset_train, exp_config['batch_size'], True, pin_memory=True)
     val_data = DataLoader(dataset_val, exp_config['batch_size'], True, pin_memory=True)
     num_classes = dataset_train.num_classes
@@ -125,7 +125,7 @@ def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=
 def run_evaluation_split(net_args, args, exp_config, model_config, model_path, test_idxs,
                          device='cuda:0', figs_dir=None):
     dataset_test = construct_dataset(
-        dataset='lsb',
+        dataset=exp_config['dataset'],
         idxs=test_idxs,
         class_map=exp_config['class_map'],
         transform={
@@ -178,7 +178,7 @@ def run_evaluation_split(net_args, args, exp_config, model_config, model_path, t
 def visualise(net_args, args, exp_config, model_config, model_path,
               device='cuda:0'):
     dataset = construct_dataset(
-        'lsb',
+        exp_config['dataset'],
         {
             'crop': [3000, 3000],
             'resize': [1024, 1024],
@@ -259,6 +259,9 @@ def main():
     parser.add_argument('--experiment_config',
                         default='./configs/experiments/cirrus/standard.yaml', type=str,
                         help='Experiment configuration. (default: %(default)s)')
+    parser.add_argument('--default_experiment_config',
+                        default='./configs/experiments/default.yaml', type=str,
+                        help='Experiment configuration. (default: %(default)s)')
     parser.add_argument('--evaluation_config',
                         default='./configs/experiments/cirrus/evaluation.yaml', type=str,
                         help='Experiment configuration. (default: %(default)s)')
@@ -288,15 +291,15 @@ def main():
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    exp_config = load_config(args.experiment_config, './configs/experiments/default.yaml')
-    eval_config = load_config(args.evaluation_config, './configs/experiments/default.yaml')
+    exp_config = load_config(args.experiment_config, args.default_experiment_config)
+    eval_config = load_config(args.evaluation_config, args.default_experiment_config)
     model_config = load_config(args.model_config)
 
     if args.checkpoint_dir:
         args.save_dir = args.checkpoint_dir
         ver_dir = os.path.split(args.save_dir)[-1]
     else:
-        args.save_dir = os.path.join(args.save_dir, f'{model_config["name"]}_{exp_config["name"]}')
+        args.save_dir = os.path.join(args.save_dir, exp_config['dataset'], f'{model_config["name"]}_{exp_config["name"]}')
         ver_no = len(glob.glob(args.save_dir + '/*/'))
         if args.auto_checkpoint:
             ver_no = max(0, ver_no - 1)
