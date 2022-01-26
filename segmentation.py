@@ -52,7 +52,6 @@ def write_results(**kwargs):
 
 def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False,
                           pos_weight=None, seg_criterion=nn.BCEWithLogitsLoss()):
-    print(pos_weight)
     if 'DAF' in variant or variant == 'Attention':
         MetricsClass = DAFMetric(n_classes=n_classes)
         if lsb:
@@ -178,7 +177,6 @@ def get_bsd_test_data(args, training_args, data_dir, **kwargs):
 def create_model(save_dir, variant="SFC", n_channels=1, n_classes=2,
                  bands=['g'], downscale=1, model_path='', pretrain=True,
                  dataset='cirrus', padding=0, class_map=None, name_params=None, model_config=None, **params):
-    print(variant)
     if variant == 'Attention':
         model = create_attention_model(
             max(len(bands), n_channels),
@@ -351,10 +349,9 @@ def run_segmentation_split(
     )
     _, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
 
-    save_dir = 'D:/seg_models/seg/' + net_args.dataset# + f'/paramtest/{net_args.l_init}-{net_args.sigma_init}-{str(net_args.single_param)}'
-    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(args.save_dir, exist_ok=True)
     model = create_model(
-        save_dir,
+        args.save_dir,
         variant=args.model_variant,
         n_channels=n_channels,
         n_classes=n_classes,
@@ -383,7 +380,7 @@ def run_segmentation_split(
         sch=scheduler,
         metrics=metrics_class,
         criterion=criterion,
-        val_epochs=5
+        val_epochs=1
     )
 
     print('Evaluating')
@@ -392,9 +389,6 @@ def run_segmentation_split(
         for key in ('PSNR', 'IoU'):
             if key in temp_metrics:
                 m[key] = temp_metrics[key]
-        # m['PSNR'] = temp_metrics['PSNR']
-        # if not args.denoise:
-        #     m['IoU'] = temp_metrics['IoU']
     del(model)
     torch.cuda.empty_cache()
     stats = {
