@@ -106,7 +106,7 @@ def run_cirrus_split(net_args, args, exp_config, model_config, save_dir, writer=
         device=device,
         sch=scheduler,
         metrics=metrics_class,
-        val_epochs=15
+        val_epochs=exp_config['val_epochs']
     )
 
     time_taken = time.time() - start
