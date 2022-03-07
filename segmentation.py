@@ -33,6 +33,7 @@ from isbi import get_isbi_train_data, get_isbi_test_data
 SIZES = {
     'stars_bad_columns_ccd': 300,
     'stars_bad_columns_ccd_saturation': 1200,
+    'stars_bad_columns_ccd_saturation_1024': 300,
     'static': 300,
     'rot': 300,
     'rot_stars': 300,
@@ -91,14 +92,13 @@ def get_metrics_criterion(variant, denoise=False, n_classes=1, lsb=False,
 
 
 def get_synth_cirrus_train_data(args, training_args, data_dir, split):
-    size = 256
+    size = args.size
     train_loader = DataLoader(
         SynthCirrusDataset(
             os.path.join(data_dir, 'train'),
             indices=split[0],
             denoise=args.denoise,
             transform=albumentations.Compose([
-                albumentations.RandomCrop(256, 256),
                 albumentations.Resize(size, size),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
@@ -113,7 +113,6 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
             indices=split[1],
             denoise=args.denoise,
             transform=albumentations.Compose([
-                albumentations.RandomCrop(256, 256),
                 albumentations.Resize(size, size),
                 albumentations.Flip(),
                 albumentations.RandomRotate90(),
@@ -126,15 +125,13 @@ def get_synth_cirrus_train_data(args, training_args, data_dir, split):
 
 
 def get_synth_cirrus_test_data(args, training_args, data_dir, **kwargs):
-    size = 256
+    size = args.size
     test_loader = DataLoader(
         SynthCirrusDataset(
             os.path.join(data_dir, 'test'),
             denoise=args.denoise,
             transform=albumentations.Compose([
-                albumentations.RandomCrop(256, 256),
                 albumentations.Resize(size, size),
-                albumentations.Flip(),
                 albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
             ]),
             padding=args.padding,
@@ -453,7 +450,7 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
 
     for split_no, split in zip(range(training_args.nsplits), splits):
         metrics_class, _ = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
-        metrics_class.Writer = writer         # Delete this line if metric logging not desired
+        # metrics_class.Writer = writer         # Delete this line if metric logging not desired
         print('Beginning split #{}/{}'.format(split_no + 1, training_args.nsplits))
         m, stats = run_segmentation_split(
             net_args,
@@ -530,6 +527,9 @@ def main():
     parser.add_argument('--padding',
                         default=32, type=int,
                         help='Number of images used for validation dataset (only ISBI).')
+    parser.add_argument('--size',
+                        default=256, type=int,
+                        help='Size to downscale images to.')
     parser.add_argument('--model_path',
                         default='', type=str,
                         help='Path to model, enabling pretraining/evaluation. (default: %(default)s)')
@@ -544,6 +544,7 @@ def main():
                         help='Model configuration. (default: %(default)s)')
 
     parser.n_parser.set_defaults(dataset='synth')
+    parser.t_parser.set_defaults(batch_size=32)
     net_args, training_args = parser.parse_group_args()
     args = parser.parse_args()
 
