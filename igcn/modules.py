@@ -30,12 +30,10 @@ class IGabor(nn.Module):
 
         self.no_g = no_g
         self.layer = layer
-        self.calc_filters = True  # Flag whether filter bank needs recalculating
-        self.register_full_backward_hook(self.set_filter_calc)
 
     def forward(self, x):
         # print(f'x.size()={x.unsqueeze(1).size()}, gabor={gabor(x, self.gabor_params).unsqueeze(1).size()}')
-        if self.calc_filters:
+        if self.training:
             self.generate_gabor_filters(x)
 
         # print(f'self.gabor_filters.size()={self.gabor_filters.size()}')
@@ -56,12 +54,6 @@ class IGabor(nn.Module):
         """Generates the gabor filter bank
         """
         self.gabor_filters = gabor(x, self.gabor_params).unsqueeze(1)
-        self.calc_filters = False
-
-    def set_filter_calc(self, *args):
-        """Called in backward hook so that filter bank will be regenerated.
-        """
-        self.calc_filters = True
 
 
 class IGConv(Conv2d):
