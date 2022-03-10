@@ -21,6 +21,7 @@ from quicktorch.metrics import (
 )
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
+from quicktorch.datasets import Swimseg
 from cirrus.data import SynthCirrusDataset
 from cirrus.scale import ScaleMultiple, ScaleParallel
 from cirrus.training_utils import create_attention_model, load_config
@@ -40,6 +41,7 @@ SIZES = {
     'isbi': 30,
     'bsd': 300,
     'prague': 90,
+    'swimseg': 861,
 }
 
 
@@ -143,7 +145,7 @@ def get_synth_cirrus_test_data(args, training_args, data_dir, **kwargs):
 def get_swimseg_train_data(args, training_args, data_dir, split):
     size = args.size
     train_loader = DataLoader(
-        SynthCirrusDataset(
+        Swimseg(
             data_dir,
             fold='train',
             transform=albumentations.Compose([
@@ -156,9 +158,9 @@ def get_swimseg_train_data(args, training_args, data_dir, split):
         ),
         batch_size=training_args.batch_size, shuffle=True)
     val_loader = DataLoader(
-        SynthCirrusDataset(
+        Swimseg(
             data_dir,
-            fold='train',
+            fold='val',
             transform=albumentations.Compose([
                 albumentations.Resize(size, size),
                 albumentations.Flip(),
@@ -174,9 +176,9 @@ def get_swimseg_train_data(args, training_args, data_dir, split):
 def get_swimseg_test_data(args, training_args, data_dir, **kwargs):
     size = args.size
     test_loader = DataLoader(
-        SynthCirrusDataset(
+        Swimseg(
             data_dir,
-            fold='train',
+            fold='test',
             transform=albumentations.Compose([
                 albumentations.Resize(size, size),
                 albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
@@ -479,14 +481,13 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             f'-relu={net_args.relu_type}'
         )
     exp_worksheet_name = net_args.dataset
-    if net_args.dataset == 'synth':
+    if net_args.dataset in ('synth', 'prague', 'swimseg'):
         exp_worksheet_name = exp_worksheet_name.capitalize()
-        if args.denoise:
-            exp_worksheet_name += 'Den'
-        else:
-            exp_worksheet_name += 'Seg'
-    elif net_args.dataset == 'prague':
-        exp_worksheet_name = exp_worksheet_name.capitalize()
+        if net_args.dataset == 'synth':
+            if args.denoise:
+                exp_worksheet_name += 'Den'
+            else:
+                exp_worksheet_name += 'Seg'
     else:
         exp_worksheet_name = exp_worksheet_name.upper()
     writer = LabScribeWriter(
