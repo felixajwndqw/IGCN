@@ -346,9 +346,10 @@ def run_segmentation_split(
     )
     _, criterion = get_metrics_criterion(args.model_variant, args.denoise, n_classes=n_classes)
 
-    os.makedirs(args.save_dir, exist_ok=True)
+    save_dir = os.path.join(args.save_dir, f'split_{split_no}')
+    os.makedirs(save_dir, exist_ok=True)
     model = create_model(
-        args.save_dir,
+        save_dir,
         variant=args.model_variant,
         n_channels=n_channels,
         n_classes=n_classes,
