@@ -140,6 +140,53 @@ def get_synth_cirrus_test_data(args, training_args, data_dir, **kwargs):
     return test_loader
 
 
+def get_swimseg_train_data(args, training_args, data_dir, split):
+    size = args.size
+    train_loader = DataLoader(
+        SynthCirrusDataset(
+            data_dir,
+            fold='train',
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.Flip(),
+                albumentations.RandomRotate90(),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    val_loader = DataLoader(
+        SynthCirrusDataset(
+            data_dir,
+            fold='train',
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.Flip(),
+                albumentations.RandomRotate90(),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    return train_loader, val_loader
+
+
+def get_swimseg_test_data(args, training_args, data_dir, **kwargs):
+    size = args.size
+    test_loader = DataLoader(
+        SynthCirrusDataset(
+            data_dir,
+            fold='train',
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    return test_loader
+
+
 def get_bsd_train_data(args, training_args, data_dir, split):
     size = 272
     train_loader, val_loader = bsd(
@@ -317,6 +364,12 @@ DATASETS = {
         'n_classes': 10,
         'get_train': get_prague_train_data,
         'get_test': get_prague_test_data,
+    },
+    'swimseg': {
+        'n_channels': 3,
+        'n_classes': 1,
+        'get_train': get_swimseg_train_data,
+        'get_test': get_swimseg_test_data,
     }
 }
 
@@ -330,7 +383,6 @@ def run_segmentation_split(
     n_classes = DATASETS[net_args.dataset]['n_classes']
     get_train = DATASETS[net_args.dataset]['get_train']
     get_test = DATASETS[net_args.dataset]['get_test']
-
 
     train_loader, val_loader = get_train(
         args,
