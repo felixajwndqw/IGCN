@@ -29,7 +29,7 @@ class ExperimentParser(argparse.ArgumentParser):
         self.n_parser.add_argument(
             '--dataset',
             default='mnistrot', type=str,
-            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus', 'synth', 'prague', 'lsb'],
+            choices=['mnist', 'mnistrotated', 'mnistrot', 'mnistrp', 'cifar', 'isbi', 'bsd', 'cirrus', 'cirrus_only', 'synth', 'prague', 'lsb', 'swimseg'],
             help='Type of dataset. Choices: %(choices)s (default: %(default)s)')
         self.n_parser.add_argument(
             '--model_type',

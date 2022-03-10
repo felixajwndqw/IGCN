@@ -21,6 +21,7 @@ from quicktorch.metrics import (
 )
 from quicktorch.writers import LabScribeWriter
 from quicktorch.data import bsd
+from quicktorch.datasets import Swimseg
 from cirrus.data import SynthCirrusDataset
 from cirrus.scale import ScaleMultiple, ScaleParallel
 from cirrus.training_utils import create_attention_model, load_config
@@ -40,6 +41,7 @@ SIZES = {
     'isbi': 30,
     'bsd': 300,
     'prague': 90,
+    'swimseg': 861,
 }
 
 
@@ -130,6 +132,53 @@ def get_synth_cirrus_test_data(args, training_args, data_dir, **kwargs):
         SynthCirrusDataset(
             os.path.join(data_dir, 'test'),
             denoise=args.denoise,
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    return test_loader
+
+
+def get_swimseg_train_data(args, training_args, data_dir, split):
+    size = args.size
+    train_loader = DataLoader(
+        Swimseg(
+            data_dir,
+            fold='train',
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.Flip(),
+                albumentations.RandomRotate90(),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    val_loader = DataLoader(
+        Swimseg(
+            data_dir,
+            fold='val',
+            transform=albumentations.Compose([
+                albumentations.Resize(size, size),
+                albumentations.Flip(),
+                albumentations.RandomRotate90(),
+                albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
+            ]),
+            padding=args.padding,
+        ),
+        batch_size=training_args.batch_size, shuffle=True)
+    return train_loader, val_loader
+
+
+def get_swimseg_test_data(args, training_args, data_dir, **kwargs):
+    size = args.size
+    test_loader = DataLoader(
+        Swimseg(
+            data_dir,
+            fold='test',
             transform=albumentations.Compose([
                 albumentations.Resize(size, size),
                 albumentations.PadIfNeeded(size + args.padding, size + args.padding, border_mode=4)
@@ -317,6 +366,12 @@ DATASETS = {
         'n_classes': 10,
         'get_train': get_prague_train_data,
         'get_test': get_prague_test_data,
+    },
+    'swimseg': {
+        'n_channels': 3,
+        'n_classes': 1,
+        'get_train': get_swimseg_train_data,
+        'get_test': get_swimseg_test_data,
     }
 }
 
@@ -330,7 +385,6 @@ def run_segmentation_split(
     n_classes = DATASETS[net_args.dataset]['n_classes']
     get_train = DATASETS[net_args.dataset]['get_train']
     get_test = DATASETS[net_args.dataset]['get_test']
-
 
     train_loader, val_loader = get_train(
         args,
@@ -428,14 +482,13 @@ def run_seg_exp(net_args, training_args, device='0', exp_name=None, args=None, *
             f'-relu={net_args.relu_type}'
         )
     exp_worksheet_name = net_args.dataset
-    if net_args.dataset == 'synth':
+    if net_args.dataset in ('synth', 'prague', 'swimseg'):
         exp_worksheet_name = exp_worksheet_name.capitalize()
-        if args.denoise:
-            exp_worksheet_name += 'Den'
-        else:
-            exp_worksheet_name += 'Seg'
-    elif net_args.dataset == 'prague':
-        exp_worksheet_name = exp_worksheet_name.capitalize()
+        if net_args.dataset == 'synth':
+            if args.denoise:
+                exp_worksheet_name += 'Den'
+            else:
+                exp_worksheet_name += 'Seg'
     else:
         exp_worksheet_name = exp_worksheet_name.upper()
     writer = LabScribeWriter(
