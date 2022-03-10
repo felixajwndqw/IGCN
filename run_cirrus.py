@@ -128,13 +128,10 @@ def run_evaluation_split(net_args, args, exp_config, model_config, model_path, t
         dataset=exp_config['dataset'],
         idxs=test_idxs,
         class_map=exp_config['class_map'],
-        transform={
-            'crop': [3000, 3000],
-            'resize': [1024, 1024],
-            'pad': [1024 + exp_config['padding'], 1024 + exp_config['padding']]
-        },
+        transform=exp_config['transforms'],
         padding=exp_config['padding']
     )
+    print(exp_config, model_config)
     test_data = DataLoader(dataset_test, 1)
     num_classes = dataset_test.num_classes
 
@@ -218,18 +215,33 @@ def visualise(net_args, args, exp_config, model_config, model_path,
 
 
 def generate_splits(N, nsplits=1, val_ratio=0.2, test_ratio=0.15, force_test_idxs=[]):
-    test_N = int(N * test_ratio)
-    test_idxs = list(range(N - test_N, N))
-
-    splits = get_splits(N - test_N, max(int(1 / val_ratio), nsplits))  # Divide into 6 or more blocks
-
-    if force_test_idxs:
+    def swap_test_samples(force_test_idxs, splits, test_idxs):
         to_be_swapped = test_idxs[:len(force_test_idxs)]
         for i, (idx, sw_idx) in enumerate(zip(force_test_idxs, to_be_swapped)):
             test_idxs[i] = idx
             for split in splits:
                 for part in split:
                     part[part == idx] = sw_idx
+        return splits, test_idxs
+
+    if test_ratio == 0.:  # Fix validation set and use for testing also.
+        val_N = int(N * val_ratio)
+        val_idxs = list(range(N - val_N, N))
+        splits = [[list(range(N - val_N))]]
+        if force_test_idxs:
+            splits, val_idxs = swap_test_samples(force_test_idxs, splits, val_idxs)
+        splits = splits[0]
+        splits.append(val_idxs)
+        splits = [splits] * nsplits
+        test_idxs = val_idxs
+        return splits, test_idxs
+
+    test_N = int(N * test_ratio)
+    test_idxs = list(range(N - test_N, N))
+    splits = get_splits(N - test_N, max(int(1 / val_ratio), nsplits))  # Divide into 6 or more blocks
+
+    if force_test_idxs:
+        splits, test_idxs = swap_test_samples(force_test_idxs, splits, test_idxs)
 
     return splits, test_idxs
 
@@ -312,7 +324,13 @@ def main():
     dataset = construct_dataset(dataset=exp_config['dataset'], class_map=exp_config['class_map'], padding=exp_config['padding'])
     N = len(dataset)
     force_test_idxs = get_test_idxs(dataset, exp_config)
-    splits, test_idxs = generate_splits(N, exp_config['nsplits'], force_test_idxs=force_test_idxs)
+    splits, test_idxs = generate_splits(
+        N,
+        nsplits=exp_config['nsplits'],
+        val_ratio=exp_config['val_ratio'],
+        test_ratio=exp_config['test_ratio'],
+        force_test_idxs=force_test_idxs
+    )
     num_classes = dataset.num_classes
     del dataset
 

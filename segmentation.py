@@ -603,7 +603,12 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.save_dir and args.model_config and (not args.save_path or len(os.path.split(args.save_path)) <= 1):
         os.makedirs(args.save_dir, exist_ok=True)
-        save_name = args.save_path if args.save_path else os.path.split(args.model_config)[-1][:-5] + '.pt'
+        model_config_name = os.path.split(args.model_config)[-1][:-5]
+        args.save_dir = os.path.join(
+            args.save_dir,
+            model_config_name
+        )
+        save_name = args.save_path if args.save_path else model_config_name + '.pt'
         args.save_path = os.path.join(
             args.save_dir,
             save_name
